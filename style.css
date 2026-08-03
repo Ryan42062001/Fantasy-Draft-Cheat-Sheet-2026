@@ -280,3 +280,127 @@ html{background:#122619 !important;color-scheme:dark;}
 
   /* Scarcity note stronger visual */
   .scarcity-note{background:rgba(224,168,63,0.16);border:1px solid rgba(193,85,75,0.22);border-radius:8px;padding:10px 12px;font-size:0.74rem;color:#f0cf7a;margin-bottom:8px;}
+
+  /* ===== ENHANCED UI/UX ===== */
+  /* Save indicator pulse animation */
+  @keyframes pulse-save {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+  }
+  #save-indicator.saving { animation: pulse-save 0.6s ease 2; }
+
+  /* Better button hover and active states */
+  .filterbtn:hover:not(.active) {
+    background: rgba(255,255,255,0.12);
+    transition: all 0.2s ease;
+  }
+  .filterbtn.active {
+    box-shadow: 0 0 8px rgba(74, 144, 217, 0.4);
+    transition: all 0.2s ease;
+  }
+  .myteam-toggle:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(224, 168, 63, 0.3);
+    transition: all 0.2s ease;
+  }
+  .resetbtn:hover {
+    background: rgba(193,85,75,0.35);
+    transition: all 0.2s ease;
+  }
+  .resetbtn.armed {
+    animation: pulse-armed 0.8s ease infinite;
+  }
+  @keyframes pulse-armed {
+    0%, 100% { box-shadow: 0 0 6px rgba(193,85,75,0.5); }
+    50% { box-shadow: 0 0 12px rgba(193,85,75,0.8); }
+  }
+
+  /* Improved widget styling */
+  .widget-box {
+    backdrop-filter: blur(4px);
+    transition: all 0.3s ease;
+  }
+  .widget-box:hover {
+    border-color: var(--hash);
+    background: rgba(23, 48, 40, 0.6);
+  }
+
+  /* Dashboard position scarcity colors */
+  #dashboard-widget {
+    border-color: #5fa87c;
+    background: rgba(95, 168, 124, 0.08);
+  }
+
+  /* Improved table hover state */
+  tr.draftrow:hover td {
+    background: rgba(255,255,255,0.08);
+    transition: all 0.15s ease;
+  }
+
+  /* Better drafted state indicators */
+  tr.drafted-mine {
+    background: rgba(95, 168, 122, 0.2) !important;
+    transition: all 0.2s ease;
+  }
+  tr.drafted-mine:hover td {
+    background: rgba(95, 168, 122, 0.3) !important;
+  }
+  tr.drafted-other {
+    opacity: 0.35;
+    transition: opacity 0.2s ease;
+  }
+
+  /* Responsive improvements */
+  @media(max-width: 768px) {
+    .toolbar {
+      gap: 4px;
+      padding: 6px 8px;
+    }
+    .toolbar input[type=text] {
+      flex: 1 1 100px;
+      min-width: 80px;
+    }
+    .filterbtn {
+      padding: 4px 8px;
+      font-size: 0.65rem;
+    }
+    .statusbar {
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 4px 8px;
+    }
+    .resetbtn {
+      padding: 2px 8px;
+      font-size: 0.6rem;
+    }
+    table.rt { font-size: 0.65rem; }
+    table.rt td { padding: 4px 2px; }
+    .notecell { min-width: 150px; }
+  }
+
+  /* Mobile: Stack panels better */
+  @media(max-width: 600px) {
+    #myteam-panel,
+    #summary-panel,
+    #export-panel {
+      max-height: 90vh;
+    }
+    .ba-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .legend {
+      font-size: 0.65rem;
+      line-height: 1.6;
+    }
+  }
+
+  /* Accessible focus states */
+  button:focus,
+  input:focus {
+    outline: 2px solid var(--gem);
+    outline-offset: 2px;
+  }
+  .filterbtn:focus {
+    outline-color: var(--a-tier);
+  }
