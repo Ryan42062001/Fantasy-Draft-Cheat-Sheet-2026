@@ -48,6 +48,7 @@ function toggleDraft(row){
   updateScarcityAlerts();
   updateRecommendedPick();
   addRoundMarkers();
+  scheduleSave();
 }
 
 var resetArmed = false;
@@ -79,6 +80,7 @@ function resetBoard(){
   addRoundMarkers();
   btn.innerText = 'Reset all';
   btn.classList.remove('armed');
+  scheduleSave();
 }
 
 // ---- CHECKLIST ITEM 1: auto-save progress ----
@@ -93,9 +95,56 @@ function resetBoard(){
 // placeholder. Do not re-add window.storage calls without first confirming
 // (via a fresh, isolated test) that the underlying platform issue is fixed.
 
+// Autosave utilities (localStorage with graceful fallback)
+var AUTOSAVE_KEY = 'draft-state-v1';
+var AUTOSAVE_ENABLED_KEY = 'draft-autosave-enabled-v1';
+var _saveTimer = null;
+
+function saveState(){
+  try{
+    var state = {};
+    document.querySelectorAll('tr.draftrow').forEach(function(row){
+      var name = row.getAttribute('data-name');
+      if(row.classList.contains('drafted-mine')) state[name] = 'mine';
+      else if(row.classList.contains('drafted-other')) state[name] = 'taken';
+    });
+    var order = [];
+    document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
+      var tid = tbody.id.replace('tbody-','');
+      tbody.querySelectorAll('tr.draftrow').forEach(function(row){ order.push({n: row.getAttribute('data-name'), t: tid}); });
+    });
+    var payload = { savedAt: new Date().toISOString(), teams: LEAGUE_SIZE, slot: MY_DRAFT_SLOT, rounds: TOTAL_ROUNDS, state: state, order: order };
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(payload));
+    flashSaveIndicator('Saved', '#8fd4a0');
+    var diagEl = document.getElementById('storage-diag'); if(diagEl) diagEl.innerHTML = 'Autosave: On (last saved '+ new Date().toLocaleTimeString()+')';
+    return true;
+  } catch(e){
+    console.error('Autosave failed', e);
+    flashSaveIndicator('Autosave failed', '#e08a8a');
+    var diagEl = document.getElementById('storage-diag'); if(diagEl) diagEl.innerHTML = '<b>Autosave failed — use Export to back up your picks.</b>';
+    return false;
+  }
+}
+
+function scheduleSave(){
+  if(!isAutosaveEnabled()) return;
+  if(_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(function(){ saveState(); _saveTimer = null; }, 400);
+}
+
+function isAutosaveEnabled(){
+  try{ return localStorage.getItem(AUTOSAVE_ENABLED_KEY) === '1'; }catch(e){ return false; }
+}
+
+function setAutosaveEnabled(enabled){
+  try{ localStorage.setItem(AUTOSAVE_ENABLED_KEY, enabled ? '1' : '0'); }catch(e){}
+  var btn = document.getElementById('autosaveToggle'); if(btn){ btn.classList.toggle('active', enabled); btn.innerText = enabled ? 'Autosave On' : 'Autosave Off'; }
+  var diagEl = document.getElementById('storage-diag'); if(diagEl){ diagEl.innerHTML = enabled ? 'Autosave: On' : 'Autosave: Off'; }
+}
+
+function toggleAutosave(){ setAutosaveEnabled(!isAutosaveEnabled()); }
+
 function loadState(){
-  // No automatic restore — see note above. Board starts fresh each load;
-  // user restores via the Import panel if they have an exported backup.
   updateMyTeam();
   updateRemaining();
   updateBestAvailable();
@@ -107,14 +156,40 @@ function loadState(){
   window.ORIGINAL_ORDER = [];
   document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
     var tid = tbody.id.replace('tbody-','');
-    tbody.querySelectorAll('tr.draftrow').forEach(function(row){
-      window.ORIGINAL_ORDER.push({n: row.getAttribute('data-name'), t: tid});
-    });
+    tbody.querySelectorAll('tr.draftrow').forEach(function(row){ window.ORIGINAL_ORDER.push({n: row.getAttribute('data-name'), t: tid}); });
   });
   addEditControls();
+
+  var enabled = isAutosaveEnabled();
+  setAutosaveEnabled(enabled);
   var diagEl = document.getElementById('storage-diag');
-  if(diagEl){
-    diagEl.innerHTML = 'Auto-save isn&#39;t available in this environment (confirmed broken on both mobile and desktop). <b>Export before closing this tab, and Import to restore your progress.</b>';
+  try{
+    if(enabled){
+      var raw = localStorage.getItem(AUTOSAVE_KEY);
+      if(raw){
+        var payload = JSON.parse(raw);
+        if(payload.teams) document.getElementById('pcTeams').value = payload.teams;
+        if(payload.slot) document.getElementById('pcSlot').value = payload.slot;
+        if(payload.rounds) document.getElementById('pcRounds').value = payload.rounds;
+        updatePickSettings();
+        if(payload.order){ applyCustomOrder(payload.order); }
+        document.querySelectorAll('tr.draftrow').forEach(function(row){
+          var name = row.getAttribute('data-name');
+          row.classList.remove('drafted-mine','drafted-other');
+          if(payload.state && payload.state[name] === 'mine') row.classList.add('drafted-mine');
+          else if(payload.state && payload.state[name] === 'taken') row.classList.add('drafted-other');
+        });
+        updateMyTeam(); updateRemaining(); updateBestAvailable(); updatePickCounter(); updateScarcityAlerts(); updateRecommendedPick(); addRoundMarkers();
+        if(diagEl) diagEl.innerHTML = 'Autosave: restored backup from '+(payload.savedAt||'previous session');
+      } else {
+        if(diagEl) diagEl.innerHTML = 'Autosave: No prior backup found.';
+      }
+    } else {
+      if(diagEl) diagEl.innerHTML = 'Autosave is disabled. Use Export to back up your picks.';
+    }
+  } catch(e){
+    console.error('Restore from autosave failed', e);
+    if(diagEl) diagEl.innerHTML = '<b>Autosave restore failed — use Export to back up your picks.</b>';
   }
 }
 window.addEventListener('DOMContentLoaded', loadState);
@@ -205,6 +280,7 @@ function applyCustomOrder(orderArray){
   updateRecommendedPick();
   updateScarcityAlerts();
   addRoundMarkers();
+  scheduleSave();
 }
 
 function doImport(){
@@ -234,6 +310,7 @@ function doImport(){
     addRoundMarkers();
     statusEl.innerHTML = '&#9989; Imported successfully — board updated.';
     statusEl.style.color = '#8fd4a0';
+    scheduleSave();
   } catch(e){
     statusEl.innerHTML = '&#10060; Could not read that code — make sure you pasted the full export text.';
     statusEl.style.color = '#e08a8a';
@@ -442,6 +519,7 @@ function refreshAfterRankEdit(){
   updateBestAvailable();
   updateRecommendedPick();
   updateScarcityAlerts();
+  scheduleSave();
 }
 
 function moveRowUp(row){
