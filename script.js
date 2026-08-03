@@ -194,7 +194,16 @@ function setAutosaveEnabled(enabled){
   var diagEl = document.getElementById('storage-diag'); if(diagEl){ diagEl.innerHTML = enabled ? 'Autosave: On' : 'Autosave: Off'; }
 }
 
-function toggleAutosave(){ setAutosaveEnabled(!isAutosaveEnabled()); }
+function toggleAutosave(){
+  setAutosaveEnabled(!isAutosaveEnabled());
+  var btn = document.getElementById('autosaveToggle');
+  if(btn){
+    var enabled = isAutosaveEnabled();
+    btn.innerText = enabled ? 'Autosave On' : 'Autosave Off';
+    btn.style.background = enabled ? 'rgba(95,168,124,0.25)' : 'rgba(193,85,75,0.25)';
+    btn.style.borderColor = enabled ? '#5fa87c' : '#c1554b';
+  }
+}
 
 function loadState(){
   updateMyTeam();
