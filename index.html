@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<!--
+  BUILD CHECKLIST (2026-08-01 session) — update as each item completes:
+  [x] 1. Auto-save progress (window.storage, personal, key 'draft-state-v1') — DONE, saveState()/loadState()
+  [x] 2. Best-available-now widget (top 3 per pos, live-updating) — DONE, updateBestAvailable()
+  [x] 3. Pick counter / next-pick tracker (10-team snake, pick slot 10) — DONE, updatePickCounter(); assumes 16 rounds, edit getMyPickNumbers(16) call if your league differs
+  [x] 4. Scarcity alerts (per-tier per-position depletion warnings) — DONE, updateScarcityAlerts()
+  If resuming: check which boxes are [x], search this file for the
+  matching function name to see what's already wired up, pick up from there.
+
+  Post-build fixes applied:
+  - Fixed window.storage.set/get calls: dropped explicit `false` shared-param
+    (was causing "Unexpected response type" error on save) — now matches
+    documented default usage.
+  - Fixed a double-escaped apostrophe that broke JS parsing entirely.
+  - Pick counter is now driven by visible Teams/Your Pick/Rounds number
+    inputs in the widget (was previously hardcoded, invisible as a "setting").
+
+  ⚠ KNOWN BROKEN (as of 2026-08-01, user confirmed on mobile):
+  Autosave is STILL failing after the shared-param fix above:
+    - On load: "Storage get failed: Unexpected response type"
+    - On every tap: "Storage set failed: Unexpected response type"
+  This means the bug is NOT the shared-param syntax (already tried, didn't
+  fix it) — it's more likely window.storage isn't actually functional in
+  this rendering context (possibly a mobile-app-specific limitation, or a
+  platform-side issue unrelated to how this file calls the API).
+  NEXT STEPS TO TRY, in order:
+    1. Ask user to test on desktop claude.ai — if it works there, it's
+       confirmed mobile-only and probably not fixable from this file's code.
+    2. If it fails everywhere, window.storage may not be enabled for this
+       artifact/session at all — check for a simpler test (e.g. a button
+       that just does window.storage.set('test','1') and alerts success/
+       failure) to isolate whether ANY call succeeds, not just ours.
+    3. Fallback if storage truly can't work: replace the autosave feature
+       with a manual "Export my picks" button that dumps the current
+       drafted-mine/drafted-other state as a JSON blob in a textarea the
+       user can copy, plus an "Import" button to paste it back in on
+       reload. No storage API needed, fully within user's control.
+  Current mitigation already in place: failures are caught silently after
+  the first one (see autosaveBroken flag in saveState()) so it doesn't spam
+  errors — but the user said they still see the error every tap, so double-
+  check that flag logic actually suppresses repeats correctly before
+  assuming it's working.
+
+  ✅ RESOLVED (2026-08-02 session): Implemented step 3 (Export/Import fallback)
+  rather than continuing to chase the storage bug, since it directly solves
+  the user's actual need (not losing progress) regardless of root cause.
+  What was added:
+  - testStorageCapability(): an isolated self-test (separate from the real
+    draft-state save/load) that writes+reads a throwaway key on page load
+    and reports a clear ✅/❌ status in the Export/Import panel — so the
+    user gets a trustworthy signal instead of guessing from error spam.
+  - Export/Import panel (toggle via toolbar button next to Reset): generates
+    a JSON blob of current picks + league settings, copy-to-clipboard button,
+    and an Import box that restores state + settings from pasted text.
+  - Autosave (window.storage) is left in place and still attempted silently
+    in the background — if it happens to work on a given device, great,
+    it's a bonus. Export/Import is now the reliable path regardless.
+  STILL UNKNOWN: root cause of "Unexpected response type" was never isolated
+  (never got to test on desktop per step 1). If a future session has time
+  to spare, that's still open — but functionally the user's problem (data
+  loss) is solved either way via Export/Import.
+
+  2026-08-02 (later same day): user asked to test window.storage on
+  desktop/laptop before removing it — REVERTED the removal, window.storage
+  calls are back in (saveState/loadState/testStorageCapability all intact).
+  Do not remove again until user confirms desktop test result either way.
+
+  Also added 3 new features this session (user picked from a 6-option menu):
+  [x] Recommended Pick widget — updateRecommendedPick(), combines My Team
+      needs + Best Available into one suggestion, called in all 4 places
+      that already call updateBestAvailable()/updateScarcityAlerts().
+  [x] Need-highlighting on board rows — logic lives inside updateMyTeam()
+      (reuses its existing `counts` var), adds/removes .need-highlight
+      class based on unfilled roster slots (incl. FLEX check).
+  [x] Round markers — addRoundMarkers(), injects a small "RdN" div into
+      each row's rank cell based on LEAGUE_SIZE; re-runs on settings change
+      via updatePickSettings() so it stays correct if teams count changes.
+
+  ---- 2026-08-02 (session 3) — new checklist ----
+  [x] A. Team color accents (small colored dot next to team abbrev, via
+      JS applyTeamColors() using a TEAM_COLORS hex map — runtime injection,
+      not baked into static HTML, since the file has drifted from the
+      original python generator and hand-editing 195 rows isn't safe)
+      — DONE, applyTeamColors() called once in loadState()
+  [x] B. Draft value tracker (running avg of Val column across drafted-mine
+      picks, shown in My Team panel — skip tail-table rows, rank 141+,
+      since they don't have a Val column)
+      — DONE, logic lives in updateMyTeam(), renders to #value-tracker.
+      NOTE: hit the same double-escaped-apostrophe bug as a prior session
+      (don\\'t -> literal broken JS) — fixed by rephrasing to avoid
+      contractions entirely in generated strings. Watch for this pattern
+      in any future str_replace edits containing apostrophes in JS strings.
+  [x] C. Post-draft summary + grade (new panel, own toggle button in
+      toolbar: positional breakdown, bye spread, avg value reused from B,
+      simple letter grade, best-value pick, biggest-reach pick)
+      — DONE, toggleSummary()/updateDraftSummary(), triggered by
+      "View Draft Summary" button inside the My Team panel. Grade is a
+      simple heuristic off avg pick value (A+/A/B+/B/C/D thresholds),
+      clearly not a rigorous formula — treat as a fun indicator, not gospel.
+
+  All 3 items in this session's list are done and validated (JS syntax +
+  tag balance checked via node -e after every change). No known open bugs
+  from this session. window.storage situation is still the one carryover
+  open item from the previous session — see earlier note above.
+
+  ---- 2026-08-02 (session 4) — FINAL RESOLUTION ----
+  User confirmed storage errors happen on BOTH mobile and desktop/laptop.
+  This closes the open question — removed ALL window.storage calls for
+  good (saveState, loadState's get, testStorageCapability self-test).
+  Export/Import is now the permanent, sole persistence mechanism.
+  Do not re-add window.storage without a fresh isolated test confirming
+  the platform issue is actually fixed first.
+
+  ---- 2026-08-02 (session 5) — Structural change + rename ----
+  User asked for ALL 8 tiers merged into ONE continuous scrollable list
+  instead of 8 separate per-tier tables, with a divider bar between tiers
+  instead of separate scroll boxes to hop between.
+  HOW THIS WAS DONE (safely, preserving every prior fix/correction):
+  - Extracted the 8 existing tier-block chunks via regex from the live
+    file (NOT regenerated from raw data) — this preserves every manual
+    correction made across all prior sessions (Bijan/Chase Brown handcuff
+    fixes, Matthew Golden addition, Ricky Pearsall removal, cliff-note
+    fixes, etc.) without risk of reintroducing old bugs.
+  - Padded the 56 tail-table rows (rank 141+, originally only 5 columns:
+    Rk/Player/Pos/Team/ADP) to match the 9-column full-row structure with
+    em-dash placeholders for Val/Bye/Handcuff/Note, so everything fits in
+    one table.
+  - Rebuilt as ONE `table#big-table` with one `thead` and 8 separate
+    `tbody.tier-group[data-tier-name]` sections — each tbody
+    starts with a `tr.tier-divider-row#tier-{tid}` (colored
+    bar with badge/title/sub/cliff-note) followed by that tier's rows.
+    Using multiple tbody sections instead of one flat list keeps rows logically
+    grouped by tier (needed for scarcity alerts) while rendering as ONE
+    continuous table with ONE scrollbar.
+  - Verified row count before/after: 195 total, unchanged.
+  - Fixed updateScarcityAlerts(): was querying '.tier-block' + '.tier-title'
+    (removed elements) — now queries 'tbody.tier-group' +
+    data-tier-name attribute instead. This was the one function that
+    actually depended on the old per-tier div structure; everything else
+    (search/filter, sort... see below, My Team, Best Available, Pick
+    Counter, Recommended Pick, Round Markers, Team Colors, Value Tracker,
+    Draft Summary) queries `tr.draftrow` globally and needed zero changes.
+  - REMOVED column-header sorting (was per-tier-table sortTable() on th
+    click). Doesn't make sense anymore with tiers merged into one table —
+    sorting would scramble the tier dividers. The sortTable() JS function
+    is still defined but now unused/dead code (harmless, left in case
+    a future session wants to resurrect a global-sort-that-respects-tiers
+    version). Nav tabs (jump to tier) still work — they scrollIntoView on
+    the same tier-{tid} ids, now living on the divider row instead of a
+    tier-block div element.
+  - Renamed file from "2026-big-board.html" to "Draft CS 2026.html" per
+    user request.
+  All changes validated via node -e syntax check + tag-balance counts
+  after each step. No known open bugs from this session.
+
+  ---- 2026-08-02 (session 6) — Editable ranks ----
+  Found a partial implementation already in place (button, tbody ids,
+  addEditControls, moveRowUp/Down, moveRowToTier, CSS all existed) — this
+  looks like session continuity from an interrupted earlier pass, similar
+  to the autosave situation a few sessions back. Audited it carefully
+  rather than assuming it worked, and found + fixed 3 real bugs:
+  [x] doImport() called a dangling saveState() — that function was removed
+      entirely back in session 4 when window.storage got ripped out. This
+      would throw inside doImport's try/catch and show a FALSE "import
+      failed" error even though the import had actually already succeeded.
+      Fixed: removed the dangling call.
+  [x] updateRecommendedPick() still sorted candidates by parsed Rk number
+      instead of DOM order — meaning it would silently ignore manual rank
+      edits and keep recommending based on original consensus rank.
+      updateBestAvailable() had already been correctly fixed to use DOM
+      order; brought updateRecommendedPick() in line with the same pattern
+      (first-match-per-position in DOM order, Rk only used as a rough
+      cross-position tiebreaker when multiple needs exist at once).
+  [x] toggleDraft() had no edit-mode guard — added one, so taps during
+      reordering don't also cycle draft status.
+  Then completed the remaining unbuilt pieces:
+  [x] Export/Import extended: doExport() now also captures an ordered
+      [{n:name, t:tier}] array by walking tbody.tier-group in DOM order;
+      new applyCustomOrder() replays it on import by appending each row
+      into its saved tbody in saved sequence (order is preserved because
+      appendChild always adds to the end, so processing in saved sequence
+      reconstructs it exactly).
+  [x] "Reset Ranks" button added next to Edit Ranks. window.ORIGINAL_ORDER
+      is snapshotted once in loadState(), before addEditControls() runs
+      (i.e. before any possible user interaction) — Reset Ranks just
+      replays that snapshot through the same applyCustomOrder() path.
+  [x] New syncEditControls() function: addEditControls() is idempotent
+      (skips rows that already have controls), which meant bulk reorders
+      via Import/Reset would leave every row's tier-dropdown showing its
+      OLD tier. syncEditControls() re-reads each row's actual current
+      tbody parent and updates just the dropdown's selected value —
+      called after every bulk reorder instead of relying on
+      addEditControls()'s skip logic.
+  [x] Legend updated with a plain-English explanation of how tier-crossing
+      works (moving a player past a divider re-tiers them).
+  DESIGN NOTE (kept from the original plan, still true): Rk numbers do
+  NOT renumber after a manual edit — they stay as a fixed reference to
+  original consensus rank. Round markers key off that same fixed number,
+  so a manually-moved player's "RdN" tag reflects their ORIGINAL
+  consensus round, not their new list position. This is intentional
+  (renumbering 195 rows live gets complicated fast) but is a real
+  user-facing quirk worth knowing about, not a bug to silently ignore.
+  All fixes validated via node -e syntax check + full tag-balance check
+  (div/table/tbody/tr/td) after every change. 195 rows confirmed intact.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 Big Board</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>&#127944; 2026 Fantasy Big Board</h1>
+  <p>10-team full PPR &middot; Pick 10 &middot; Tap a player to track draft status</p>
+</header>
+
+<div class="toolbar">
+  <input type="text" id="searchBox" placeholder="Search player or team..." oninput="applyFilters()">
+  <button class="filterbtn active" data-pos="ALL" onclick="setPosFilter('ALL',this)">ALL</button>
+  <button class="filterbtn" data-pos="QB" onclick="setPosFilter('QB',this)">QB</button>
+  <button class="filterbtn" data-pos="RB" onclick="setPosFilter('RB',this)">RB</button>
+  <button class="filterbtn" data-pos="WR" onclick="setPosFilter('WR',this)">WR</button>
+  <button class="filterbtn" data-pos="TE" onclick="setPosFilter('TE',this)">TE</button>
+  <button class="myteam-toggle" onclick="toggleMyTeam()">My Team</button>
+</div>
+<div class="statusbar">
+  <span id="remaining-status">All players available</span>
+  <span id="save-indicator" style="color:#8fd4a0;font-size:0.65rem;"></span>
+  <button class="resetbtn" id="exportBtn" onclick="toggleExportImport()" style="background:rgba(95,168,217,0.25);border-color:var(--value);">Export/Import</button>
+  <button class="resetbtn" id="editRanksBtn" onclick="toggleEditMode()" style="background:rgba(224,168,63,0.25);border-color:var(--gem);">&#9998; Edit Ranks</button>
+  <button class="resetbtn" onclick="resetRanks()" style="background:rgba(95,168,217,0.2);border-color:var(--value);">&#8634; Reset Ranks</button>
+  <button class="resetbtn" id="resetBtn" onclick="resetBoard()">Reset all</button>
+</div>
+
+<div class="nav">
+  <a href="javascript:void(0)" onclick="jumpTo('tier-Sp')">S+</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-S')">S</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-A')">A</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-B')">B</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-C')">C</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-D')">D</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-E')">E</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-F')">F</a>
+</div>
+
+<main>
+
+  <div class="legend">
+    <span class="tag tag-gem">GEM</span> hidden-gem sleeper &nbsp;
+    <span class="tag tag-value">VAL</span> ranked above ADP &nbsp;
+    <span class="tag tag-pup">PUP/IR</span> red row = on PUP/IR &nbsp;
+    <span class="tag tag-monitor">MON</span> amber row = injury/workload watch &nbsp;
+    <span class="rk-tag">R</span> 2026 rookie &nbsp;
+    <span class="sos sos-easy">E</span>/<span class="sos sos-hard">H</span> playoff (Wk15-17) schedule easy/hard &nbsp;
+    QB rows show teammate stack suggestions &middot;
+    <span style="box-shadow:inset 3px 0 0 0 #5fa8d9;padding:0 4px;">blue-edged rows</span> = positions you still need &middot;
+    small "RdX" under rank = draft round<br>
+    <b>Edit Ranks:</b> tap the button to reveal &#9650;&#9660; (reorder within a tier) and a tier dropdown (jump a player to a different tier — moving them across a divider actually re-tiers them) on every player. Drafting taps pause while editing. "Reset Ranks" restores the original order; edits are saved in Export/Import.<br>
+    <b>Tap a player row to cycle:</b> available &rarr; <span style="color:#8fd4a0;">green = drafted by you</span> &rarr; <span style="color:#e08a8a;">gray = taken by someone else</span> &rarr; back to available. Tap column headers (Rk/ADP/Val/Bye) to sort within a tier.
+  </div>
+
+  <div class="widget-box" id="pick-counter-box">
+    <div class="widget-title" style="margin-bottom:6px;">&#128203; Draft Position</div>
+    <div class="pc-inputs">
+      <label>Teams <input type="number" id="pcTeams" value="10" min="2" max="20" onchange="updatePickSettings()"></label>
+      <label>Your Pick # <input type="number" id="pcSlot" value="10" min="1" max="20" onchange="updatePickSettings()"></label>
+      <label>Rounds <input type="number" id="pcRounds" value="16" min="5" max="30" onchange="updatePickSettings()"></label>
+    </div>
+    <div id="pick-counter-text">Pick 1 of 160 &middot; your next pick: <b>#10</b></div>
+  </div>
+
+  <div class="widget-box" id="recommended-pick-box">
+    <div class="widget-title" style="text-align:left;">&#127919; Recommended Pick</div>
+    <div id="recommended-pick-text">Tap a player to start tracking your team, and I'll suggest your best pick here.</div>
+  </div>
+
+  <div class="widget-box">
+    <div class="widget-title">&#9889; Best Available Now</div>
+    <div class="ba-grid" id="best-available"></div>
+  </div>
+
+  <div id="scarcity-alerts"></div>
+
+
+    <div class="table-wrap" id="big-board-wrap" style="max-height:none;">
+    <table class="rt" id="big-table">
+      <thead>
+        <tr>
+          <th>Rk</th><th>Player</th><th>Pos</th><th>Team</th><th>ADP</th>
+          <th>Val</th><th>Bye</th><th>Handcuff</th><th>Note</th>
+        </tr>
+      </thead>
+      <tbody class="tier-group" data-tier-name="Round 1 Slam Dunks" id="tbody-Sp">
+      <tr class="tier-divider-row" id="tier-Sp">
+      <td colspan="9">
+        <div class="divider-inner">
+          <span class="tier-badge-inline tier-badge-Sp">S+</span>
+          <span class="divider-title">Round 1 Slam Dunks</span>
+          <span class="divider-sub">The 3 players worth taking blind at any pick 1-3</span>
+        </div>
+        <div class="cliff-note-inline">&#9888; Cliff after S+: the gap to rank 4-7 is small, but RB depth thins fast after this.</div>
+      </td>
+    </tr>
+      <tr class="draftrow" data-pos="RB" data-name="jahmyr gibbs" data-bye="6" onclick="toggleDraft(this)"><td>1</td><td class="pname">Jahmyr Gibbs <span class="posrk">RB1</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>DET <span class="sos sos-neu">-</span></td><td>1</td><td class="valpos" data-sortval="1">+1</td><td>6</td>
+      <td class="hc">Isiah Pacheco</td><td class="notecell">YBC/Att 95th pct, route grade 97th pct, target share 96th pct. 161 vacated RB carries.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="bijan robinson" data-bye="11" onclick="toggleDraft(this)"><td>2</td><td class="pname">Bijan Robinson <span class="posrk">RB2</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>ATL <span class="sos sos-neu">-</span></td><td>2</td><td class="valneg" data-sortval="-1">-1</td><td>11</td>
+      <td class="hc">Brian Robinson Jr.</td><td class="notecell">YPRR 99th pct, targets 97th pct, elusive 97th pct. 79 catches/820 yds.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="ja&#x27;marr chase" data-bye="6" onclick="toggleDraft(this)"><td>3</td><td class="pname">Ja&#x27;Marr Chase <span class="posrk">WR1</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>CIN <span class="sos sos-neu">-</span></td><td>3</td><td class="valzero" data-sortval="0">+0</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">League-leading 185 targets. 32.23% tgt share. 2.23 YPRR. 125 rec/1412 yds.</td>
+    </tr>
+    </tbody>
+<tbody class="tier-group" data-tier-name="Elite Blue Chips" id="tbody-S">
+      <tr class="tier-divider-row" id="tier-S">
+      <td colspan="9">
+        <div class="divider-inner">
+          <span class="tier-badge-inline tier-badge-S">S</span>
+          <span class="divider-title">Elite Blue Chips</span>
+          <span class="divider-sub">Take without hesitation</span>
+        </div>
+        <div class="cliff-note-inline">&#9888; Cliff after S: RB bell-cow depth starts thinning fast. The two true elite TEs (Bowers, McBride) haven't come off the board yet — they're still ahead of you, in tier B.</div>
+      </td>
+    </tr>
+      <tr class="draftrow" data-pos="WR" data-name="puka nacua" data-bye="11" onclick="toggleDraft(this)"><td>4</td><td class="pname">Puka Nacua <span class="posrk">WR2</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>LAR <span class="sos sos-neu">-</span></td><td>4</td><td class="valzero" data-sortval="0">+0</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">NFL-best 3.57 YPRR. 30.29% tgt share. 0.37 tgt/route (NFL lead).</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="jaxon smith-njigba" data-bye="11" onclick="toggleDraft(this)"><td>5</td><td class="pname">Jaxon Smith-Njigba <span class="posrk">WR3</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>SEA <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>5</td><td class="valzero" data-sortval="0">+0</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">35.82% tgt share — highest in NFL. 3.61 YPRR. 1793 rec yds (NFL lead).</td>
+    </tr><tr class="draftrow monflag" data-pos="RB" data-name="christian mccaffrey" data-bye="8" onclick="toggleDraft(this)"><td>6</td><td class="pname">Christian McCaffrey <span class="posrk">RB3</span><br><span class="tag tag-monitor">MON</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>SF <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>6</td><td class="valneg" data-sortval="-1">-1</td><td>8</td>
+      <td class="hc">Jordan James</td><td class="notecell">Targets 121 (RB1), route grade 99th pct, YPRR 96th pct.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="amon-ra st. brown" data-bye="6" onclick="toggleDraft(this)"><td>7</td><td class="pname">Amon-Ra St. Brown <span class="posrk">WR4</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>DET <span class="sos sos-neu">-</span></td><td>7</td><td class="valpos" data-sortval="1">+1</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">31.27% tgt share. 2.47 YPRR (3rd PFF). 172 targets (2nd NFL).</td>
+    </tr>
+    </tbody>
+<tbody class="tier-group" data-tier-name="High-End Starters" id="tbody-A">
+      <tr class="tier-divider-row" id="tier-A">
+      <td colspan="9">
+        <div class="divider-inner">
+          <span class="tier-badge-inline tier-badge-A">A</span>
+          <span class="divider-title">High-End Starters</span>
+          <span class="divider-sub">Elite starters, small gap from S tier</span>
+        </div>
+        <div class="cliff-note-inline">&#9888; Cliff after A: this is roughly where &#x27;must-start every week&#x27; talent starts getting scarcer at RB. Both elite TEs (Bowers, McBride) are still to come, in the next tier.</div>
+      </td>
+    </tr>
+      <tr class="draftrow" data-pos="RB" data-name="jonathan taylor" data-bye="13" onclick="toggleDraft(this)"><td>8</td><td class="pname">Jonathan Taylor <span class="posrk">RB4</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>IND <span class="sos sos-neu">-</span></td><td>8</td><td class="valzero" data-sortval="0">+0</td><td>13</td>
+      <td class="hc">DJ Giddens</td><td class="notecell">YAC/Att 88th pct, run grade 82nd pct. High-floor bell cow.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="ceedee lamb" data-bye="14" onclick="toggleDraft(this)"><td>9</td><td class="pname">CeeDee Lamb <span class="posrk">WR5</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>DAL <span class="sos sos-neu">-</span></td><td>9</td><td class="valzero" data-sortval="0">+0</td><td>14</td>
+      <td class="hc">—</td><td class="notecell">23.08% tgt share. 2.37 YPRR (5th PFF) in 14 games.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="justin jefferson" data-bye="6" onclick="toggleDraft(this)"><td>10</td><td class="pname">Justin Jefferson <span class="posrk">WR6</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>MIN <span class="sos sos-neu">-</span></td><td>11</td><td class="valpos" data-sortval="1">+1</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">30.13% tgt share. Murray now throwing to him in MIN.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="james cook iii" data-bye="7" onclick="toggleDraft(this)"><td>11</td><td class="pname">James Cook III <span class="posrk">RB5</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>BUF <span class="sos sos-neu">-</span></td><td>12</td><td class="valpos" data-sortval="1">+1</td><td>7</td>
+      <td class="hc">Ray Davis</td><td class="notecell">309 carries in 2025, top-5 offense.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="ashton jeanty" data-bye="13" onclick="toggleDraft(this)"><td>12</td><td class="pname">Ashton Jeanty <span class="posrk">RB6</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>LV <span class="sos sos-neu">-</span></td><td>10</td><td class="valneg" data-sortval="-2">-2</td><td>13</td>
+      <td class="hc">Mike Washington Jr.</td><td class="notecell">YBC/Att 6th pct (poor OL). OL upgraded +$28.3M this offseason.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="drake london" data-bye="11" onclick="toggleDraft(this)"><td>13</td><td class="pname">Drake London <span class="posrk">WR7</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>ATL <span class="sos sos-neu">-</span></td><td>18</td><td class="valpos" data-sortval="5">+5</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">30.35% tgt share. 3rd NFL in first-read tgt rate.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="a.j. brown" data-bye="11" onclick="toggleDraft(this)"><td>14</td><td class="pname">A.J. Brown <span class="posrk">WR8</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>NE <span class="sos sos-neu">-</span></td><td>20</td><td class="valpos" data-sortval="6">+6</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">Traded to NE, paired with Drake Maye.</td>
+    </tr>
+    </tbody>
+<tbody class="tier-group" data-tier-name="Solid Starters" id="tbody-B">
+      <tr class="tier-divider-row" id="tier-B">
+      <td colspan="9">
+        <div class="divider-inner">
+          <span class="tier-badge-inline tier-badge-B">B</span>
+          <span class="divider-title">Solid Starters</span>
+          <span class="divider-sub">Reliable weekly starters</span>
+        </div>
+        <div class="cliff-note-inline">&#9888; Cliff after B: this loaded tier holds both true elite TEs (Bowers, McBride) and Josh Allen, the only QB worth an early reach. After this, every position gets murkier fast.</div>
+      </td>
+    </tr>
+      <tr class="draftrow" data-pos="TE" data-name="brock bowers" data-bye="13" onclick="toggleDraft(this)"><td>15</td><td class="pname">Brock Bowers <span class="posrk">TE1</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>LV <span class="sos sos-neu">-</span></td><td>17</td><td class="valpos" data-sortval="2">+2</td><td>13</td>
+      <td class="hc">—</td><td class="notecell">89.8% route partic. 23.6% tgt share (#2). Clear #1 in LV.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="nico collins" data-bye="8" onclick="toggleDraft(this)"><td>16</td><td class="pname">Nico Collins <span class="posrk">WR9</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>HOU <span class="sos sos-neu">-</span></td><td>22</td><td class="valpos" data-sortval="6">+6</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">24.64% tgt share. 2.31 YPRR. PFF 2nd behind Nacua since 2023.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="de&#x27;von achane" data-bye="6" onclick="toggleDraft(this)"><td>17</td><td class="pname">De&#x27;Von Achane <span class="posrk">RB7</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>MIA <span class="sos sos-neu">-</span></td><td>15</td><td class="valneg" data-sortval="-2">-2</td><td>6</td>
+      <td class="hc">Jaylen Wright</td><td class="notecell">13.45% explosive run rate, 5.67 YPC. 19.41% tgt share.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="chase brown" data-bye="6" onclick="toggleDraft(this)"><td>18</td><td class="pname">Chase Brown <span class="posrk">RB8</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>CIN <span class="sos sos-neu">-</span></td><td>16</td><td class="valneg" data-sortval="-2">-2</td><td>6</td>
+      <td class="hc">Samaje Perine</td><td class="notecell">232 carries/1019 yds. 14.47% tgt share.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="saquon barkley" data-bye="10" onclick="toggleDraft(this)"><td>19</td><td class="pname">Saquon Barkley <span class="posrk">RB9</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>PHI <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>13</td><td class="valneg" data-sortval="-6">-6</td><td>10</td>
+      <td class="hc">Tank Bigsby</td><td class="notecell">75.3% backfield touches but only RB7 in expected PPG — regression-positive.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="omarion hampton" data-bye="7" onclick="toggleDraft(this)"><td>20</td><td class="pname">Omarion Hampton <span class="posrk">RB10</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>LAC <span class="sos sos-neu">-</span></td><td>14</td><td class="valneg" data-sortval="-6">-6</td><td>7</td>
+      <td class="hc">Keaton Mitchell</td><td class="notecell">69.7% opportunity share (#11) in 9 games.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="george pickens" data-bye="14" onclick="toggleDraft(this)"><td>21</td><td class="pname">George Pickens <span class="posrk">WR10</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>DAL <span class="sos sos-neu">-</span></td><td>25</td><td class="valpos" data-sortval="4">+4</td><td>14</td>
+      <td class="hc">—</td><td class="notecell">22.57% tgt share. Led NFL in slants.</td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="trey mcbride" data-bye="14" onclick="toggleDraft(this)"><td>22</td><td class="pname">Trey McBride <span class="posrk">TE2</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>ARI <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>23</td><td class="valpos" data-sortval="1">+1</td><td>14</td>
+      <td class="hc">—</td><td class="notecell">96.6% route partic (#1 TE). 27.4% tgt share (#1). 18.6 PPG (#1).</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="derrick henry" data-bye="13" onclick="toggleDraft(this)"><td>23</td><td class="pname">Derrick Henry <span class="posrk">RB11</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>BAL <span class="sos sos-neu">-</span></td><td>21</td><td class="valneg" data-sortval="-2">-2</td><td>13</td>
+      <td class="hc">Justice Hill</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="kenneth walker iii" data-bye="5" onclick="toggleDraft(this)"><td>24</td><td class="pname">Kenneth Walker III <span class="posrk">RB12</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>KC <span class="sos sos-neu">-</span></td><td>19</td><td class="valneg" data-sortval="-5">-5</td><td>5</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="rashee rice" data-bye="5" onclick="toggleDraft(this)"><td>25</td><td class="pname">Rashee Rice <span class="posrk">WR11</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>KC <span class="sos sos-neu">-</span></td><td>26</td><td class="valpos" data-sortval="1">+1</td><td>5</td>
+      <td class="hc">—</td><td class="notecell">Mahomes&#x27; top target; elite YAC ability.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="chris olave" data-bye="8" onclick="toggleDraft(this)"><td>26</td><td class="pname">Chris Olave <span class="posrk">WR12</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>NO <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>29</td><td class="valpos" data-sortval="3">+3</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="josh allen" data-bye="7" onclick="toggleDraft(this)"><td>27</td><td class="pname">Josh Allen <span class="posrk">QB1</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>BUF <span class="sos sos-neu">-</span></td><td>28</td><td class="valpos" data-sortval="1">+1</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">22.79 PPG, QB1. All-time QB rush TD leader.<div class="stackline">Stack: DJ Moore, Dalton Kincaid, Khalil Shakir</div></td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="devonta smith" data-bye="10" onclick="toggleDraft(this)"><td>28</td><td class="pname">DeVonta Smith <span class="posrk">WR13</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>PHI <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>27</td><td class="valneg" data-sortval="-1">-1</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr>
+    </tbody>
+<tbody class="tier-group" data-tier-name="Flex Starters" id="tbody-C">
+      <tr class="tier-divider-row" id="tier-C">
+      <td colspan="9">
+        <div class="divider-inner">
+          <span class="tier-badge-inline tier-badge-C">C</span>
+          <span class="divider-title">Flex Starters</span>
+          <span class="divider-sub">Flex/streaming-caliber with real weekly upside</span>
+        </div>
+        <div class="cliff-note-inline">&#9888; Cliff after C: last realistic shot at a true QB1-tier passer (Lamar, Maye, Burrow) and the top remaining TE breakout bet (Loveland) before depth craters at both spots.</div>
+      </td>
+    </tr>
+      <tr class="draftrow" data-pos="WR" data-name="tee higgins" data-bye="6" onclick="toggleDraft(this)"><td>29</td><td class="pname">Tee Higgins <span class="posrk">WR14</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>CIN <span class="sos sos-neu">-</span></td><td>36</td><td class="valpos" data-sortval="7">+7</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="tetairoa mcmillan" data-bye="5" onclick="toggleDraft(this)"><td>30</td><td class="pname">Tetairoa McMillan <span class="posrk">WR15</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>CAR <span class="sos sos-neu">-</span></td><td>38</td><td class="valpos" data-sortval="8">+8</td><td>5</td>
+      <td class="hc">—</td><td class="notecell">89.6% route partic but only WR21 half-PPR PPG. Bust risk.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="zay flowers" data-bye="13" onclick="toggleDraft(this)"><td>31</td><td class="pname">Zay Flowers <span class="posrk">WR16</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>BAL <span class="sos sos-neu">-</span></td><td>32</td><td class="valpos" data-sortval="1">+1</td><td>13</td>
+      <td class="hc">—</td><td class="notecell">29.1% tgt share, 99.1% route partic — every-snap player.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="jeremiyah love" data-bye="14" onclick="toggleDraft(this)"><td>32</td><td class="pname">Jeremiyah Love <span class="rk-tag" title="2026 rookie">R</span> <span class="posrk">RB13</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>ARI <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>24</td><td class="valneg" data-sortval="-8">-8</td><td>14</td>
+      <td class="hc">Tyler Allgeier</td><td class="notecell">Allgeier signed ARI in FA, blocked by rookie Love.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="kyren williams" data-bye="11" onclick="toggleDraft(this)"><td>33</td><td class="pname">Kyren Williams <span class="posrk">RB14</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>LAR <span class="sos sos-neu">-</span></td><td>31</td><td class="valneg" data-sortval="-2">-2</td><td>11</td>
+      <td class="hc">Blake Corum</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="lamar jackson" data-bye="13" onclick="toggleDraft(this)"><td>34</td><td class="pname">Lamar Jackson <span class="posrk">QB2</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>BAL <span class="sos sos-neu">-</span></td><td>48</td><td class="valpos" data-sortval="14">+14</td><td>13</td>
+      <td class="hc">—</td><td class="notecell">16.53 PPG in &#x27;25. Rush TDs collapsed. Durability concern.<div class="stackline">Stack: Zay Flowers</div></td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="josh jacobs" data-bye="11" onclick="toggleDraft(this)"><td>35</td><td class="pname">Josh Jacobs <span class="posrk">RB15</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>GB <span class="sos sos-neu">-</span></td><td>35</td><td class="valzero" data-sortval="0">+0</td><td>11</td>
+      <td class="hc">MarShawn Lloyd</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="drake maye" data-bye="11" onclick="toggleDraft(this)"><td>36</td><td class="pname">Drake Maye <span class="posrk">QB3</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>NE <span class="sos sos-neu">-</span></td><td>59</td><td class="valpos" data-sortval="23">+23</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">20.70 PPG, QB2. Most top-12 weekly finishes of any QB.<div class="stackline">Stack: A.J. Brown, Romeo Doubs, Hunter Henry</div></td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="garrett wilson" data-bye="13" onclick="toggleDraft(this)"><td>37</td><td class="pname">Garrett Wilson <span class="posrk">WR17</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>NYJ <span class="sos sos-neu">-</span></td><td>37</td><td class="valzero" data-sortval="0">+0</td><td>13</td>
+      <td class="hc">—</td><td class="notecell">89th pct TPRR, 98th pct route partic. QB play was the limiter.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="breece hall" data-bye="13" onclick="toggleDraft(this)"><td>38</td><td class="pname">Breece Hall <span class="posrk">RB16</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>NYJ <span class="sos sos-neu">-</span></td><td>30</td><td class="valneg" data-sortval="-8">-8</td><td>13</td>
+      <td class="hc">Braelon Allen</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="emeka egbuka" data-bye="10" onclick="toggleDraft(this)"><td>39</td><td class="pname">Emeka Egbuka <span class="posrk">WR18</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>TB <span class="sos sos-neu">-</span></td><td>34</td><td class="valneg" data-sortval="-5">-5</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="ladd mcconkey" data-bye="7" onclick="toggleDraft(this)"><td>40</td><td class="pname">Ladd McConkey <span class="posrk">WR19</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>LAC <span class="sos sos-neu">-</span></td><td>43</td><td class="valpos" data-sortval="3">+3</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="colston loveland" data-bye="10" onclick="toggleDraft(this)"><td>41</td><td class="pname">Colston Loveland <span class="posrk">TE3</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>CHI <span class="sos sos-neu">-</span></td><td>39</td><td class="valneg" data-sortval="-2">-2</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">1.82 YPRR (best healthy TE). 65% route partic = room to grow.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="javonte williams" data-bye="14" onclick="toggleDraft(this)"><td>42</td><td class="pname">Javonte Williams <span class="posrk">RB17</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>DAL <span class="sos sos-neu">-</span></td><td>33</td><td class="valneg" data-sortval="-9">-9</td><td>14</td>
+      <td class="hc">Jaydon Blue</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="jaylen waddle" data-bye="10" onclick="toggleDraft(this)"><td>43</td><td class="pname">Jaylen Waddle <span class="posrk">WR20</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>DEN <span class="sos sos-neu">-</span></td><td>44</td><td class="valpos" data-sortval="1">+1</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow monflag" data-pos="WR" data-name="malik nabers" data-bye="8" onclick="toggleDraft(this)"><td>44</td><td class="pname">Malik Nabers <span class="posrk">WR21</span><br><span class="tag tag-monitor">MON</span> <span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>NYG <span class="sos sos-neu">-</span></td><td>41</td><td class="valneg" data-sortval="-3">-3</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">NOT on PUP, cleared for limited camp. WR1 talent at a discount.</td>
+    </tr><tr class="draftrow monflag" data-pos="QB" data-name="joe burrow" data-bye="6" onclick="toggleDraft(this)"><td>45</td><td class="pname">Joe Burrow <span class="posrk">QB4</span><br><span class="tag tag-monitor">MON</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>CIN <span class="sos sos-neu">-</span></td><td>62</td><td class="valpos" data-sortval="17">+17</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">~16.8 FPTS/G in 7 games. Zero rush floor.<div class="stackline">Stack: Ja&#x27;Marr Chase, Tee Higgins</div></td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="terry mclaurin" data-bye="7" onclick="toggleDraft(this)"><td>46</td><td class="pname">Terry McLaurin <span class="posrk">WR22</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>WAS <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>45</td><td class="valneg" data-sortval="-1">-1</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="travis etienne jr." data-bye="8" onclick="toggleDraft(this)"><td>47</td><td class="pname">Travis Etienne Jr. <span class="posrk">RB18</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>NO <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>40</td><td class="valneg" data-sortval="-7">-7</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr>
+    </tbody>
+<tbody class="tier-group" data-tier-name="Bench Depth" id="tbody-D">
+      <tr class="tier-divider-row" id="tier-D">
+      <td colspan="9">
+        <div class="divider-inner">
+          <span class="tier-badge-inline tier-badge-D">D</span>
+          <span class="divider-title">Bench Depth</span>
+          <span class="divider-sub">Backup QB/TE, RB2/WR3 depth</span>
+        </div>
+        <div class="cliff-note-inline">&#9888; Cliff after D: last of the rushing-floor QBs (Hurts, Daniels, C. Williams) and streaming-caliber TEs (Warren, Kraft) exit here — after this it's mostly backup-caliber options.</div>
+      </td>
+    </tr>
+      <tr class="draftrow" data-pos="WR" data-name="davante adams" data-bye="11" onclick="toggleDraft(this)"><td>48</td><td class="pname">Davante Adams <span class="posrk">WR23</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>LAR <span class="sos sos-neu">-</span></td><td>47</td><td class="valneg" data-sortval="-1">-1</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="luther burden iii" data-bye="10" onclick="toggleDraft(this)"><td>49</td><td class="pname">Luther Burden III <span class="posrk">WR24</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>CHI <span class="sos sos-neu">-</span></td><td>46</td><td class="valneg" data-sortval="-3">-3</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow monflag" data-pos="RB" data-name="cam skattebo" data-bye="8" onclick="toggleDraft(this)"><td>50</td><td class="pname">Cam Skattebo <span class="posrk">RB19</span><br><span class="tag tag-monitor">MON</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>NYG <span class="sos sos-neu">-</span></td><td>42</td><td class="valneg" data-sortval="-8">-8</td><td>8</td>
+      <td class="hc">Tyrone Tracy Jr.</td><td class="notecell">Recovering from fractured ankle; returned to spring practice.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="jameson williams" data-bye="6" onclick="toggleDraft(this)"><td>51</td><td class="pname">Jameson Williams <span class="posrk">WR25</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>DET <span class="sos sos-neu">-</span></td><td>52</td><td class="valpos" data-sortval="1">+1</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow monflag" data-pos="RB" data-name="bucky irving" data-bye="10" onclick="toggleDraft(this)"><td>52</td><td class="pname">Bucky Irving <span class="posrk">RB20</span><br><span class="tag tag-monitor">MON</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>TB <span class="sos sos-neu">-</span></td><td>56</td><td class="valpos" data-sortval="4">+4</td><td>10</td>
+      <td class="hc">Sean Tucker</td><td class="notecell">Full-go, feeling stronger from adversity per team site.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="quinshon judkins" data-bye="11" onclick="toggleDraft(this)"><td>53</td><td class="pname">Quinshon Judkins <span class="posrk">RB21</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>CLE <span class="sos sos-neu">-</span></td><td>51</td><td class="valneg" data-sortval="-2">-2</td><td>11</td>
+      <td class="hc">Dylan Sampson</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="mike evans" data-bye="8" onclick="toggleDraft(this)"><td>54</td><td class="pname">Mike Evans <span class="posrk">WR26</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>SF <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>57</td><td class="valpos" data-sortval="3">+3</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="jayden daniels" data-bye="7" onclick="toggleDraft(this)"><td>55</td><td class="pname">Jayden Daniels <span class="posrk">QB5</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>WAS <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>64</td><td class="valpos" data-sortval="9">+9</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">~16.7 FPTS/G in 7 games. 58 carries/278 yds in 7 games.<div class="stackline">Stack: Terry McLaurin, Chigoziem Okonkwo, Antonio Williams</div></td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="d&#x27;andre swift" data-bye="10" onclick="toggleDraft(this)"><td>56</td><td class="pname">D&#x27;Andre Swift <span class="posrk">RB22</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>CHI <span class="sos sos-neu">-</span></td><td>49</td><td class="valneg" data-sortval="-7">-7</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="tyler warren" data-bye="13" onclick="toggleDraft(this)"><td>57</td><td class="pname">Tyler Warren <span class="posrk">TE4</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>IND <span class="sos sos-neu">-</span></td><td>53</td><td class="valneg" data-sortval="-4">-4</td><td>13</td>
+      <td class="hc">—</td><td class="notecell">87% route partic (#6). 21.2% tgt share (#6). 112 targets (#3 TE).</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="treveyon henderson" data-bye="11" onclick="toggleDraft(this)"><td>58</td><td class="pname">TreVeyon Henderson <span class="posrk">RB23</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>NE <span class="sos sos-neu">-</span></td><td>54</td><td class="valneg" data-sortval="-4">-4</td><td>11</td>
+      <td class="hc">Rhamondre Stevenson</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="christian watson" data-bye="11" onclick="toggleDraft(this)"><td>59</td><td class="pname">Christian Watson <span class="posrk">WR27</span><br><span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>GB <span class="sos sos-neu">-</span></td><td>61</td><td class="valpos" data-sortval="2">+2</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">8th YPRR, 6th FP/route. WR1 upside if role expands.</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="jalen hurts" data-bye="10" onclick="toggleDraft(this)"><td>60</td><td class="pname">Jalen Hurts <span class="posrk">QB6</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>PHI <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>68</td><td class="valpos" data-sortval="8">+8</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">18.69 PPG, QB3. A.J. Brown traded to NE.<div class="stackline">Stack: DeVonta Smith, Makai Lemon, Dallas Goedert</div></td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="dj moore" data-bye="7" onclick="toggleDraft(this)"><td>61</td><td class="pname">DJ Moore <span class="posrk">WR28</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>BUF <span class="sos sos-neu">-</span></td><td>55</td><td class="valneg" data-sortval="-6">-6</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="david montgomery" data-bye="8" onclick="toggleDraft(this)"><td>62</td><td class="pname">David Montgomery <span class="posrk">RB24</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>HOU <span class="sos sos-neu">-</span></td><td>50</td><td class="valneg" data-sortval="-12">-12</td><td>8</td>
+      <td class="hc">Woody Marks</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="rome odunze" data-bye="10" onclick="toggleDraft(this)"><td>63</td><td class="pname">Rome Odunze <span class="posrk">WR29</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>CHI <span class="sos sos-neu">-</span></td><td>60</td><td class="valneg" data-sortval="-3">-3</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="bhayshul tuten" data-bye="7" onclick="toggleDraft(this)"><td>64</td><td class="pname">Bhayshul Tuten <span class="posrk">RB25</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>JAX <span class="sos sos-neu">-</span></td><td>58</td><td class="valneg" data-sortval="-6">-6</td><td>7</td>
+      <td class="hc">Chris Rodriguez</td><td class="notecell">—</td>
+    </tr><tr class="draftrow pupflag" data-pos="TE" data-name="tucker kraft" data-bye="11" onclick="toggleDraft(this)"><td>65</td><td class="pname">Tucker Kraft <span class="posrk">TE5</span><br><span class="tag tag-pup">PUP/IR</span> <span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>GB <span class="sos sos-neu">-</span></td><td>75</td><td class="valpos" data-sortval="10">+10</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">Activated off PUP July 31 (~9mo post-ACL). Targeting Week 1, no pitch count.</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="caleb williams" data-bye="10" onclick="toggleDraft(this)"><td>66</td><td class="pname">Caleb Williams <span class="posrk">QB7</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>CHI <span class="sos sos-neu">-</span></td><td>71</td><td class="valpos" data-sortval="5">+5</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">18.72 PPG. 3730 pass yds/25 TD/6 INT.<div class="stackline">Stack: Colston Loveland, Luther Burden III, Rome Odunze</div></td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="jadarian price" data-bye="11" onclick="toggleDraft(this)"><td>67</td><td class="pname">Jadarian Price <span class="rk-tag" title="2026 rookie">R</span> <span class="posrk">RB26</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>SEA <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>65</td><td class="valneg" data-sortval="-2">-2</td><td>11</td>
+      <td class="hc">Zach Charbonnet</td><td class="notecell">—</td>
+    </tr>
+    </tbody>
+<tbody class="tier-group" data-tier-name="Late-Round Targets" id="tbody-E">
+      <tr class="tier-divider-row" id="tier-E">
+      <td colspan="9">
+        <div class="divider-inner">
+          <span class="tier-badge-inline tier-badge-E">E</span>
+          <span class="divider-title">Late-Round Targets</span>
+          <span class="divider-sub">Hidden gems, value picks, and injury discounts live here</span>
+        </div>
+        <div class="cliff-note-inline">&#9888; Cliff after E: the QB2/streamer landing zone (Lawrence, Herbert, Prescott, Purdy, Dart) and committee TEs (Fannin, Pitts, LaPorta) wrap up here — past this it's pure dice rolls.</div>
+      </td>
+    </tr>
+      <tr class="draftrow" data-pos="QB" data-name="justin herbert" data-bye="7" onclick="toggleDraft(this)"><td>68</td><td class="pname">Justin Herbert <span class="posrk">QB8</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>LAC <span class="sos sos-neu">-</span></td><td>83</td><td class="valpos" data-sortval="15">+15</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">—<div class="stackline">Stack: Ladd McConkey, Quentin Johnston, Oronde Gadsden, Tre&#x27; Harris</div></td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="jaylen warren" data-bye="9" onclick="toggleDraft(this)"><td>69</td><td class="pname">Jaylen Warren <span class="posrk">RB27</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>PIT <span class="sos sos-neu">-</span></td><td>69</td><td class="valzero" data-sortval="0">+0</td><td>9</td>
+      <td class="hc">Rico Dowdle</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="marvin harrison jr." data-bye="14" onclick="toggleDraft(this)"><td>70</td><td class="pname">Marvin Harrison Jr. <span class="posrk">WR30</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>ARI <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>66</td><td class="valneg" data-sortval="-4">-4</td><td>14</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="carnell tate" data-bye="9" onclick="toggleDraft(this)"><td>71</td><td class="pname">Carnell Tate <span class="rk-tag" title="2026 rookie">R</span> <span class="posrk">WR31</span><br><span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>TEN <span class="sos sos-neu">-</span></td><td>63</td><td class="valneg" data-sortval="-8">-8</td><td>9</td>
+      <td class="hc">—</td><td class="notecell">Rookie WR with immediate starter potential in TEN.</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="trevor lawrence" data-bye="7" onclick="toggleDraft(this)"><td>72</td><td class="pname">Trevor Lawrence <span class="posrk">QB9</span><br><span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>JAX <span class="sos sos-neu">-</span></td><td>85</td><td class="valpos" data-sortval="13">+13</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">QB9 ECR, QB13 ADP. Career-best 29 TDs in 2025.<div class="stackline">Stack: Brian Thomas Jr., Parker Washington, Jakobi Meyers, Brenton Strange</div></td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="tony pollard" data-bye="9" onclick="toggleDraft(this)"><td>73</td><td class="pname">Tony Pollard <span class="posrk">RB28</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>TEN <span class="sos sos-neu">-</span></td><td>72</td><td class="valneg" data-sortval="-1">-1</td><td>9</td>
+      <td class="hc">Tyjae Spears</td><td class="notecell">—</td>
+    </tr><tr class="draftrow pupflag" data-pos="WR" data-name="alec pierce" data-bye="13" onclick="toggleDraft(this)"><td>74</td><td class="pname">Alec Pierce <span class="posrk">WR32</span><br><span class="tag tag-pup">PUP/IR</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>IND <span class="sos sos-neu">-</span></td><td>76</td><td class="valpos" data-sortval="2">+2</td><td>13</td>
+      <td class="hc">—</td><td class="notecell">Active/PUP (ankle procedure). Placed July 27.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="brian thomas jr." data-bye="7" onclick="toggleDraft(this)"><td>75</td><td class="pname">Brian Thomas Jr. <span class="posrk">WR33</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>JAX <span class="sos sos-neu">-</span></td><td>67</td><td class="valneg" data-sortval="-8">-8</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">Declined WR4 (&#x27;24) to WR43 (&#x27;25). QB situation concern.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="dk metcalf" data-bye="9" onclick="toggleDraft(this)"><td>76</td><td class="pname">DK Metcalf <span class="posrk">WR34</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>PIT <span class="sos sos-neu">-</span></td><td>74</td><td class="valneg" data-sortval="-2">-2</td><td>9</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="rhamondre stevenson" data-bye="11" onclick="toggleDraft(this)"><td>77</td><td class="pname">Rhamondre Stevenson <span class="posrk">RB29</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>NE <span class="sos sos-neu">-</span></td><td>78</td><td class="valpos" data-sortval="1">+1</td><td>11</td>
+      <td class="hc">TreVeyon Henderson</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="dak prescott" data-bye="14" onclick="toggleDraft(this)"><td>78</td><td class="pname">Dak Prescott <span class="posrk">QB10</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>DAL <span class="sos sos-neu">-</span></td><td>84</td><td class="valpos" data-sortval="6">+6</td><td>14</td>
+      <td class="hc">—</td><td class="notecell">—<div class="stackline">Stack: CeeDee Lamb, George Pickens, Jake Ferguson, Ryan Flournoy</div></td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="harold fannin jr." data-bye="11" onclick="toggleDraft(this)"><td>79</td><td class="pname">Harold Fannin Jr. <span class="posrk">TE6</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>CLE <span class="sos sos-neu">-</span></td><td>82</td><td class="valpos" data-sortval="3">+3</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="chuba hubbard" data-bye="5" onclick="toggleDraft(this)"><td>80</td><td class="pname">Chuba Hubbard <span class="posrk">RB30</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>CAR <span class="sos sos-neu">-</span></td><td>77</td><td class="valneg" data-sortval="-3">-3</td><td>5</td>
+      <td class="hc">Jonathon Brooks</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="kyle pitts" data-bye="11" onclick="toggleDraft(this)"><td>81</td><td class="pname">Kyle Pitts <span class="posrk">TE7</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>ATL <span class="sos sos-neu">-</span></td><td>79</td><td class="valneg" data-sortval="-2">-2</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="courtland sutton" data-bye="10" onclick="toggleDraft(this)"><td>82</td><td class="pname">Courtland Sutton <span class="posrk">WR35</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>DEN <span class="sos sos-neu">-</span></td><td>80</td><td class="valneg" data-sortval="-2">-2</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="rico dowdle" data-bye="9" onclick="toggleDraft(this)"><td>83</td><td class="pname">Rico Dowdle <span class="posrk">RB31</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>PIT <span class="sos sos-neu">-</span></td><td>87</td><td class="valpos" data-sortval="4">+4</td><td>9</td>
+      <td class="hc">Jaylen Warren</td><td class="notecell">Lead back in PIT; solid flex option.</td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="sam laporta" data-bye="6" onclick="toggleDraft(this)"><td>84</td><td class="pname">Sam LaPorta <span class="posrk">TE8</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>DET <span class="sos sos-neu">-</span></td><td>81</td><td class="valneg" data-sortval="-3">-3</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="chris godwin jr." data-bye="10" onclick="toggleDraft(this)"><td>85</td><td class="pname">Chris Godwin Jr. <span class="posrk">WR36</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>TB <span class="sos sos-neu">-</span></td><td>91</td><td class="valpos" data-sortval="6">+6</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="parker washington" data-bye="7" onclick="toggleDraft(this)"><td>86</td><td class="pname">Parker Washington <span class="posrk">WR37</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>JAX <span class="sos sos-neu">-</span></td><td>70</td><td class="valneg" data-sortval="-16">-16</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="jordyn tyson" data-bye="8" onclick="toggleDraft(this)"><td>87</td><td class="pname">Jordyn Tyson <span class="rk-tag" title="2026 rookie">R</span> <span class="posrk">WR38</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>NO <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>73</td><td class="valneg" data-sortval="-14">-14</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="jaxson dart" data-bye="8" onclick="toggleDraft(this)"><td>88</td><td class="pname">Jaxson Dart <span class="posrk">QB11</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>NYG <span class="sos sos-neu">-</span></td><td>92</td><td class="valpos" data-sortval="4">+4</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">—<div class="stackline">Stack: Malik Nabers, Isaiah Likely</div></td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="kyle monangai" data-bye="10" onclick="toggleDraft(this)"><td>89</td><td class="pname">Kyle Monangai <span class="posrk">RB32</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>CHI <span class="sos sos-neu">-</span></td><td>96</td><td class="valpos" data-sortval="7">+7</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="brock purdy" data-bye="8" onclick="toggleDraft(this)"><td>90</td><td class="pname">Brock Purdy <span class="posrk">QB12</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>SF <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>94</td><td class="valpos" data-sortval="4">+4</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">—<div class="stackline">Stack: Mike Evans, George Kittle</div></td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="michael wilson" data-bye="14" onclick="toggleDraft(this)"><td>91</td><td class="pname">Michael Wilson <span class="posrk">WR39</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>ARI <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>104</td><td class="valpos" data-sortval="13">+13</td><td>14</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="michael pittman jr." data-bye="9" onclick="toggleDraft(this)"><td>92</td><td class="pname">Michael Pittman Jr. <span class="posrk">WR40</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>PIT <span class="sos sos-neu">-</span></td><td>90</td><td class="valneg" data-sortval="-2">-2</td><td>9</td>
+      <td class="hc">—</td><td class="notecell">Volume-based WR3 in PIT.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="j.k. dobbins" data-bye="10" onclick="toggleDraft(this)"><td>93</td><td class="pname">J.K. Dobbins <span class="posrk">RB33</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>DEN <span class="sos sos-neu">-</span></td><td>100</td><td class="valpos" data-sortval="7">+7</td><td>10</td>
+      <td class="hc">Jonah Coleman</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="blake corum" data-bye="11" onclick="toggleDraft(this)"><td>94</td><td class="pname">Blake Corum <span class="posrk">RB34</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>LAR <span class="sos sos-neu">-</span></td><td>103</td><td class="valpos" data-sortval="9">+9</td><td>11</td>
+      <td class="hc">Kyren Williams</td><td class="notecell">Handcuff with standalone flex value.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="quentin johnston" data-bye="7" onclick="toggleDraft(this)"><td>95</td><td class="pname">Quentin Johnston <span class="posrk">WR41</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>LAC <span class="sos sos-neu">-</span></td><td>88</td><td class="valneg" data-sortval="-7">-7</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">Big-play WR; boom-or-bust.</td>
+    </tr>
+    </tbody>
+<tbody class="tier-group" data-tier-name="Deep Sleepers &amp; Streaming" id="tbody-F">
+      <tr class="tier-divider-row" id="tier-F">
+      <td colspan="9">
+        <div class="divider-inner">
+          <span class="tier-badge-inline tier-badge-F">F</span>
+          <span class="divider-title">Deep Sleepers &amp; Streaming</span>
+          <span class="divider-sub">Waiver radar, handcuffs, DST/K, deep stashes</span>
+        </div>
+        
+      </td>
+    </tr>
+      <tr class="draftrow" data-pos="WR" data-name="matthew golden" data-bye="11" onclick="toggleDraft(this)"><td>96</td><td class="pname">Matthew Golden <span class="posrk">WR42</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>GB <span class="sos sos-neu">-</span></td><td>110</td><td class="valpos" data-sortval="14">+14</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">Packers &#x27;clearing the way&#x27; per ESPN — Doubs left, Wicks traded. Big Year-2 jump expected.</td>
+    </tr><tr class="draftrow monflag" data-pos="QB" data-name="patrick mahomes ii" data-bye="5" onclick="toggleDraft(this)"><td>97</td><td class="pname">Patrick Mahomes II <span class="posrk">QB13</span><br><span class="tag tag-monitor">MON</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>KC <span class="sos sos-neu">-</span></td><td>102</td><td class="valpos" data-sortval="6">+6</td><td>5</td>
+      <td class="hc">—</td><td class="notecell">Fully cleared for camp (ACL/LCL). Wearing brace but full 11-on-11.<div class="stackline">Stack: Rashee Rice, Travis Kelce, Xavier Worthy</div></td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="bo nix" data-bye="10" onclick="toggleDraft(this)"><td>98</td><td class="pname">Bo Nix <span class="posrk">QB14</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>DEN <span class="sos sos-neu">-</span></td><td>108</td><td class="valpos" data-sortval="11">+11</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—<div class="stackline">Stack: Jaylen Waddle, Courtland Sutton</div></td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="makai lemon" data-bye="10" onclick="toggleDraft(this)"><td>99</td><td class="pname">Makai Lemon <span class="rk-tag" title="2026 rookie">R</span> <span class="posrk">WR43</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>PHI <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>89</td><td class="valneg" data-sortval="-9">-9</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="jakobi meyers" data-bye="7" onclick="toggleDraft(this)"><td>100</td><td class="pname">Jakobi Meyers <span class="posrk">WR44</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>JAX <span class="sos sos-neu">-</span></td><td>110</td><td class="valpos" data-sortval="11">+11</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="matthew stafford" data-bye="11" onclick="toggleDraft(this)"><td>101</td><td class="pname">Matthew Stafford <span class="posrk">QB15</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>LAR <span class="sos sos-neu">-</span></td><td>95</td><td class="valneg" data-sortval="-7">-7</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">—<div class="stackline">Stack: Puka Nacua, Davante Adams, Terrance Ferguson</div></td>
+    </tr><tr class="draftrow pupflag" data-pos="TE" data-name="george kittle" data-bye="8" onclick="toggleDraft(this)"><td>102</td><td class="pname">George Kittle <span class="posrk">TE9</span><br><span class="tag tag-pup">PUP/IR</span> <span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>SF <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>97</td><td class="valneg" data-sortval="-4">-4</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">Active/PUP. Achilles tear Jan 11. Ahead of schedule, targeting Weeks 2-4 return.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="kenny gainwell" data-bye="10" onclick="toggleDraft(this)"><td>103</td><td class="pname">Kenny Gainwell <span class="posrk">RB35</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>TB <span class="sos sos-neu">-</span></td><td>98</td><td class="valneg" data-sortval="-5">-5</td><td>10</td>
+      <td class="hc">Bucky Irving</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="travis kelce" data-bye="5" onclick="toggleDraft(this)"><td>104</td><td class="pname">Travis Kelce <span class="posrk">TE10</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>KC <span class="sos sos-neu">-</span></td><td>109</td><td class="valpos" data-sortval="5">+5</td><td>5</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="jordan addison" data-bye="6" onclick="toggleDraft(this)"><td>105</td><td class="pname">Jordan Addison <span class="posrk">WR45</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>MIN <span class="sos sos-neu">-</span></td><td>107</td><td class="valpos" data-sortval="2">+2</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="wan&#x27;dale robinson" data-bye="9" onclick="toggleDraft(this)"><td>106</td><td class="pname">Wan&#x27;Dale Robinson <span class="posrk">WR46</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>TEN <span class="sos sos-neu">-</span></td><td>111</td><td class="valpos" data-sortval="5">+5</td><td>9</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="rachaad white" data-bye="7" onclick="toggleDraft(this)"><td>107</td><td class="pname">Rachaad White <span class="posrk">RB36</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>WAS <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>99</td><td class="valneg" data-sortval="-8">-8</td><td>7</td>
+      <td class="hc">Jacory Croskey-Merritt</td><td class="notecell">Pass-catching RB; PPR flex value in WAS.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="josh downs" data-bye="13" onclick="toggleDraft(this)"><td>108</td><td class="pname">Josh Downs <span class="posrk">WR47</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>IND <span class="sos sos-neu">-</span></td><td>105</td><td class="valneg" data-sortval="-3">-3</td><td>13</td>
+      <td class="hc">—</td><td class="notecell">Slot WR with PPR upside in IND.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="aaron jones sr." data-bye="6" onclick="toggleDraft(this)"><td>109</td><td class="pname">Aaron Jones Sr. <span class="posrk">RB37</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>MIN <span class="sos sos-neu">-</span></td><td>121</td><td class="valpos" data-sortval="12">+12</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="jared goff" data-bye="6" onclick="toggleDraft(this)"><td>110</td><td class="pname">Jared Goff <span class="posrk">QB16</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>DET <span class="sos sos-neu">-</span></td><td>112</td><td class="valpos" data-sortval="2">+2</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">—<div class="stackline">Stack: Amon-Ra St. Brown, Jameson Williams, Sam LaPorta, Isaac TeSlaa</div></td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="jayden reed" data-bye="11" onclick="toggleDraft(this)"><td>111</td><td class="pname">Jayden Reed <span class="posrk">WR48</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>GB <span class="sos sos-neu">-</span></td><td>106</td><td class="valneg" data-sortval="-5">-5</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="dalton kincaid" data-bye="7" onclick="toggleDraft(this)"><td>112</td><td class="pname">Dalton Kincaid <span class="posrk">TE11</span><br><span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>BUF <span class="sos sos-neu">-</span></td><td>119</td><td class="valpos" data-sortval="7">+7</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">#1 among 45 TEs (200+ routes) in tgt/route, YPRR, yds/tgt. TE10 on 38% snaps.</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="jacory croskey-merritt" data-bye="7" onclick="toggleDraft(this)"><td>113</td><td class="pname">Jacory Croskey-Merritt <span class="posrk">RB38</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>WAS <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>122</td><td class="valpos" data-sortval="9">+9</td><td>7</td>
+      <td class="hc">Rachaad White</td><td class="notecell">Rookie RB; sleeper with upside.</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="kyler murray" data-bye="6" onclick="toggleDraft(this)"><td>114</td><td class="pname">Kyler Murray <span class="posrk">QB17</span><br><span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>MIN <span class="sos sos-neu">-</span></td><td>120</td><td class="valpos" data-sortval="6">+6</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">~35 rush yds/game in 5 starts. Now with Jefferson in MIN.<div class="stackline">Stack: Justin Jefferson, Jordan Addison, Jauan Jennings, T.J. Hockenson</div></td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="jonathon brooks" data-bye="5" onclick="toggleDraft(this)"><td>115</td><td class="pname">Jonathon Brooks <span class="posrk">RB39</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>CAR <span class="sos sos-neu">-</span></td><td>93</td><td class="valneg" data-sortval="-22">-22</td><td>5</td>
+      <td class="hc">Chuba Hubbard</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="jake ferguson" data-bye="14" onclick="toggleDraft(this)"><td>116</td><td class="pname">Jake Ferguson <span class="posrk">TE12</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>DAL <span class="sos sos-neu">-</span></td><td>118</td><td class="valpos" data-sortval="2">+2</td><td>14</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="jordan mason" data-bye="6" onclick="toggleDraft(this)"><td>117</td><td class="pname">Jordan Mason <span class="posrk">RB40</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>MIN <span class="sos sos-neu">-</span></td><td>115</td><td class="valneg" data-sortval="-2">-2</td><td>6</td>
+      <td class="hc">Aaron Jones</td><td class="notecell">Solid backup with standalone value.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="xavier worthy" data-bye="5" onclick="toggleDraft(this)"><td>118</td><td class="pname">Xavier Worthy <span class="posrk">WR49</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>KC <span class="sos sos-neu">-</span></td><td>113</td><td class="valneg" data-sortval="-5">-5</td><td>5</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="dallas goedert" data-bye="10" onclick="toggleDraft(this)"><td>119</td><td class="pname">Dallas Goedert <span class="posrk">TE13</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>PHI <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>116</td><td class="valneg" data-sortval="-3">-3</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">Injury-prone but productive when active.</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="baker mayfield" data-bye="10" onclick="toggleDraft(this)"><td>120</td><td class="pname">Baker Mayfield <span class="posrk">QB18</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>TB <span class="sos sos-neu">-</span></td><td>125</td><td class="valpos" data-sortval="5">+5</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—<div class="stackline">Stack: Emeka Egbuka, Chris Godwin Jr., Jalen McMillan</div></td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="jordan love" data-bye="11" onclick="toggleDraft(this)"><td>121</td><td class="pname">Jordan Love <span class="posrk">QB19</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>GB <span class="sos sos-neu">-</span></td><td>127</td><td class="valpos" data-sortval="6">+6</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">—<div class="stackline">Stack: Christian Watson, Tucker Kraft, Matthew Golden, Jayden Reed</div></td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="isaiah likely" data-bye="8" onclick="toggleDraft(this)"><td>122</td><td class="pname">Isaiah Likely <span class="posrk">TE14</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>NYG <span class="sos sos-neu">-</span></td><td>117</td><td class="valneg" data-sortval="-5">-5</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">Breakout TE candidate in NYG.</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="tyler shough" data-bye="8" onclick="toggleDraft(this)"><td>123</td><td class="pname">Tyler Shough <span class="posrk">QB20</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>NO <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>128</td><td class="valpos" data-sortval="5">+5</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">20.3 PPG over final 8 games. Added Tyson + Etienne.<div class="stackline">Stack: Chris Olave, Jordyn Tyson, Juwan Johnson</div></td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="jayden higgins" data-bye="8" onclick="toggleDraft(this)"><td>124</td><td class="pname">Jayden Higgins <span class="posrk">WR50</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>HOU <span class="sos sos-neu">-</span></td><td>129</td><td class="valpos" data-sortval="5">+5</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="malik willis" data-bye="6" onclick="toggleDraft(this)"><td>125</td><td class="pname">Malik Willis <span class="posrk">QB21</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>MIA <span class="sos sos-neu">-</span></td><td>136</td><td class="valpos" data-sortval="11">+11</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">44.8 rush yds/game in 6 starts. MIA starter on 3yr/$67.5M.<div class="stackline">Stack: Greg Dulcich</div></td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="jalen coker" data-bye="5" onclick="toggleDraft(this)"><td>126</td><td class="pname">Jalen Coker <span class="posrk">WR51</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>CAR <span class="sos sos-neu">-</span></td><td>131</td><td class="valpos" data-sortval="5">+5</td><td>5</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="chris rodriguez" data-bye="7" onclick="toggleDraft(this)"><td>127</td><td class="pname">Chris Rodriguez <span class="posrk">RB41</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>JAX <span class="sos sos-neu">-</span></td><td>132</td><td class="valpos" data-sortval="5">+5</td><td>7</td>
+      <td class="hc">Bhayshul Tuten</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="keaton mitchell" data-bye="7" onclick="toggleDraft(this)"><td>128</td><td class="pname">Keaton Mitchell <span class="posrk">RB42</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>LAC <span class="sos sos-neu">-</span></td><td>174</td><td class="valpos" data-sortval="46">+46</td><td>7</td>
+      <td class="hc">Omarion Hampton</td><td class="notecell">Speedster; depth piece with upside.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="romeo doubs" data-bye="11" onclick="toggleDraft(this)"><td>129</td><td class="pname">Romeo Doubs <span class="posrk">WR52</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>NE <span class="sos sos-neu">-</span></td><td>124</td><td class="valneg" data-sortval="-5">-5</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="khalil shakir" data-bye="7" onclick="toggleDraft(this)"><td>130</td><td class="pname">Khalil Shakir <span class="posrk">WR53</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>BUF <span class="sos sos-neu">-</span></td><td>130</td><td class="valzero" data-sortval="0">+0</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="sam darnold" data-bye="11" onclick="toggleDraft(this)"><td>131</td><td class="pname">Sam Darnold <span class="posrk">QB22</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>SEA <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>161</td><td class="valpos" data-sortval="30">+30</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">—<div class="stackline">Stack: Jaxon Smith-Njigba, Rashid Shaheed, Cooper Kupp</div></td>
+    </tr><tr class="draftrow" data-pos="QB" data-name="c.j. stroud" data-bye="8" onclick="toggleDraft(this)"><td>132</td><td class="pname">C.J. Stroud <span class="posrk">QB23</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>HOU <span class="sos sos-neu">-</span></td><td>152</td><td class="valpos" data-sortval="20">+20</td><td>8</td>
+      <td class="hc">—</td><td class="notecell">—<div class="stackline">Stack: Nico Collins, Jayden Higgins, Dalton Schultz</div></td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="tyrone tracy jr." data-bye="8" onclick="toggleDraft(this)"><td>133</td><td class="pname">Tyrone Tracy Jr. <span class="posrk">RB43</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>NYG <span class="sos sos-neu">-</span></td><td>133</td><td class="valzero" data-sortval="0">+0</td><td>8</td>
+      <td class="hc">Cam Skattebo</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="jalen mcmillan" data-bye="10" onclick="toggleDraft(this)"><td>134</td><td class="pname">Jalen McMillan <span class="posrk">WR54</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>TB <span class="sos sos-neu">-</span></td><td>145</td><td class="valpos" data-sortval="11">+11</td><td>10</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="RB" data-name="isiah pacheco" data-bye="6" onclick="toggleDraft(this)"><td>135</td><td class="pname">Isiah Pacheco <span class="posrk">RB44</span><br><span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>DET <span class="sos sos-neu">-</span></td><td>141</td><td class="valpos" data-sortval="6">+6</td><td>6</td>
+      <td class="hc">Jahmyr Gibbs</td><td class="notecell">Now in DET; backup with standalone value.</td>
+    </tr><tr class="draftrow monflag" data-pos="QB" data-name="daniel jones" data-bye="13" onclick="toggleDraft(this)"><td>136</td><td class="pname">Daniel Jones <span class="posrk">QB24</span><br><span class="tag tag-monitor">MON</span> <span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>IND <span class="sos sos-neu">-</span></td><td>151</td><td class="valpos" data-sortval="15">+15</td><td>13</td>
+      <td class="hc">—</td><td class="notecell">Fully cleared (Achilles). Full 11-on-11. Ready for Week 1.<div class="stackline">Stack: Tyler Warren, Alec Pierce, Josh Downs</div></td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="oronde gadsden" data-bye="7" onclick="toggleDraft(this)"><td>137</td><td class="pname">Oronde Gadsden <span class="posrk">TE15</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>LAC <span class="sos sos-neu">-</span></td><td>142</td><td class="valpos" data-sortval="5">+5</td><td>7</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="TE" data-name="hunter henry" data-bye="11" onclick="toggleDraft(this)"><td>138</td><td class="pname">Hunter Henry <span class="posrk">TE16</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>NE <span class="sos sos-neu">-</span></td><td>148</td><td class="valpos" data-sortval="10">+10</td><td>11</td>
+      <td class="hc">—</td><td class="notecell">—</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="jauan jennings" data-bye="6" onclick="toggleDraft(this)"><td>139</td><td class="pname">Jauan Jennings <span class="posrk">WR55</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>MIN <span class="sos sos-neu">-</span></td><td>160</td><td class="valpos" data-sortval="21">+21</td><td>6</td>
+      <td class="hc">—</td><td class="notecell">Physical WR; TD-dependent.</td>
+    </tr><tr class="draftrow" data-pos="WR" data-name="rashid shaheed" data-bye="-" onclick="toggleDraft(this)"><td>140</td><td class="pname">Rashid Shaheed <span class="posrk">WR56</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>SEA <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>134</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="omar cooper jr." data-bye="-" onclick="toggleDraft(this)"><td>141</td><td class="pname">Omar Cooper Jr. <span class="posrk">WR57</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>NYJ <span class="sos sos-neu">-</span></td><td>149</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="TE" data-name="brenton strange" data-bye="-" onclick="toggleDraft(this)"><td>142</td><td class="pname">Brenton Strange <span class="posrk">TE17</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>JAX <span class="sos sos-neu">-</span></td><td>139</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="brian robinson" data-bye="-" onclick="toggleDraft(this)"><td>143</td><td class="pname">Brian Robinson <span class="posrk">RB45</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>ATL <span class="sos sos-neu">-</span></td><td>162</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="woody marks" data-bye="-" onclick="toggleDraft(this)"><td>144</td><td class="pname">Woody Marks <span class="posrk">RB46</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>HOU <span class="sos sos-neu">-</span></td><td>137</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="K" data-name="brandon aubrey" data-bye="-" onclick="toggleDraft(this)"><td>145</td><td class="pname">Brandon Aubrey <span class="posrk"></span></td><td><span class="pos-pill pos-K">K</span></td>
+      <td>DAL <span class="sos sos-neu">-</span></td><td>291</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="denzel boston" data-bye="-" onclick="toggleDraft(this)"><td>146</td><td class="pname">Denzel Boston <span class="rk-tag" title="2026 rookie">R</span> <span class="posrk">WR58</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>CLE <span class="sos sos-neu">-</span></td><td>154</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="TE" data-name="chigoziem okonkwo" data-bye="-" onclick="toggleDraft(this)"><td>147</td><td class="pname">Chigoziem Okonkwo <span class="posrk">TE18</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>WAS <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>138</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="calvin ridley" data-bye="-" onclick="toggleDraft(this)"><td>148</td><td class="pname">Calvin Ridley <span class="posrk">WR59</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>TEN <span class="sos sos-neu">-</span></td><td>171</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="stefon diggs" data-bye="-" onclick="toggleDraft(this)"><td>149</td><td class="pname">Stefon Diggs <span class="posrk">WR60</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>FA <span class="sos sos-neu">-</span></td><td>135</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="TE" data-name="juwan johnson" data-bye="-" onclick="toggleDraft(this)"><td>150</td><td class="pname">Juwan Johnson <span class="posrk">TE19</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>NO <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>144</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="TE" data-name="kenyon sadiq" data-bye="-" onclick="toggleDraft(this)"><td>151</td><td class="pname">Kenyon Sadiq <span class="rk-tag" title="2026 rookie">R</span> <span class="posrk">TE20</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>NYJ <span class="sos sos-neu">-</span></td><td>156</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="DST" data-name="houston texans" data-bye="-" onclick="toggleDraft(this)"><td>152</td><td class="pname">Houston Texans <span class="posrk"></span></td><td><span class="pos-pill pos-DST">DST</span></td>
+      <td>HOU <span class="sos sos-neu">-</span></td><td>215</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="ryan flournoy" data-bye="-" onclick="toggleDraft(this)"><td>153</td><td class="pname">Ryan Flournoy <span class="posrk">WR61</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>DAL <span class="sos sos-neu">-</span></td><td>178</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="jalen nailor" data-bye="-" onclick="toggleDraft(this)"><td>154</td><td class="pname">Jalen Nailor <span class="posrk">WR62</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>LV <span class="sos sos-neu">-</span></td><td>155</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="QB" data-name="cam ward" data-bye="-" onclick="toggleDraft(this)"><td>155</td><td class="pname">Cam Ward <span class="posrk">QB25</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>TEN <span class="sos sos-neu">-</span></td><td>159</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="QB" data-name="bryce young" data-bye="-" onclick="toggleDraft(this)"><td>156</td><td class="pname">Bryce Young <span class="posrk">QB26</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>CAR <span class="sos sos-neu">-</span></td><td>163</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="DST" data-name="los angeles rams" data-bye="-" onclick="toggleDraft(this)"><td>157</td><td class="pname">Los Angeles Rams <span class="posrk"></span></td><td><span class="pos-pill pos-DST">DST</span></td>
+      <td>LAR <span class="sos sos-neu">-</span></td><td>218</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="tre tucker" data-bye="-" onclick="toggleDraft(this)"><td>158</td><td class="pname">Tre Tucker <span class="posrk">WR63</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>LV <span class="sos sos-neu">-</span></td><td>150</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="DST" data-name="seattle seahawks" data-bye="-" onclick="toggleDraft(this)"><td>159</td><td class="pname">Seattle Seahawks <span class="posrk"></span></td><td><span class="pos-pill pos-DST">DST</span></td>
+      <td>SEA <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>220</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="K" data-name="ka&#x27;imi fairbairn" data-bye="-" onclick="toggleDraft(this)"><td>160</td><td class="pname">Ka&#x27;imi Fairbairn <span class="posrk"></span></td><td><span class="pos-pill pos-K">K</span></td>
+      <td>HOU <span class="sos sos-neu">-</span></td><td>295</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="DST" data-name="denver broncos" data-bye="-" onclick="toggleDraft(this)"><td>161</td><td class="pname">Denver Broncos <span class="posrk"></span></td><td><span class="pos-pill pos-DST">DST</span></td>
+      <td>DEN <span class="sos sos-neu">-</span></td><td>217</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="jerry jeudy" data-bye="-" onclick="toggleDraft(this)"><td>162</td><td class="pname">Jerry Jeudy <span class="posrk">WR64</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>CLE <span class="sos sos-neu">-</span></td><td>165</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="deebo samuel" data-bye="-" onclick="toggleDraft(this)"><td>163</td><td class="pname">Deebo Samuel <span class="posrk">WR65</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>FA <span class="sos sos-neu">-</span></td><td>168</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="TE" data-name="t.j. hockenson" data-bye="-" onclick="toggleDraft(this)"><td>164</td><td class="pname">T.J. Hockenson <span class="posrk">TE21</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>MIN <span class="sos sos-neu">-</span></td><td>153</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="tyjae spears" data-bye="-" onclick="toggleDraft(this)"><td>165</td><td class="pname">Tyjae Spears <span class="posrk">RB47</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>TEN <span class="sos sos-neu">-</span></td><td>140</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="K" data-name="cam little" data-bye="-" onclick="toggleDraft(this)"><td>166</td><td class="pname">Cam Little <span class="posrk"></span></td><td><span class="pos-pill pos-K">K</span></td>
+      <td>JAX <span class="sos sos-neu">-</span></td><td>297</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="TE" data-name="dalton schultz" data-bye="-" onclick="toggleDraft(this)"><td>167</td><td class="pname">Dalton Schultz <span class="posrk">TE22</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>HOU <span class="sos sos-neu">-</span></td><td>164</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="germie bernard" data-bye="-" onclick="toggleDraft(this)"><td>168</td><td class="pname">Germie Bernard <span class="posrk">WR66</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>PIT <span class="sos sos-neu">-</span></td><td>199</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="TE" data-name="pat freiermuth" data-bye="-" onclick="toggleDraft(this)"><td>169</td><td class="pname">Pat Freiermuth <span class="posrk">TE23</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>PIT <span class="sos sos-neu">-</span></td><td>186</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="tank bigsby" data-bye="-" onclick="toggleDraft(this)"><td>170</td><td class="pname">Tank Bigsby <span class="posrk">RB48</span><br><span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>PHI <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>157</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="isaac teslaa" data-bye="-" onclick="toggleDraft(this)"><td>171</td><td class="pname">Isaac TeSlaa <span class="posrk">WR67</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>DET <span class="sos sos-neu">-</span></td><td>180</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="QB" data-name="fernando mendoza" data-bye="-" onclick="toggleDraft(this)"><td>172</td><td class="pname">Fernando Mendoza <span class="rk-tag" title="2026 rookie">R</span> <span class="posrk">QB27</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>LV <span class="sos sos-neu">-</span></td><td>187</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="QB" data-name="aaron rodgers" data-bye="-" onclick="toggleDraft(this)"><td>173</td><td class="pname">Aaron Rodgers <span class="posrk">QB28</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>PIT <span class="sos sos-neu">-</span></td><td>191</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="tyler allgeier" data-bye="-" onclick="toggleDraft(this)"><td>174</td><td class="pname">Tyler Allgeier <span class="posrk">RB49</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>ARI <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>146</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="K" data-name="jason myers" data-bye="-" onclick="toggleDraft(this)"><td>175</td><td class="pname">Jason Myers <span class="posrk"></span></td><td><span class="pos-pill pos-K">K</span></td>
+      <td>SEA <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>296</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="dylan sampson" data-bye="-" onclick="toggleDraft(this)"><td>176</td><td class="pname">Dylan Sampson <span class="posrk">RB50</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>CLE <span class="sos sos-neu">-</span></td><td>177</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="K" data-name="cameron dicker" data-bye="-" onclick="toggleDraft(this)"><td>177</td><td class="pname">Cameron Dicker <span class="posrk"></span></td><td><span class="pos-pill pos-K">K</span></td>
+      <td>LAC <span class="sos sos-neu">-</span></td><td>294</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="alvin kamara" data-bye="-" onclick="toggleDraft(this)"><td>178</td><td class="pname">Alvin Kamara <span class="posrk">RB51</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>NO <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>147</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="sean tucker" data-bye="-" onclick="toggleDraft(this)"><td>179</td><td class="pname">Sean Tucker <span class="posrk">RB52</span><br><span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>TB <span class="sos sos-neu">-</span></td><td>193</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="QB" data-name="jacoby brissett" data-bye="-" onclick="toggleDraft(this)"><td>180</td><td class="pname">Jacoby Brissett <span class="posrk">QB29</span></td><td><span class="pos-pill pos-QB">QB</span></td>
+      <td>ARI <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>189</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="adonai mitchell" data-bye="-" onclick="toggleDraft(this)"><td>181</td><td class="pname">Adonai Mitchell <span class="posrk">WR68</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>NYJ <span class="sos sos-neu">-</span></td><td>170</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="kaytron allen" data-bye="-" onclick="toggleDraft(this)"><td>182</td><td class="pname">Kaytron Allen <span class="rk-tag" title="2026 rookie">R</span> <span class="posrk">RB53</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>WAS <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>190</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="TE" data-name="terrance ferguson" data-bye="-" onclick="toggleDraft(this)"><td>183</td><td class="pname">Terrance Ferguson <span class="posrk">TE24</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>LAR <span class="sos sos-neu">-</span></td><td>172</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="jonah coleman" data-bye="-" onclick="toggleDraft(this)"><td>184</td><td class="pname">Jonah Coleman <span class="posrk">RB54</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>DEN <span class="sos sos-neu">-</span></td><td>175</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="cooper kupp" data-bye="-" onclick="toggleDraft(this)"><td>185</td><td class="pname">Cooper Kupp <span class="posrk">WR69</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>SEA <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>202</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="TE" data-name="gunnar helm" data-bye="-" onclick="toggleDraft(this)"><td>186</td><td class="pname">Gunnar Helm <span class="posrk">TE25</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>TEN <span class="sos sos-neu">-</span></td><td>185</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="travis hunter" data-bye="-" onclick="toggleDraft(this)"><td>187</td><td class="pname">Travis Hunter <span class="posrk">WR70</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>JAX <span class="sos sos-neu">-</span></td><td>158</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="antonio williams" data-bye="-" onclick="toggleDraft(this)"><td>188</td><td class="pname">Antonio Williams <span class="posrk">WR71</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>WAS <span class="sos sos-easy" title="Easy fantasy-playoff schedule (Wk15-17)">E</span></td><td>169</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="WR" data-name="tre&#x27; harris" data-bye="-" onclick="toggleDraft(this)"><td>189</td><td class="pname">Tre&#x27; Harris <span class="posrk">WR72</span></td><td><span class="pos-pill pos-WR">WR</span></td>
+      <td>LAC <span class="sos sos-neu">-</span></td><td>179</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="TE" data-name="greg dulcich" data-bye="-" onclick="toggleDraft(this)"><td>190</td><td class="pname">Greg Dulcich <span class="posrk">TE26</span><br><span class="tag tag-gem">GEM</span></td><td><span class="pos-pill pos-TE">TE</span></td>
+      <td>MIA <span class="sos sos-neu">-</span></td><td>181</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="jordan james" data-bye="-" onclick="toggleDraft(this)"><td>191</td><td class="pname">Jordan James <span class="posrk">RB55</span><br><span class="tag tag-value">VAL</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>SF <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>196</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="emanuel wilson" data-bye="-" onclick="toggleDraft(this)"><td>192</td><td class="pname">Emanuel Wilson <span class="posrk">RB56</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>SEA <span class="sos sos-hard" title="Hard fantasy-playoff schedule (Wk15-17)">H</span></td><td>204</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="samaje perine" data-bye="-" onclick="toggleDraft(this)"><td>193</td><td class="pname">Samaje Perine <span class="posrk">RB57</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>CIN <span class="sos sos-neu">-</span></td><td>260</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="braelon allen" data-bye="-" onclick="toggleDraft(this)"><td>194</td><td class="pname">Braelon Allen <span class="posrk">RB58</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>NYJ <span class="sos sos-neu">-</span></td><td>167</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr><tr class="draftrow" data-pos="RB" data-name="ray davis" data-bye="-" onclick="toggleDraft(this)"><td>195</td><td class="pname">Ray Davis <span class="posrk">RB59</span></td><td><span class="pos-pill pos-RB">RB</span></td>
+      <td>BUF <span class="sos sos-neu">-</span></td><td>182</td><td class="valzero">&mdash;</td><td>&mdash;</td><td class="hc">&mdash;</td><td class="notecell">Deep waiver-wire tier &mdash; no detailed scouting note.</td></tr>
+    </tbody>
+    </table>
+  </div>
+
+</main>
+
+<div id="export-panel">
+  <button class="close-btn" onclick="toggleExportImport()">&times;</button>
+  <h2>&#128190; Export / Import Your Progress</h2>
+  <p style="font-size:0.72rem;color:#a9c2ab;margin-top:-4px;">
+    Auto-save tries to persist automatically, but if it's not working on your device, use this as a manual backup —
+    export before closing the tab, import to restore.
+  </p>
+  <div id="storage-diag" style="font-size:0.7rem;margin:6px 0 10px;"></div>
+
+  <div style="margin-top:10px;">
+    <button class="panel-action-btn" onclick="doExport()">Generate export code</button>
+    <button class="panel-action-btn" onclick="copyExport()">Copy to clipboard</button>
+  </div>
+  <textarea id="exportBox" placeholder="Tap 'Generate export code' above — then copy this text somewhere safe." readonly></textarea>
+
+  <div style="margin-top:14px;border-top:1px solid var(--hash);padding-top:12px;">
+    <label style="font-size:0.72rem;color:#a9c2ab;">Paste previously exported code here to restore it:</label>
+    <textarea id="importBox" placeholder="Paste exported code here..."></textarea>
+    <button class="panel-action-btn" style="margin-top:6px;" onclick="doImport()">Import &amp; apply</button>
+    <div id="import-status" style="font-size:0.72rem;margin-top:6px;"></div>
+  </div>
+</div>
+
+<div id="summary-panel">
+  <button class="close-btn" onclick="toggleSummary()">&times;</button>
+  <h2>&#128202; Draft Summary</h2>
+  <div id="summary-content"></div>
+</div>
+
+<div id="myteam-panel">
+  <button class="close-btn" onclick="toggleMyTeam()">&times;</button>
+  <h2>&#127942; My Team</h2>
+  <div id="needs-row"></div>
+  <div id="value-tracker"></div>
+  <div id="bye-warning"></div>
+  <div class="roster-list" id="roster-list"></div>
+  <button class="panel-action-btn" style="margin-top:12px;background:var(--gem);color:#2a1f00;" onclick="toggleSummary()">&#128202; View Draft Summary</button>
+</div>
+
+<footer>
+  Merged &amp; fact-checked draft board &middot; verify injury/PUP designations day-of-draft
+</footer>
+
+<script src="script.js"></script>
+
+</body>
+</html>
