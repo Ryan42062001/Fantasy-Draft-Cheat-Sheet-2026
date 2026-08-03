@@ -26,6 +26,39 @@ function applyFilters(){
   });
 }
 
+// ==== POSITION SCARCITY DASHBOARD ====
+// Shows real-time count of available players by position
+function updateDraftDayDashboard(){
+  var container = document.getElementById('draft-day-dashboard');
+  if(!container) return;
+  
+  var draftedCounts = {QB:0, RB:0, WR:0, TE:0, K:0, DST:0};
+  var totalByPos = {QB:0, RB:0, WR:0, TE:0, K:0, DST:0};
+  
+  document.querySelectorAll('tr.draftrow').forEach(function(row){
+    var pos = row.getAttribute('data-pos');
+    if(totalByPos[pos] !== undefined) totalByPos[pos]++;
+    if(row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')){
+      if(draftedCounts[pos] !== undefined) draftedCounts[pos]++;
+    }
+  });
+  
+  var html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap:8px;">';
+  ['QB','RB','WR','TE','K','DST'].forEach(function(pos){
+    var left = totalByPos[pos] - draftedCounts[pos];
+    var pct = totalByPos[pos] > 0 ? Math.round((left / totalByPos[pos]) * 100) : 0;
+    var urgency = pct > 50 ? 'plenty' : pct > 25 ? 'fair' : pct > 10 ? 'limited' : 'scarce';
+    var color = urgency === 'plenty' ? '#5fa87c' : urgency === 'fair' ? '#e0c98a' : urgency === 'limited' ? '#e0a83f' : '#c1554b';
+    html += '<div style="background:rgba(255,255,255,0.06); border: 1px solid '+color+'; border-radius:8px; padding:8px; text-align:center;">';
+    html += '<div style="font-weight:900; color:'+color+'; font-size:0.9rem;">'+pos+'</div>';
+    html += '<div style="font-size:0.75rem; color:#a9c2ab;">'+left+' left</div>';
+    html += '<div style="font-size:0.65rem; color:#7d947f;">('+pct+'%)</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
 var ROSTER_SLOTS = {QB:1, RB:2, WR:2, TE:1, FLEX:1, DST:1, K:1};
 // Bench slots per position (configured by user). Defaults set per request: qb:0, RB:2, WR:5
 var BENCH_SLOTS = {QB:0, RB:2, WR:5, TE:0, K:0, DST:0};
@@ -47,6 +80,7 @@ function toggleDraft(row){
   updatePickCounter();
   updateScarcityAlerts();
   updateRecommendedPick();
+  updateDraftDayDashboard();
   addRoundMarkers();
   scheduleSave();
 }
@@ -77,6 +111,7 @@ function resetBoard(){
   updatePickCounter();
   updateScarcityAlerts();
   updateRecommendedPick();
+  updateDraftDayDashboard();
   addRoundMarkers();
   btn.innerText = 'Reset all';
   btn.classList.remove('armed');
@@ -142,7 +177,16 @@ function setAutosaveEnabled(enabled){
   var diagEl = document.getElementById('storage-diag'); if(diagEl){ diagEl.innerHTML = enabled ? 'Autosave: On' : 'Autosave: Off'; }
 }
 
-function toggleAutosave(){ setAutosaveEnabled(!isAutosaveEnabled()); }
+function toggleAutosave(){
+  setAutosaveEnabled(!isAutosaveEnabled());
+  var btn = document.getElementById('autosaveToggle');
+  if(btn){
+    var enabled = isAutosaveEnabled();
+    btn.innerText = enabled ? 'Autosave On' : 'Autosave Off';
+    btn.style.background = enabled ? 'rgba(95,168,124,0.25)' : 'rgba(193,85,75,0.25)';
+    btn.style.borderColor = enabled ? '#5fa87c' : '#c1554b';
+  }
+}
 
 function loadState(){
   updateMyTeam();
