@@ -953,41 +953,6 @@ function sortTable(tableId, colIdx, type){
   table.setAttribute('data-sort-col', colIdx);
   table.setAttribute('data-sort-dir', asc ? 'asc' : 'desc');
 }
-// ==== KEYBOARD SHORTCUTS ====
-// Quick draft-day shortcuts for fast interactions on the clock
-document.addEventListener('keydown', function(e){
-  // Ctrl+S / Cmd+S: toggle autosave (for power users who want manual control)
-  if((e.ctrlKey || e.metaKey) && e.key === 's'){
-    e.preventDefault();
-    toggleAutosave();
-  }
-  // Ctrl+M / Cmd+M: toggle My Team panel
-  if((e.ctrlKey || e.metaKey) && e.key === 'm'){
-    e.preventDefault();
-    toggleMyTeam();
-  }
-  // Ctrl+E / Cmd+E: toggle Export/Import
-  if((e.ctrlKey || e.metaKey) && e.key === 'e'){
-    e.preventDefault();
-    toggleExportImport();
-  }
-  // Number keys 1-6: quick position filter shortcuts
-  var posShortcuts = {
-    '0': 'ALL',
-    '1': 'QB',
-    '2': 'RB',
-    '3': 'WR',
-    '4': 'TE',
-    '5': 'K',
-    '6': 'DST'
-  };
-  if(posShortcuts[e.key]){
-    e.preventDefault();
-    var pos = posShortcuts[e.key];
-    var btn = Array.from(document.querySelectorAll('.filterbtn')).find(b => b.getAttribute('data-pos') === pos);
-    if(btn) setPosFilter(pos, btn);
-  }
-});
 
 // ==== PAGE INITIALIZATION ====
 // Restore draft state from localStorage and initialize dashboard on load
@@ -998,6 +963,7 @@ window.addEventListener('load', function(){
   updatePickCounter();
   updateMyTeam();
   addRoundMarkers();
+  
   // Ensure autosave button reflects current state
   var btn = document.getElementById('autosaveToggle');
   if(btn){
@@ -1005,4 +971,40 @@ window.addEventListener('load', function(){
     btn.style.background = isAutosaveEnabled() ? 'rgba(95,168,124,0.25)' : 'rgba(193,85,75,0.25)';
     btn.style.borderColor = isAutosaveEnabled() ? '#5fa87c' : '#c1554b';
   }
+  
+  // ==== KEYBOARD SHORTCUTS ====
+  // Quick draft-day shortcuts for fast interactions on the clock
+  document.addEventListener('keydown', function(e){
+    // Ctrl+S / Cmd+S: toggle autosave (for power users who want manual control)
+    if((e.ctrlKey || e.metaKey) && e.key === 's'){
+      e.preventDefault();
+      toggleAutosave();
+    }
+    // Ctrl+M / Cmd+M: toggle My Team panel
+    if((e.ctrlKey || e.metaKey) && e.key === 'm'){
+      e.preventDefault();
+      toggleMyTeam();
+    }
+    // Ctrl+E / Cmd+E: toggle Export/Import
+    if((e.ctrlKey || e.metaKey) && e.key === 'e'){
+      e.preventDefault();
+      toggleExportImport();
+    }
+    // Number keys 0-6: quick position filter shortcuts
+    var posShortcuts = {
+      '0': 'ALL',
+      '1': 'QB',
+      '2': 'RB',
+      '3': 'WR',
+      '4': 'TE',
+      '5': 'K',
+      '6': 'DST'
+    };
+    if(posShortcuts[e.key]){
+      e.preventDefault();
+      var pos = posShortcuts[e.key];
+      var btn = Array.from(document.querySelectorAll('.filterbtn')).find(b => b.getAttribute('data-pos') === pos);
+      if(btn) setPosFilter(pos, btn);
+    }
+  });
 });
