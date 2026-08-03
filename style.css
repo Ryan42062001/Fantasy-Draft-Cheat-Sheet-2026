@@ -258,3 +258,25 @@ html{background:#122619 !important;color-scheme:dark;}
     width:100%; min-height:70px; background:#0f2419; border:1px solid var(--value); color:#f3efe3;
     border-radius:8px; padding:8px; font-size:0.68rem; font-family:monospace; resize:vertical; margin-top:4px;
   }
+
+  /* Scarcity visual flag on tier divider */
+  tr.tier-divider-row.scarcity-warning td{ 
+    box-shadow: inset 0 -6px 0 0 rgba(193,85,75,0.12);
+    border-bottom:2px solid rgba(193,85,75,0.22);
+  }
+  /* Make the cliff between tiers more visible with a colored bar and extra spacing */
+  tr.tier-divider-row td::after{
+    content: '';
+    display:block;
+    height:6px;
+    margin-top:8px;
+    border-radius:4px;
+    background: linear-gradient(90deg, rgba(224,168,63,0.12), rgba(95,168,217,0.08));
+  }
+  .cliff-note-inline{font-size:0.66rem;color:#f0cf7a;background:rgba(224,168,63,0.12);border-left:4px solid var(--gem);border-radius:6px;padding:6px 8px;margin:8px 0 10px;}
+
+  /* Slightly larger gap after divider to emphasize cliff */
+  tr.tier-divider-row + tr.draftrow td{ padding-top:10px; }
+
+  /* Scarcity note stronger visual */
+  .scarcity-note{background:rgba(224,168,63,0.16);border:1px solid rgba(193,85,75,0.22);border-radius:8px;padding:10px 12px;font-size:0.74rem;color:#f0cf7a;margin-bottom:8px;}
