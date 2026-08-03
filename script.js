@@ -1,9 +1,41 @@
+/**
+ * FANTASY DRAFT CHEAT SHEET 2026
+ * Real-time draft companion with live recommendations, autosave, and position tracking
+ */
+
+// ==== CONFIGURATION ====
+var LEAGUE_SIZE = 10;
+var MY_DRAFT_SLOT = 10;
+var TOTAL_ROUNDS = 16;
+var ROSTER_SLOTS = {QB:1, RB:2, WR:2, TE:1, FLEX:1, DST:1, K:1};
+var BENCH_SLOTS = {QB:0, RB:2, WR:5, TE:0, K:0, DST:0};
+var AUTOSAVE_KEY = 'draft-state-v1';
+var AUTOSAVE_ENABLED_KEY = 'draft-autosave-enabled-v1';
+var TEAM_COLORS = {
+  ARI:'#97233F', ATL:'#A71930', BAL:'#241773', BUF:'#00338D', CAR:'#0085CA',
+  CHI:'#0B162A', CIN:'#FB4F14', CLE:'#FF3C00', DAL:'#003594', DEN:'#FB4F14',
+  DET:'#0076B6', GB:'#203731', HOU:'#03202F', IND:'#002C5F', JAX:'#101820',
+  KC:'#E31837', LAC:'#0080C6', LAR:'#003594', LV:'#A5ACAF', MIA:'#008E97',
+  MIN:'#4F2683', NE:'#002244', NO:'#D3BC8D', NYG:'#0B2265', NYJ:'#125740',
+  PHI:'#004C54', PIT:'#FFB612', SEA:'#69BE28', SF:'#AA0000', TB:'#D50A0A',
+  TEN:'#4B92DB', WAS:'#5A1414'
+};
+var TIER_IDS = ['Sp','S','A','B','C','D','E','F'];
+var TIER_LABELS = {Sp:'S+', S:'S', A:'A', B:'B', C:'C', D:'D', E:'E', F:'F'};
+
+// ==== INTERNAL STATE ====
+var currentPosFilter = 'ALL';
+var resetArmed = false;
+var resetArmTimer = null;
+var _saveTimer = null;
+var window.ORIGINAL_ORDER = [];
+
+// ==== POSITION FILTERING ====
 function jumpTo(id){
   var el = document.getElementById(id);
   if(el){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
 }
 
-var currentPosFilter = 'ALL';
 function setPosFilter(pos, btn){
   currentPosFilter = pos;
   document.querySelectorAll('.filterbtn').forEach(b=>b.classList.remove('active'));
@@ -11,19 +43,37 @@ function setPosFilter(pos, btn){
   applyFilters();
 }
 
-function applyFilters(){
-  var q = document.getElementById('searchBox').value.toLowerCase();
+// ==== DRAFT DAY DASHBOARD ====
+// Quick position scarcity summary for decision-making on the clock
+function updateDraftDayDashboard(){
+  var container = document.getElementById('draft-day-dashboard');
+  if(!container) return;
+  
+  var draftedCounts = {QB:0, RB:0, WR:0, TE:0, K:0, DST:0};
+  var totalByPos = {QB:0, RB:0, WR:0, TE:0, K:0, DST:0};
+  
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     var pos = row.getAttribute('data-pos');
-    var name = row.getAttribute('data-name') || '';
-    var matchesPos = (currentPosFilter === 'ALL' || pos === currentPosFilter);
-    var matchesSearch = (q === '' || name.indexOf(q) !== -1);
-    if(matchesPos && matchesSearch){
-      row.classList.remove('hidden-row');
-    } else {
-      row.classList.add('hidden-row');
+    if(totalByPos[pos] !== undefined) totalByPos[pos]++;
+    if(row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')){
+      if(draftedCounts[pos] !== undefined) draftedCounts[pos]++;
     }
   });
+  
+  var html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap:8px;">';
+  ['QB','RB','WR','TE','K','DST'].forEach(function(pos){
+    var left = totalByPos[pos] - draftedCounts[pos];
+    var pct = totalByPos[pos] > 0 ? Math.round((left / totalByPos[pos]) * 100) : 0;
+    var urgency = pct > 50 ? 'plenty' : pct > 25 ? 'fair' : pct > 10 ? 'limited' : 'scarce';
+    var color = urgency === 'plenty' ? '#5fa87c' : urgency === 'fair' ? '#e0c98a' : urgency === 'limited' ? '#e0a83f' : '#c1554b';
+    html += '<div style="background:rgba(255,255,255,0.06); border: 1px solid '+color+'; border-radius:8px; padding:8px; text-align:center;">';
+    html += '<div style="font-weight:900; color:'+color+'; font-size:0.9rem;">'+pos+'</div>';
+    html += '<div style="font-size:0.75rem; color:#a9c2ab;">'+left+' left</div>';
+    html += '<div style="font-size:0.65rem; color:#7d947f;">('+pct+'%)</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 var ROSTER_SLOTS = {QB:1, RB:2, WR:2, TE:1, FLEX:1, DST:1, K:1};
@@ -31,8 +81,8 @@ var ROSTER_SLOTS = {QB:1, RB:2, WR:2, TE:1, FLEX:1, DST:1, K:1};
 var BENCH_SLOTS = {QB:0, RB:2, WR:5, TE:0, K:0, DST:0};
 
 function toggleDraft(row){
-  if(document.body.classList.contains('edit-mode')) return; // editing ranks — don't also cycle draft status
-  // 3-state cycle: available -> mine (green) -> taken by other (gray) -> available
+  if(document.body.classList.contains('edit-mode')) return;
+  // 3-state cycle: available → drafted by me (green) → drafted by other (gray) → available
   if(row.classList.contains('drafted-mine')){
     row.classList.remove('drafted-mine');
     row.classList.add('drafted-other');
@@ -47,7 +97,9 @@ function toggleDraft(row){
   updatePickCounter();
   updateScarcityAlerts();
   updateRecommendedPick();
+  updateDraftDayDashboard();
   addRoundMarkers();
+  scheduleSave();
 }
 
 var resetArmed = false;
@@ -79,6 +131,8 @@ function resetBoard(){
   addRoundMarkers();
   btn.innerText = 'Reset all';
   btn.classList.remove('armed');
+  updateDraftDayDashboard();
+  scheduleSave();
 }
 
 // ---- CHECKLIST ITEM 1: auto-save progress ----
@@ -93,9 +147,56 @@ function resetBoard(){
 // placeholder. Do not re-add window.storage calls without first confirming
 // (via a fresh, isolated test) that the underlying platform issue is fixed.
 
+// Autosave utilities (localStorage with graceful fallback)
+var AUTOSAVE_KEY = 'draft-state-v1';
+var AUTOSAVE_ENABLED_KEY = 'draft-autosave-enabled-v1';
+var _saveTimer = null;
+
+function saveState(){
+  try{
+    var state = {};
+    document.querySelectorAll('tr.draftrow').forEach(function(row){
+      var name = row.getAttribute('data-name');
+      if(row.classList.contains('drafted-mine')) state[name] = 'mine';
+      else if(row.classList.contains('drafted-other')) state[name] = 'taken';
+    });
+    var order = [];
+    document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
+      var tid = tbody.id.replace('tbody-','');
+      tbody.querySelectorAll('tr.draftrow').forEach(function(row){ order.push({n: row.getAttribute('data-name'), t: tid}); });
+    });
+    var payload = { savedAt: new Date().toISOString(), teams: LEAGUE_SIZE, slot: MY_DRAFT_SLOT, rounds: TOTAL_ROUNDS, state: state, order: order };
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(payload));
+    flashSaveIndicator('Saved', '#8fd4a0');
+    var diagEl = document.getElementById('storage-diag'); if(diagEl) diagEl.innerHTML = 'Autosave: On (last saved '+ new Date().toLocaleTimeString()+')';
+    return true;
+  } catch(e){
+    console.error('Autosave failed', e);
+    flashSaveIndicator('Autosave failed', '#e08a8a');
+    var diagEl = document.getElementById('storage-diag'); if(diagEl) diagEl.innerHTML = '<b>Autosave failed — use Export to back up your picks.</b>';
+    return false;
+  }
+}
+
+function scheduleSave(){
+  if(!isAutosaveEnabled()) return;
+  if(_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(function(){ saveState(); _saveTimer = null; }, 400);
+}
+
+function isAutosaveEnabled(){
+  try{ return localStorage.getItem(AUTOSAVE_ENABLED_KEY) === '1'; }catch(e){ return false; }
+}
+
+function setAutosaveEnabled(enabled){
+  try{ localStorage.setItem(AUTOSAVE_ENABLED_KEY, enabled ? '1' : '0'); }catch(e){}
+  var btn = document.getElementById('autosaveToggle'); if(btn){ btn.classList.toggle('active', enabled); btn.innerText = enabled ? 'Autosave On' : 'Autosave Off'; }
+  var diagEl = document.getElementById('storage-diag'); if(diagEl){ diagEl.innerHTML = enabled ? 'Autosave: On' : 'Autosave: Off'; }
+}
+
+function toggleAutosave(){ setAutosaveEnabled(!isAutosaveEnabled()); }
+
 function loadState(){
-  // No automatic restore — see note above. Board starts fresh each load;
-  // user restores via the Import panel if they have an exported backup.
   updateMyTeam();
   updateRemaining();
   updateBestAvailable();
@@ -107,14 +208,40 @@ function loadState(){
   window.ORIGINAL_ORDER = [];
   document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
     var tid = tbody.id.replace('tbody-','');
-    tbody.querySelectorAll('tr.draftrow').forEach(function(row){
-      window.ORIGINAL_ORDER.push({n: row.getAttribute('data-name'), t: tid});
-    });
+    tbody.querySelectorAll('tr.draftrow').forEach(function(row){ window.ORIGINAL_ORDER.push({n: row.getAttribute('data-name'), t: tid}); });
   });
   addEditControls();
+
+  var enabled = isAutosaveEnabled();
+  setAutosaveEnabled(enabled);
   var diagEl = document.getElementById('storage-diag');
-  if(diagEl){
-    diagEl.innerHTML = 'Auto-save isn&#39;t available in this environment (confirmed broken on both mobile and desktop). <b>Export before closing this tab, and Import to restore your progress.</b>';
+  try{
+    if(enabled){
+      var raw = localStorage.getItem(AUTOSAVE_KEY);
+      if(raw){
+        var payload = JSON.parse(raw);
+        if(payload.teams) document.getElementById('pcTeams').value = payload.teams;
+        if(payload.slot) document.getElementById('pcSlot').value = payload.slot;
+        if(payload.rounds) document.getElementById('pcRounds').value = payload.rounds;
+        updatePickSettings();
+        if(payload.order){ applyCustomOrder(payload.order); }
+        document.querySelectorAll('tr.draftrow').forEach(function(row){
+          var name = row.getAttribute('data-name');
+          row.classList.remove('drafted-mine','drafted-other');
+          if(payload.state && payload.state[name] === 'mine') row.classList.add('drafted-mine');
+          else if(payload.state && payload.state[name] === 'taken') row.classList.add('drafted-other');
+        });
+        updateMyTeam(); updateRemaining(); updateBestAvailable(); updatePickCounter(); updateScarcityAlerts(); updateRecommendedPick(); addRoundMarkers();
+        if(diagEl) diagEl.innerHTML = 'Autosave: restored backup from '+(payload.savedAt||'previous session');
+      } else {
+        if(diagEl) diagEl.innerHTML = 'Autosave: No prior backup found.';
+      }
+    } else {
+      if(diagEl) diagEl.innerHTML = 'Autosave is disabled. Use Export to back up your picks.';
+    }
+  } catch(e){
+    console.error('Restore from autosave failed', e);
+    if(diagEl) diagEl.innerHTML = '<b>Autosave restore failed — use Export to back up your picks.</b>';
   }
 }
 window.addEventListener('DOMContentLoaded', loadState);
@@ -205,6 +332,7 @@ function applyCustomOrder(orderArray){
   updateRecommendedPick();
   updateScarcityAlerts();
   addRoundMarkers();
+  scheduleSave();
 }
 
 function doImport(){
@@ -234,6 +362,7 @@ function doImport(){
     addRoundMarkers();
     statusEl.innerHTML = '&#9989; Imported successfully — board updated.';
     statusEl.style.color = '#8fd4a0';
+    scheduleSave();
   } catch(e){
     statusEl.innerHTML = '&#10060; Could not read that code — make sure you pasted the full export text.';
     statusEl.style.color = '#e08a8a';
@@ -442,6 +571,7 @@ function refreshAfterRankEdit(){
   updateBestAvailable();
   updateRecommendedPick();
   updateScarcityAlerts();
+  scheduleSave();
 }
 
 function moveRowUp(row){
@@ -814,3 +944,56 @@ function sortTable(tableId, colIdx, type){
   table.setAttribute('data-sort-col', colIdx);
   table.setAttribute('data-sort-dir', asc ? 'asc' : 'desc');
 }
+// ==== KEYBOARD SHORTCUTS ====
+// Quick draft-day shortcuts for fast interactions on the clock
+document.addEventListener('keydown', function(e){
+  // Ctrl+S / Cmd+S: toggle autosave (for power users who want manual control)
+  if((e.ctrlKey || e.metaKey) && e.key === 's'){
+    e.preventDefault();
+    toggleAutosave();
+  }
+  // Ctrl+M / Cmd+M: toggle My Team panel
+  if((e.ctrlKey || e.metaKey) && e.key === 'm'){
+    e.preventDefault();
+    toggleMyTeam();
+  }
+  // Ctrl+E / Cmd+E: toggle Export/Import
+  if((e.ctrlKey || e.metaKey) && e.key === 'e'){
+    e.preventDefault();
+    toggleExportImport();
+  }
+  // Number keys 1-6: quick position filter shortcuts
+  var posShortcuts = {
+    '0': 'ALL',
+    '1': 'QB',
+    '2': 'RB',
+    '3': 'WR',
+    '4': 'TE',
+    '5': 'K',
+    '6': 'DST'
+  };
+  if(posShortcuts[e.key]){
+    e.preventDefault();
+    var pos = posShortcuts[e.key];
+    var btn = Array.from(document.querySelectorAll('.filterbtn')).find(b => b.getAttribute('data-pos') === pos);
+    if(btn) setPosFilter(pos, btn);
+  }
+});
+
+// ==== PAGE INITIALIZATION ====
+// Restore draft state from localStorage and initialize dashboard on load
+window.addEventListener('load', function(){
+  loadState();
+  updateDraftDayDashboard();
+  updateBestAvailable();
+  updatePickCounter();
+  updateMyTeam();
+  addRoundMarkers();
+  // Ensure autosave button reflects current state
+  var btn = document.getElementById('autosaveToggle');
+  if(btn){
+    btn.innerText = isAutosaveEnabled() ? 'Autosave On' : 'Autosave Off';
+    btn.style.background = isAutosaveEnabled() ? 'rgba(95,168,124,0.25)' : 'rgba(193,85,75,0.25)';
+    btn.style.borderColor = isAutosaveEnabled() ? '#5fa87c' : '#c1554b';
+  }
+});
