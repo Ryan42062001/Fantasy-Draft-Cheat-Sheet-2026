@@ -27,6 +27,8 @@ function applyFilters(){
 }
 
 var ROSTER_SLOTS = {QB:1, RB:2, WR:2, TE:1, FLEX:1, DST:1, K:1};
+// Bench slots per position (configured by user). Defaults set per request: qb:0, RB:2, WR:5
+var BENCH_SLOTS = {QB:0, RB:2, WR:5, TE:0, K:0, DST:0};
 
 function toggleDraft(row){
   if(document.body.classList.contains('edit-mode')) return; // editing ranks — don't also cycle draft status
@@ -278,52 +280,87 @@ function updateRecommendedPick(){
   var el = document.getElementById('recommended-pick-text');
   if(!el) return;
 
-  var counts = {QB:0,RB:0,WR:0,TE:0};
+  // Count current roster by position
+  var counts = {QB:0,RB:0,WR:0,TE:0,K:0,DST:0};
   document.querySelectorAll('tr.draftrow.drafted-mine').forEach(function(row){
     var pos = row.getAttribute('data-pos');
     if(counts[pos] !== undefined) counts[pos]++;
   });
   var totalDrafted = document.querySelectorAll('tr.draftrow.drafted-mine').length;
   if(totalDrafted === 0){
-    el.innerHTML = 'Tap a player to start tracking your team, and I&#39;ll suggest your best pick here.';
+    el.innerHTML = 'Tap a player to start tracking your team, and I\'ll suggest your best picks here.';
     return;
   }
 
-  var needs = [];
-  if(counts.QB < 1) needs.push('QB');
-  if(counts.RB < 2) needs.push('RB');
-  if(counts.WR < 2) needs.push('WR');
-  if(counts.TE < 1) needs.push('TE');
-  var flexEligible = Math.max(0,(counts.RB-2)) + Math.max(0,(counts.WR-2)) + Math.max(0,(counts.TE-1));
-  var flexNeeded = (needs.length === 0 && flexEligible < 1);
+  // Build per-position needs: starters first, then bench spots
+  var needOrder = [];
+  ['QB','RB','WR','TE'].forEach(function(p){
+    var startersNeeded = Math.max(0, (ROSTER_SLOTS[p]||0) - (counts[p]||0));
+    if(startersNeeded > 0) needOrder.push({type:'starter', pos:p, count:startersNeeded});
+  });
+  // bench remaining per position
+  ['QB','RB','WR','TE','K','DST'].forEach(function(p){
+    var filledBench = Math.max(0, (counts[p]||0) - (ROSTER_SLOTS[p]||0));
+    var benchLeft = (BENCH_SLOTS[p]||0) - filledBench;
+    if(benchLeft > 0) needOrder.push({type:'bench', pos:p, count:benchLeft});
+  });
 
-  var byPos = {QB:null, RB:null, WR:null, TE:null};
+  // Fallback: if no specific need, prefer best available across all positions
+  var candidates = [];
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     if(row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')) return;
     var pos = row.getAttribute('data-pos');
-    if(!(pos in byPos)) return;
-    if(byPos[pos]) return; // already found the top available player at this position in DOM order — respects manual reordering
-    var rk = parseInt(row.children[0].innerText.trim(), 10) || 9999;
+    var rk = parseInt(row.children[0].innerText.trim(),10) || 9999;
     var nameCell = row.querySelector('.pname');
     var name = nameCell ? nameCell.childNodes[0].textContent.trim() : row.getAttribute('data-name');
-    byPos[pos] = {rk:rk, name:name};
+    var round = Math.ceil(rk / LEAGUE_SIZE);
+    candidates.push({row:row, pos:pos, rk:rk, name:name, round:round});
   });
 
-  var pickFrom = needs.length ? needs : (flexNeeded ? ['RB','WR','TE'] : ['QB','RB','WR','TE']);
-  var best = null;
-  pickFrom.forEach(function(p){
-    if(byPos[p] && (!best || byPos[p].rk < best.rk)){
-      best = {rk: byPos[p].rk, name: byPos[p].name, pos: p};
+  var suggested = [];
+  // respect DOM order (candidates already in DOM order) and fill by needs
+  for(var i=0;i<candidates.length && suggested.length<3;i++){
+    var c = candidates[i];
+    // check if this candidate satisfies any outstanding starter need
+    var satisfies = false;
+    for(var j=0;j<needOrder.length;j++){
+      var need = needOrder[j];
+      if(need.pos === c.pos){ satisfies = true; break; }
     }
-  });
+    if(needOrder.length === 0 || satisfies){
+      suggested.push(c);
+    }
+  }
+  // If still not enough, pad with the next best available regardless of pos
+  if(suggested.length < 3){
+    for(var i=0;i<candidates.length && suggested.length<3;i++){
+      if(!suggested.includes(candidates[i])) suggested.push(candidates[i]);
+    }
+  }
 
-  if(!best){
-    el.innerHTML = 'No players left at your needed positions — check Best Available for other options.';
+  if(suggested.length === 0){
+    el.innerHTML = 'No available players to recommend.';
     return;
   }
-  var reasonTag = needs.length ? ('fills your <b>'+best.pos+'</b> need')
-                : (flexNeeded ? 'best FLEX value' : 'best player available — your core needs are filled');
-  el.innerHTML = '<b>'+best.name+'</b> &nbsp;<span class="pos-pill pos-'+best.pos+'">'+best.pos+'</span> &nbsp;#'+best.rk+' overall<br><span style="font-size:0.68rem;color:#a9c2ab;font-weight:400;">'+reasonTag+'</span>';
+
+  var html = '<div style="text-align:left;">';
+  html += '<div style="font-size:0.82rem;color:#a9c2ab;margin-bottom:6px;">Top 3 picks for your roster construction</div>';
+  suggested.forEach(function(s, idx){
+    var reason = '';
+    // label as Starter or Bench candidate based on simple heuristic
+    var startersNeeded = Math.max(0, (ROSTER_SLOTS[s.pos]||0) - (counts[s.pos]||0));
+    var filledBench = Math.max(0, (counts[s.pos]||0) - (ROSTER_SLOTS[s.pos]||0));
+    var benchLeft = (BENCH_SLOTS[s.pos]||0) - filledBench;
+    if(startersNeeded > 0){ reason = 'fills a <b>'+s.pos+'</b> starter need'; }
+    else if(benchLeft > 0){ reason = 'good bench fit ('+benchLeft+' slots left)'; }
+    else { reason = 'best available'; }
+    html += '<div style="padding:6px 8px;border-radius:8px;margin-bottom:6px;background:rgba(255,255,255,0.02);">';
+    html += '<div style="font-weight:900;">'+(idx+1)+'. '+s.name+' <span class="pos-pill pos-'+s.pos+'" style="margin-left:8px;">'+s.pos+'</span></div>';
+    html += '<div style="font-size:0.72rem;color:#a9c2ab;">#'+s.rk+' overall &middot; Rd'+s.round+' &middot; '+reason+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 // ---- FEATURE: round markers next to rank ----
@@ -517,6 +554,9 @@ function updateScarcityAlerts(){
   var container = document.getElementById('scarcity-alerts');
   if(!container) return;
   var alerts = [];
+  // Clear prior visual flags on tier dividers
+  document.querySelectorAll('tr.tier-divider-row').forEach(function(div){ div.classList.remove('scarcity-warning'); });
+
   document.querySelectorAll('tbody.tier-group').forEach(function(block){
     var tierName = block.getAttribute('data-tier-name') || '';
     var posCounts = {};
@@ -529,15 +569,27 @@ function updateScarcityAlerts(){
         posCounts[pos].left++;
       }
     });
+
+    // Find the tier divider row for visual flagging
+    var divider = block.querySelector('tr.tier-divider-row');
+    var tierFlagged = false;
+
     Object.keys(posCounts).forEach(function(pos){
       var c = posCounts[pos];
-      // Only alert if this tier originally had meaningful depth at the position and it's now nearly gone
+      // Alert rules: when a tier had meaningful depth and is nearly out,
+      // show an inline alert and visually flag the tier divider for RB/QB/TE
       if(c.total >= 3 && c.left <= 2 && c.left > 0){
         alerts.push('&#9888; Only <b>'+c.left+' '+pos+'</b> left in tier "'+tierName+'"');
+        if(['QB','RB','TE'].includes(pos)) tierFlagged = true;
       } else if(c.total >= 3 && c.left === 0){
         alerts.push('&#10060; <b>'+pos+'</b> is fully drafted in tier "'+tierName+'"');
+        if(['QB','RB','TE'].includes(pos)) tierFlagged = true;
       }
     });
+
+    if(tierFlagged && divider){
+      divider.classList.add('scarcity-warning');
+    }
   });
   container.innerHTML = alerts.slice(0,6).map(function(a){ return '<div class="scarcity-note">'+a+'</div>'; }).join('');
 }
@@ -662,15 +714,26 @@ function updateMyTeam(){
     }
   });
 
+  // Build starters + bench summary
   var needsHtml = '';
-  var reqs = [['QB',1],['RB',2],['WR',2],['TE',1],['DST',1],['K',1]];
-  reqs.forEach(function(r){
-    var have = counts[r[0]] || 0;
-    var filled = have >= r[1];
-    needsHtml += '<span class="need-pill'+(filled?' filled':'')+'">'+r[0]+': '+have+'/'+r[1]+'</span>';
+  var positions = ['QB','RB','WR','TE','DST','K'];
+  positions.forEach(function(p){
+    var have = counts[p] || 0;
+    var startersRequired = ROSTER_SLOTS[p] || 0;
+    var startersHave = Math.min(have, startersRequired);
+    var startersNeeded = Math.max(0, startersRequired - have);
+    var benchConfigured = BENCH_SLOTS[p] || 0;
+    var benchFilled = Math.max(0, have - startersRequired);
+    var benchNeeded = Math.max(0, benchConfigured - benchFilled);
+    var starterClass = startersNeeded === 0 ? ' filled' : '';
+    var benchClass = benchNeeded === 0 && benchConfigured>0 ? ' filled' : '';
+    needsHtml += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">';
+    needsHtml += '<div class="need-pill'+starterClass+'">'+p+' starters: '+startersHave+'/'+startersRequired+'</div>';
+    if(benchConfigured > 0){
+      needsHtml += '<div class="need-pill'+benchClass+'">Bench: '+benchFilled+'/'+benchConfigured+'</div>';
+    }
+    needsHtml += '</div>';
   });
-  var flexEligible = Math.max(0,(counts.RB-2)) + Math.max(0,(counts.WR-2)) + Math.max(0,(counts.TE-1));
-  needsHtml += '<span class="need-pill'+(flexEligible>=1?' filled':'')+'">FLEX: '+Math.min(flexEligible,1)+'/1</span>';
 
   document.getElementById('needs-row').innerHTML = needsHtml || '<span style="color:#a9c2ab;font-size:0.75rem;">No players drafted yet — tap a row once (green) to add it here.</span>';
 
@@ -706,12 +769,18 @@ function updateMyTeam(){
 
   // ---- FEATURE: need-highlighting on board rows ----
   var neededPositions = new Set();
-  if((counts.QB||0) < 1) neededPositions.add('QB');
-  if((counts.RB||0) < 2) neededPositions.add('RB');
-  if((counts.WR||0) < 2) neededPositions.add('WR');
-  if((counts.TE||0) < 1) neededPositions.add('TE');
-  if(neededPositions.size === 0 && flexEligible < 1){
-    neededPositions.add('RB'); neededPositions.add('WR'); neededPositions.add('TE');
+  // highlight positions where starters still missing
+  if((counts.QB||0) < (ROSTER_SLOTS.QB||0)) neededPositions.add('QB');
+  if((counts.RB||0) < (ROSTER_SLOTS.RB||0)) neededPositions.add('RB');
+  if((counts.WR||0) < (ROSTER_SLOTS.WR||0)) neededPositions.add('WR');
+  if((counts.TE||0) < (ROSTER_SLOTS.TE||0)) neededPositions.add('TE');
+  // If starters are all filled, highlight bench-eligible positions with bench slots left
+  if(neededPositions.size === 0){
+    ['RB','WR','TE'].forEach(function(p){
+      var benchFilled = Math.max(0, (counts[p]||0) - (ROSTER_SLOTS[p]||0));
+      var benchLeft = (BENCH_SLOTS[p]||0) - benchFilled;
+      if(benchLeft > 0) neededPositions.add(p);
+    });
   }
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     var pos = row.getAttribute('data-pos');
