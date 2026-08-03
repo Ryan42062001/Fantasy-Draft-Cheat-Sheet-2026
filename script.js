@@ -971,40 +971,4 @@ window.addEventListener('load', function(){
     btn.style.background = isAutosaveEnabled() ? 'rgba(95,168,124,0.25)' : 'rgba(193,85,75,0.25)';
     btn.style.borderColor = isAutosaveEnabled() ? '#5fa87c' : '#c1554b';
   }
-  
-  // ==== KEYBOARD SHORTCUTS ====
-  // Quick draft-day shortcuts for fast interactions on the clock
-  document.addEventListener('keydown', function(e){
-    // Ctrl+S / Cmd+S: toggle autosave (for power users who want manual control)
-    if((e.ctrlKey || e.metaKey) && e.key === 's'){
-      e.preventDefault();
-      toggleAutosave();
-    }
-    // Ctrl+M / Cmd+M: toggle My Team panel
-    if((e.ctrlKey || e.metaKey) && e.key === 'm'){
-      e.preventDefault();
-      toggleMyTeam();
-    }
-    // Ctrl+E / Cmd+E: toggle Export/Import
-    if((e.ctrlKey || e.metaKey) && e.key === 'e'){
-      e.preventDefault();
-      toggleExportImport();
-    }
-    // Number keys 0-6: quick position filter shortcuts
-    var posShortcuts = {
-      '0': 'ALL',
-      '1': 'QB',
-      '2': 'RB',
-      '3': 'WR',
-      '4': 'TE',
-      '5': 'K',
-      '6': 'DST'
-    };
-    if(posShortcuts[e.key]){
-      e.preventDefault();
-      var pos = posShortcuts[e.key];
-      var btn = Array.from(document.querySelectorAll('.filterbtn')).find(b => b.getAttribute('data-pos') === pos);
-      if(btn) setPosFilter(pos, btn);
-    }
-  });
 });
