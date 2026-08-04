@@ -219,7 +219,11 @@ function scheduleSave(){
 }
 
 function isAutosaveEnabled(){
-  try{ return localStorage.getItem(AUTOSAVE_ENABLED_KEY) === '1'; }catch(e){ return false; }
+  try{
+    var val = localStorage.getItem(AUTOSAVE_ENABLED_KEY);
+    if(val === null) return true; // no saved preference yet — default to ON
+    return val === '1';
+  }catch(e){ return false; }
 }
 
 function setAutosaveEnabled(enabled){
