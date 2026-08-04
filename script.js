@@ -28,7 +28,7 @@ var currentPosFilter = 'ALL';
 var resetArmed = false;
 var resetArmTimer = null;
 var _saveTimer = null;
-var window.ORIGINAL_ORDER = [];
+window.ORIGINAL_ORDER = [];
 
 // ==== POSITION FILTERING ====
 function jumpTo(id){
