@@ -43,6 +43,22 @@ function setPosFilter(pos, btn){
   applyFilters();
 }
 
+function applyFilters(){
+  var q = document.getElementById('searchBox').value.toLowerCase();
+  document.querySelectorAll('tr.draftrow').forEach(function(row){
+    var pos = row.getAttribute('data-pos');
+    var name = row.getAttribute('data-name') || '';
+    var matchesPos = (currentPosFilter === 'ALL' || pos === currentPosFilter);
+    var matchesSearch = (q === '' || name.indexOf(q) !== -1);
+    if(matchesPos && matchesSearch){
+      row.classList.remove('hidden-row');
+    } else {
+      row.classList.add('hidden-row');
+    }
+  });
+}
+
+
 // ==== DRAFT DAY DASHBOARD ====
 // Quick position scarcity summary for decision-making on the clock
 function updateDraftDayDashboard(){
