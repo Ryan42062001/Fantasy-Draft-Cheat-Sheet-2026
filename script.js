@@ -844,12 +844,16 @@ function updateScarcityAlerts(){
   var container = document.getElementById('scarcity-alerts');
   if(!container) return;
   var alerts = [];
+
   // Clear prior visual flags on tier dividers
-  document.querySelectorAll('tr.tier-divider-row').forEach(function(div){ div.classList.remove('scarcity-warning'); });
+  document.querySelectorAll('tr.tier-divider-row').forEach(function(div){ 
+    div.classList.remove('scarcity-warning'); 
+  });
 
   document.querySelectorAll('tbody.tier-group').forEach(function(block){
     var tierName = block.getAttribute('data-tier-name') || '';
     var posCounts = {};
+
     block.querySelectorAll('tr.draftrow').forEach(function(row){
       var pos = row.getAttribute('data-pos');
       if(!['QB','RB','WR','TE'].includes(pos)) return;
@@ -860,29 +864,24 @@ function updateScarcityAlerts(){
       }
     });
 
-    // Find the tier divider row for visual flagging
     var divider = block.querySelector('tr.tier-divider-row');
-    var tierFlagged = false;
 
     Object.keys(posCounts).forEach(function(pos){
       var c = posCounts[pos];
-      // Alert rules: when a tier had meaningful depth and is nearly out,
-      // show an inline alert and visually flag the tier divider for RB/QB/TE
-      if(c.total >= 3 && c.left <= 2 && c.left > 0){
-        alerts.push('&#9888; Only <b>'+c.left+' '+pos+'</b> left in tier "'+tierName+'"');
-        if(['QB','RB','TE'].includes(pos)) tierFlagged = true;
-      } else if(c.total >= 3 && c.left === 0){
-        alerts.push('&#10060; <b>'+pos+'</b> is fully drafted in tier "'+tierName+'"');
-        if(['QB','RB','TE'].includes(pos)) tierFlagged = true;
+      if(c.total > 0 && c.left <= 1){
+        alerts.push('Tier ' + tierName + ': Only ' + c.left + ' ' + pos + ' remaining!');
+        if(divider) divider.classList.add('scarcity-warning');
       }
     });
-
-    if(tierFlagged && divider){
-      divider.classList.add('scarcity-warning');
-    }
   });
-  container.innerHTML = alerts.slice(0,6).map(function(a){ return '<div class="scarcity-note">'+a+'</div>'; }).join('');
+
+  if(alerts.length > 0){
+    container.innerHTML = '<div class="alert-box">' + alerts.join(' | ') + '</div>';
+  } else {
+    container.innerHTML = '';
+  }
 }
+
 
 function updateRemaining(){
   var total = document.querySelectorAll('tr.draftrow').length;
