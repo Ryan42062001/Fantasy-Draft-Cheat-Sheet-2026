@@ -404,3 +404,15 @@ html{background:#122619 !important;color-scheme:dark;}
   .filterbtn:focus {
     outline-color: var(--a-tier);
   }
+  
+#next-pick-marker-row td{
+  background:#0f2419 !important;
+  border-top:3px dashed var(--value) !important;
+  border-bottom:3px dashed var(--value) !important;
+  padding:8px 10px !important;
+  text-align:center;
+  font-size:0.74rem;
+  color:var(--value);
+  font-weight:900;
+}
+
