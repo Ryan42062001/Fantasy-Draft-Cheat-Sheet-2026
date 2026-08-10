@@ -422,3 +422,57 @@ tr.draftrow.search-highlight {
   background-color: rgba(59, 130, 246, 0.3) !important;
   transition: background-color 0.4s ease-in-out;
 }
+
+/* Ensure search container fits neatly within the fixed toolbar */
+.search-container {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid #333;
+}
+
+/* Make search input shrink slightly to make room for buttons */
+#searchBox {
+  width: 140px !important; /* Adjust if needed */
+  max-width: 100%;
+}
+
+/* Explicit styling for search Next/Prev buttons */
+button.navbtn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: #2a2d34;
+  color: #e0e0e0;
+  border: 1px solid #444;
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+button.navbtn:hover:not(:disabled) {
+  background: #3b3e45;
+  color: #fff;
+  border-color: #666;
+}
+
+button.navbtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: #222;
+}
+
+/* Visual highlight for current search result row */
+tr.search-highlight {
+  background-color: rgba(255, 215, 0, 0.35) !important;
+  outline: 2px solid #ffd700;
+  transition: background-color 0.2s ease-in-out;
+}
