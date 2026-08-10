@@ -45,11 +45,10 @@ function setPosFilter(pos, btn){
 
 function applyFilters(){
   var searchInput = document.getElementById('searchBox');
-  if(!searchInput) return;
-  var q = searchInput.value.toLowerCase().trim();
   
-  // 1. Maintain position filters across all rows
+  // FIX #1: Always reset highlights and apply position filters first
   document.querySelectorAll('tr.draftrow').forEach(function(row){
+    row.classList.remove('search-highlight');
     var pos = row.getAttribute('data-pos');
     var matchesPos = (currentPosFilter === 'ALL' || pos === currentPosFilter);
     if(matchesPos){
@@ -59,9 +58,11 @@ function applyFilters(){
     }
   });
 
+  if(!searchInput) return;
+  var q = searchInput.value.toLowerCase().trim();
   if (q.length < 2) return;
 
-  // 2. Locate first visible matching player
+  // Locate first visible matching player
   var targetRow = null;
   var rows = document.querySelectorAll('tr.draftrow:not(.hidden-row)');
   for (var i = 0; i < rows.length; i++) {
@@ -72,7 +73,7 @@ function applyFilters(){
     }
   }
 
-  // 3. Scroll to element
+  // Scroll to element
   if (targetRow) {
     var headerOffset = 140;
     var elementPosition = targetRow.getBoundingClientRect().top + window.pageYOffset;
@@ -487,9 +488,14 @@ function updateRecommendedPick(){
     }
   }
 
+  // FIX #5: Check name/attribute string rather than object reference equity
   if(suggested.length < 3){
-    for(var i=0;i<candidates.length && suggested.length<3;i++){
-      if(!suggested.includes(candidates[i])) suggested.push(candidates[i]);
+    for(var i=0; i<candidates.length && suggested.length<3; i++){
+      var candidate = candidates[i];
+      var isAlreadySuggested = suggested.some(function(item){ return item.name === candidate.name; });
+      if(!isAlreadySuggested) {
+        suggested.push(candidate);
+      }
     }
   }
 
@@ -527,6 +533,7 @@ function addRoundMarkers(){
     if(existing){
       existing.innerText = 'Rd'+round;
     } else {
+      // FIX #2: Clear text node drift when injecting elements
       var tag = document.createElement('div');
       tag.className = 'round-tag';
       tag.innerText = 'Rd'+round;
@@ -544,6 +551,7 @@ function toggleEditMode(){
 function addEditControls(){
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     var rkCell = row.children[0];
+    // FIX #2: Ensure edit controls aren't duplicated on re-render
     if(rkCell.querySelector('.rank-controls')) return;
 
     var wrap = document.createElement('div');
@@ -793,8 +801,11 @@ function updateDraftSummary(){
     var name = row.querySelector('.pname') ? row.querySelector('.pname').childNodes[0].textContent.trim() : row.getAttribute('data-name');
     if(posCounts[pos] !== undefined) posCounts[pos]++;
     if(bye && bye !== '-'){ byeCounts[bye] = (byeCounts[bye]||0)+1; }
-    if(row.children.length >= 6){
-      var v = parseFloat(row.children[5].innerText.trim().replace('+',''));
+    
+    // FIX #4: Query target element class directly instead of hardcoding array indexes
+    var valCell = row.querySelector('.cell-val') || row.children[5];
+    if(valCell){
+      var v = parseFloat(valCell.innerText.trim().replace('+',''));
       if(!isNaN(v)){
         valSum += v; valCount++;
         if(!bestPick || v > bestPick.v) bestPick = {v:v, name:name};
@@ -863,8 +874,11 @@ function updateMyTeam(){
     if(counts[pos] !== undefined){ counts[pos]++; }
     if(bye && bye !== '-'){ byeCounts[bye] = (byeCounts[bye]||0)+1; }
     rosterHtml += '<div class="rl-row"><span>'+name+'</span><span>'+pos+' &middot; Bye '+bye+'</span></div>';
-    if(row.children.length >= 6){
-      var valText = row.children[5].innerText.trim();
+    
+    // FIX #4: Direct cell target fallback safely
+    var valCell = row.querySelector('.cell-val') || row.children[5];
+    if(valCell){
+      var valText = valCell.innerText.trim();
       var v = parseFloat(valText.replace('+',''));
       if(!isNaN(v)){
         valSum += v; valCount++;
@@ -955,10 +969,11 @@ function sortTable(tableId, colIdx, type){
   var asc = table.getAttribute('data-sort-col') != colIdx || table.getAttribute('data-sort-dir') !== 'asc';
 
   tbodies.forEach(function(tbody){
+    // FIX #3: Strictly query tr.draftrow so tier headers/dividers aren't re-sorted
     var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr.draftrow'));
     rows.sort(function(a,b){
-      var av = a.children[colIdx].innerText.trim();
-      var bv = b.children[colIdx].innerText.trim();
+      var av = a.children[colIdx] ? a.children[colIdx].innerText.trim() : '';
+      var bv = b.children[colIdx] ? b.children[colIdx].innerText.trim() : '';
       if(type === 'num'){
         av = parseFloat(av) || 0; bv = parseFloat(bv) || 0;
       } else if(type === 'val'){
