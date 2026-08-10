@@ -1059,3 +1059,153 @@ window.addEventListener('load', function(){
     btn.style.borderColor = isAutosaveEnabled() ? '#5fa87c' : '#c1554b';
   }
 });
+
+// ==== GLOBAL SEARCH STATE ====
+var searchMatches = [];
+var currentSearchIndex = -1;
+
+// 1. DYNAMICALLY BUILD & INJECT SEARCH CONTROLS ON LOAD
+document.addEventListener('DOMContentLoaded', function() {
+  setupSearchUI();
+});
+
+function setupSearchUI() {
+  var searchInput = document.getElementById('searchBox');
+  if (!searchInput) return;
+
+  var parent = searchInput.parentElement;
+  
+  // Wrap search box in container if not already wrapped
+  var container = document.createElement('div');
+  container.className = 'dynamic-search-wrapper';
+  
+  // Insert container before searchInput and move searchInput inside
+  parent.insertBefore(container, searchInput);
+  container.appendChild(searchInput);
+
+  // Build Counter Element
+  var countSpan = document.createElement('span');
+  countSpan.id = 'searchMatchCount';
+  countSpan.innerText = '0/0';
+  container.appendChild(countSpan);
+
+  // Build Prev Button
+  var prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.id = 'searchPrevBtn';
+  prevBtn.className = 'dyn-navbtn';
+  prevBtn.innerHTML = '&#9650;';
+  prevBtn.disabled = true;
+  prevBtn.onclick = function() { navigateSearch(-1); };
+  container.appendChild(prevBtn);
+
+  // Build Next Button
+  var nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.id = 'searchNextBtn';
+  nextBtn.className = 'dyn-navbtn';
+  nextBtn.innerHTML = '&#9660;';
+  nextBtn.disabled = true;
+  nextBtn.onclick = function() { navigateSearch(1); };
+  container.appendChild(nextBtn);
+
+  // Attach search event handler directly
+  searchInput.oninput = applyFilters;
+}
+
+// 2. SEARCH & FILTERING LOGIC
+function applyFilters() {
+  var searchInput = document.getElementById('searchBox');
+  var countEl = document.getElementById('searchMatchCount');
+  var prevBtn = document.getElementById('searchPrevBtn');
+  var nextBtn = document.getElementById('searchNextBtn');
+
+  // Reset row visibility and search highlights
+  document.querySelectorAll('tr.draftrow').forEach(function(row) {
+    row.classList.remove('search-highlight');
+    var pos = row.getAttribute('data-pos');
+    var matchesPos = (typeof currentPosFilter === 'undefined' || currentPosFilter === 'ALL' || pos === currentPosFilter);
+    if (matchesPos) {
+      row.classList.remove('hidden-row');
+    } else {
+      row.classList.add('hidden-row');
+    }
+  });
+
+  searchMatches = [];
+  currentSearchIndex = -1;
+
+  if (!searchInput) return;
+  var q = searchInput.value.toLowerCase().trim();
+
+  // Guard clause for query length
+  if (q.length < 2) {
+    if (countEl) countEl.innerText = '0/0';
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
+    return;
+  }
+
+  // Find all visible matching rows
+  var rows = document.querySelectorAll('tr.draftrow:not(.hidden-row)');
+  rows.forEach(function(row) {
+    var name = (row.getAttribute('data-name') || row.innerText || '').toLowerCase();
+    if (name.indexOf(q) !== -1) {
+      searchMatches.push(row);
+    }
+  });
+
+  // Update UI control states
+  if (searchMatches.length > 0) {
+    currentSearchIndex = 0;
+    if (countEl) countEl.innerText = '1/' + searchMatches.length;
+    if (prevBtn) prevBtn.disabled = (searchMatches.length <= 1);
+    if (nextBtn) nextBtn.disabled = (searchMatches.length <= 1);
+    scrollToCurrentMatch();
+  } else {
+    if (countEl) countEl.innerText = '0/0';
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
+  }
+}
+
+// 3. MULTI-MATCH NAVIGATION CONTROLLER
+function navigateSearch(direction) {
+  if (searchMatches.length <= 1) return;
+
+  // Loop index forward/backward
+  currentSearchIndex = (currentSearchIndex + direction + searchMatches.length) % searchMatches.length;
+
+  var countEl = document.getElementById('searchMatchCount');
+  if (countEl) {
+    countEl.innerText = (currentSearchIndex + 1) + '/' + searchMatches.length;
+  }
+
+  scrollToCurrentMatch();
+}
+
+function scrollToCurrentMatch() {
+  if (currentSearchIndex < 0 || currentSearchIndex >= searchMatches.length) return;
+
+  searchMatches.forEach(function(row) {
+    row.classList.remove('search-highlight');
+  });
+
+  var targetRow = searchMatches[currentSearchIndex];
+  if (!targetRow) return;
+
+  // Scroll target row into view taking sticky toolbar headers into account
+  var headerOffset = 130;
+  var elementPosition = targetRow.getBoundingClientRect().top + window.pageYOffset;
+  var offsetPosition = elementPosition - headerOffset;
+
+  window.scrollTo({
+    top: offsetPosition,
+    behavior: 'smooth'
+  });
+
+  targetRow.classList.add('search-highlight');
+  setTimeout(function() {
+    targetRow.classList.remove('search-highlight');
+  }, 2500);
+}
