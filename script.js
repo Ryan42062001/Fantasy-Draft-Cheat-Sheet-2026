@@ -144,6 +144,7 @@ function toggleDraft(row){
   updateRemaining();
   updateBestAvailable();
   updatePickCounter();
+  updateNextPickMarker();
   updateScarcityAlerts();
   updateRecommendedPick();
   updateDraftDayDashboard();
@@ -175,6 +176,7 @@ function resetBoard(){
   updateRemaining();
   updateBestAvailable();
   updatePickCounter();
+  updateNextPickMarker();
   updateScarcityAlerts();
   updateRecommendedPick();
   updateDraftDayDashboard();
@@ -294,7 +296,7 @@ function loadState(){
           if(payload.state && payload.state[name] === 'mine') row.classList.add('drafted-mine');
           else if(payload.state && payload.state[name] === 'taken') row.classList.add('drafted-other');
         });
-        updateMyTeam(); updateRemaining(); updateBestAvailable(); updatePickCounter(); updateScarcityAlerts(); updateRecommendedPick(); addRoundMarkers();
+        updateMyTeam(); updateRemaining(); updateBestAvailable(); updatePickCounter(); updateNextPickMarker(); updateScarcityAlerts(); updateRecommendedPick(); addRoundMarkers();
         if(diagEl) diagEl.innerHTML = 'Autosave: restored backup from '+(payload.savedAt||'previous session');
       } else {
         if(diagEl) diagEl.innerHTML = 'Autosave: No prior backup found.';
@@ -706,6 +708,7 @@ function updatePickSettings(){
   MY_DRAFT_SLOT = Math.min(LEAGUE_SIZE, Math.max(1, parseInt(slotEl.value,10) || 1));
   TOTAL_ROUNDS = Math.max(1, parseInt(roundsEl.value,10) || 16);
   updatePickCounter();
+  updateNextPickMarker();
   addRoundMarkers();
 }
 
@@ -741,6 +744,32 @@ function updatePickCounter(){
     el.innerHTML = 'Pick #'+currentPick+' of '+totalDraftPicks+' league-wide &middot; your next pick: <b>#'+nextMyPick+'</b> (in '+picksAway+' picks)';
   }
 }
+
+function updateNextPickMarker(){
+  var existing = document.getElementById('next-pick-marker-row');
+  if(existing) existing.remove();
+
+  var totalPicksMade = document.querySelectorAll('tr.draftrow.drafted-mine, tr.draftrow.drafted-other').length;
+  var currentPick = totalPicksMade + 1;
+  var myPicks = getMyPickNumbers(TOTAL_ROUNDS);
+  var nextMyPick = myPicks.find(function(p){ return p >= currentPick; });
+  if(!nextMyPick) return;
+
+  var rows = document.querySelectorAll('tr.draftrow');
+  var targetRow = null;
+  for(var i=0; i<rows.length; i++){
+    var rkText = rows[i].children[0].childNodes[0] ? rows[i].children[0].childNodes[0].textContent.trim() : rows[i].children[0].innerText.trim();
+    var rk = parseInt(rkText, 10);
+    if(rk >= nextMyPick){ targetRow = rows[i]; break; }
+  }
+  if(!targetRow) return;
+
+  var markerRow = document.createElement('tr');
+  markerRow.id = 'next-pick-marker-row';
+  markerRow.innerHTML = '<td colspan="9">&#127919; Your next pick (~#'+nextMyPick+') is estimated around here</td>';
+  targetRow.parentNode.insertBefore(markerRow, targetRow);
+}
+
 
 // ---- CHECKLIST ITEM 4: scarcity alerts ----
 function updateScarcityAlerts(){
@@ -1015,6 +1044,7 @@ window.addEventListener('load', function(){
   updateDraftDayDashboard();
   updateBestAvailable();
   updatePickCounter();
+  updateNextPickMarker();
   updateMyTeam();
   addRoundMarkers();
   
