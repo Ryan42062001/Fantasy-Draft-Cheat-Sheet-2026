@@ -1066,6 +1066,19 @@ var currentSearchIndex = -1;
 
 // 1. DYNAMICALLY BUILD & INJECT SEARCH CONTROLS ON LOAD
 document.addEventListener('DOMContentLoaded', function() {
+  // Add inside your DOMContentLoaded listener or startup logic in script.js
+document.addEventListener('DOMContentLoaded', function() {
+  removeExportImportButtons();
+});
+
+function removeExportImportButtons() {
+  // Finds buttons by common IDs or inline onclick handler keywords
+  var targets = document.querySelectorAll('#exportBtn, #importBtn, button[onclick*="export"], button[onclick*="import"]');
+  targets.forEach(function(btn) {
+    btn.remove();
+  });
+}
+
   setupSearchUI();
 });
 
