@@ -44,9 +44,11 @@ function setPosFilter(pos, btn){
 }
 
 function applyFilters(){
-  var q = document.getElementById('searchBox').value.toLowerCase().trim();
+  var searchInput = document.getElementById('searchBox');
+  if(!searchInput) return;
+  var q = searchInput.value.toLowerCase().trim();
   
-  // 1. Maintain position filters without hiding non-searched players
+  // 1. Maintain position filters across all rows
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     var pos = row.getAttribute('data-pos');
     var matchesPos = (currentPosFilter === 'ALL' || pos === currentPosFilter);
@@ -56,6 +58,49 @@ function applyFilters(){
       row.classList.add('hidden-row');
     }
   });
+
+  // Stop execution if string is too short
+  if (q.length < 2) return;
+
+  // 2. Locate first visible matching player
+  var targetRow = null;
+  var rows = document.querySelectorAll('tr.draftrow:not(.hidden-row)');
+  for (var i = 0; i < rows.length; i++) {
+    var name = (rows[i].getAttribute('data-name') || '').toLowerCase();
+    if (name.indexOf(q) !== -1) {
+      targetRow = rows[i];
+      break;
+    }
+  }
+
+  // 3. Calculate explicit Y-coordinate with header clearance
+  if (targetRow) {
+    var headerOffset = 140; // Adjust pixel height to clear top dashboard/filters
+    var elementPosition = targetRow.getBoundingClientRect().top + window.pageYOffset;
+    var offsetPosition = elementPosition - headerOffset;
+
+    // Scroll main window
+    window.scrollTo({
+      top: offsetPosition,
+      behavior: 'smooth'
+    });
+
+    // Fallback: Scroll parent wrapper if table is inside an overflow box
+    var parentWrapper = targetRow.closest('div');
+    if (parentWrapper && parentWrapper.scrollHeight > parentWrapper.clientHeight) {
+      parentWrapper.scrollTo({
+        top: targetRow.offsetTop - headerOffset,
+        behavior: 'smooth'
+      });
+    }
+
+    // Apply visual target ring
+    targetRow.classList.add('search-highlight');
+    setTimeout(function(){
+      targetRow.classList.remove('search-highlight');
+    }, 2000);
+  }
+}
 
   // 2. Stop execution on empty input or single characters to prevent accidental scrolling
   if (q.length < 2) return;
