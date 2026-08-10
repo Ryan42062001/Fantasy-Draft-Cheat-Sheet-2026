@@ -59,7 +59,6 @@ function applyFilters(){
     }
   });
 
-  // Stop execution if string is too short
   if (q.length < 2) return;
 
   // 2. Locate first visible matching player
@@ -73,28 +72,27 @@ function applyFilters(){
     }
   }
 
-  // 3. Calculate explicit Y-coordinate with header clearance
+  // 3. Scroll to element
   if (targetRow) {
-    var headerOffset = 140; // Adjust pixel height to clear top dashboard/filters
+    var headerOffset = 140;
     var elementPosition = targetRow.getBoundingClientRect().top + window.pageYOffset;
     var offsetPosition = elementPosition - headerOffset;
 
-    // Scroll main window
     window.scrollTo({
       top: offsetPosition,
       behavior: 'smooth'
     });
 
-    // Fallback: Scroll parent wrapper if table is inside an overflow box
     var parentWrapper = targetRow.closest('div');
     if (parentWrapper && parentWrapper.scrollHeight > parentWrapper.clientHeight) {
+      var parentRect = parentWrapper.getBoundingClientRect();
+      var targetRect = targetRow.getBoundingClientRect();
       parentWrapper.scrollTo({
-        top: targetRow.offsetTop - headerOffset,
+        top: parentWrapper.scrollTop + (targetRect.top - parentRect.top) - headerOffset,
         behavior: 'smooth'
       });
     }
 
-    // Apply visual target ring
     targetRow.classList.add('search-highlight');
     setTimeout(function(){
       targetRow.classList.remove('search-highlight');
@@ -102,33 +100,7 @@ function applyFilters(){
   }
 }
 
-  // 2. Stop execution on empty input or single characters to prevent accidental scrolling
-  if (q.length < 2) return;
-
-  // 3. Locate first matching visible player and scroll to them
-  var rows = document.querySelectorAll('tr.draftrow:not(.hidden-row)');
-  for (var i = 0; i < rows.length; i++) {
-    var row = rows[i];
-    var name = (row.getAttribute('data-name') || '').toLowerCase();
-    
-    if (name.indexOf(q) !== -1) {
-      // Smooth scroll to target player
-      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      
-      // Apply visual highlight
-      row.classList.add('search-highlight');
-      setTimeout(function(){
-        row.classList.remove('search-highlight');
-      }, 2000);
-      
-      break; // Stop loop after finding first match
-    }
-  }
-}
-
-
 // ==== DRAFT DAY DASHBOARD ====
-// Quick position scarcity summary for decision-making on the clock
 function updateDraftDayDashboard(){
   var container = document.getElementById('draft-day-dashboard');
   if(!container) return;
@@ -159,47 +131,9 @@ function updateDraftDayDashboard(){
   html += '</div>';
   container.innerHTML = html;
 }
-
-// ==== POSITION SCARCITY DASHBOARD ====
-// Shows real-time count of available players by position
-function updateDraftDayDashboard(){
-  var container = document.getElementById('draft-day-dashboard');
-  if(!container) return;
-  
-  var draftedCounts = {QB:0, RB:0, WR:0, TE:0, K:0, DST:0};
-  var totalByPos = {QB:0, RB:0, WR:0, TE:0, K:0, DST:0};
-  
-  document.querySelectorAll('tr.draftrow').forEach(function(row){
-    var pos = row.getAttribute('data-pos');
-    if(totalByPos[pos] !== undefined) totalByPos[pos]++;
-    if(row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')){
-      if(draftedCounts[pos] !== undefined) draftedCounts[pos]++;
-    }
-  });
-  
-  var html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap:8px;">';
-  ['QB','RB','WR','TE','K','DST'].forEach(function(pos){
-    var left = totalByPos[pos] - draftedCounts[pos];
-    var pct = totalByPos[pos] > 0 ? Math.round((left / totalByPos[pos]) * 100) : 0;
-    var urgency = pct > 50 ? 'plenty' : pct > 25 ? 'fair' : pct > 10 ? 'limited' : 'scarce';
-    var color = urgency === 'plenty' ? '#5fa87c' : urgency === 'fair' ? '#e0c98a' : urgency === 'limited' ? '#e0a83f' : '#c1554b';
-    html += '<div style="background:rgba(255,255,255,0.06); border: 1px solid '+color+'; border-radius:8px; padding:8px; text-align:center;">';
-    html += '<div style="font-weight:900; color:'+color+'; font-size:0.9rem;">'+pos+'</div>';
-    html += '<div style="font-size:0.75rem; color:#a9c2ab;">'+left+' left</div>';
-    html += '<div style="font-size:0.65rem; color:#7d947f;">('+pct+'%)</div>';
-    html += '</div>';
-  });
-  html += '</div>';
-  container.innerHTML = html;
-}
-
-var ROSTER_SLOTS = {QB:1, RB:2, WR:2, TE:1, FLEX:1, DST:1, K:1};
-// Bench slots per position (configured by user). Defaults set per request: qb:0, RB:2, WR:5
-var BENCH_SLOTS = {QB:0, RB:2, WR:5, TE:0, K:0, DST:0};
 
 function toggleDraft(row){
   if(document.body.classList.contains('edit-mode')) return;
-  // 3-state cycle: available → drafted by me (green) → drafted by other (gray) → available
   if(row.classList.contains('drafted-mine')){
     row.classList.remove('drafted-mine');
     row.classList.add('drafted-other');
@@ -220,8 +154,6 @@ function toggleDraft(row){
   scheduleSave();
 }
 
-var resetArmed = false;
-var resetArmTimer = null;
 function resetBoard(){
   var btn = document.getElementById('resetBtn');
   if(!resetArmed){
@@ -251,26 +183,8 @@ function resetBoard(){
   addRoundMarkers();
   btn.innerText = 'Reset all';
   btn.classList.remove('armed');
-  updateDraftDayDashboard();
   scheduleSave();
 }
-
-// ---- CHECKLIST ITEM 1: auto-save progress ----
-// REMOVED FOR GOOD (2026-08-02, session 4): user confirmed the storage
-// errors happen on BOTH mobile and desktop/laptop — this settles the open
-// question from earlier sessions. It is not a mobile-only quirk; window.storage
-// is not functioning in this environment/session, full stop. Removed all
-// automatic storage calls (saveState, loadState's storage.get, and the
-// testStorageCapability self-test) rather than keep generating visible
-// platform-level error toasts on every tap. Export/Import is now the sole,
-// permanent persistence mechanism for this file — this is final, not a
-// placeholder. Do not re-add window.storage calls without first confirming
-// (via a fresh, isolated test) that the underlying platform issue is fixed.
-
-// Autosave utilities (localStorage with graceful fallback)
-var AUTOSAVE_KEY = 'draft-state-v1';
-var AUTOSAVE_ENABLED_KEY = 'draft-autosave-enabled-v1';
-var _saveTimer = null;
 
 function saveState(){
   try{
@@ -307,7 +221,7 @@ function scheduleSave(){
 function isAutosaveEnabled(){
   try{
     var val = localStorage.getItem(AUTOSAVE_ENABLED_KEY);
-    if(val === null) return true; // no saved preference yet — default to ON
+    if(val === null) return true;
     return val === '1';
   }catch(e){ return false; }
 }
@@ -377,8 +291,6 @@ function loadState(){
     if(diagEl) diagEl.innerHTML = '<b>Autosave restore failed — use Export to back up your picks.</b>';
   }
 }
-window.addEventListener('DOMContentLoaded', loadState);
-
 
 function toggleExportImport(){
   var panel = document.getElementById('export-panel');
@@ -432,9 +344,6 @@ function flashSaveIndicator(text, color){
   setTimeout(function(){ el.innerText=''; }, 2000);
 }
 
-// Reorders rows into their saved tiers, in saved sequence. Used by both
-// Import (restoring someone else's/your own prior export) and Reset Ranks
-// (restoring the original pre-edit order captured at page load).
 function syncEditControls(){
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     var select = row.querySelector('.rank-controls select');
@@ -456,11 +365,11 @@ function applyCustomOrder(orderArray){
     var row = rowMap[entry.n];
     var targetTbody = document.getElementById('tbody-' + entry.t);
     if(row && targetTbody){
-      targetTbody.appendChild(row); // appending in saved sequence reconstructs saved order
+      targetTbody.appendChild(row);
     }
   });
-  addEditControls(); // in case any row is missing controls (shouldn't happen, but cheap safety net)
-  syncEditControls(); // re-sync every row's tier-select dropdown to its actual current tier
+  addEditControls();
+  syncEditControls();
   updateBestAvailable();
   updateRecommendedPick();
   updateScarcityAlerts();
@@ -474,7 +383,7 @@ function doImport(){
   if(!raw){ statusEl.innerHTML = '&#9888; Paste an exported code first.'; statusEl.style.color='#e08a8a'; return; }
   try{
     var payload = JSON.parse(raw);
-    var state = payload.state || payload; // tolerate raw state objects too
+    var state = payload.state || payload;
     if(payload.teams){ document.getElementById('pcTeams').value = payload.teams; }
     if(payload.slot){ document.getElementById('pcSlot').value = payload.slot; }
     if(payload.rounds){ document.getElementById('pcRounds').value = payload.rounds; }
@@ -512,16 +421,6 @@ function resetRanks(){
   flashSaveIndicator('Ranks reset', '#8fd4a0');
 }
 
-// ---- FEATURE A: team color accents ----
-var TEAM_COLORS = {
-  ARI:'#97233F', ATL:'#A71930', BAL:'#241773', BUF:'#00338D', CAR:'#0085CA',
-  CHI:'#0B162A', CIN:'#FB4F14', CLE:'#FF3C00', DAL:'#003594', DEN:'#FB4F14',
-  DET:'#0076B6', GB:'#203731', HOU:'#03202F', IND:'#002C5F', JAX:'#101820',
-  KC:'#E31837', LAC:'#0080C6', LAR:'#003594', LV:'#A5ACAF', MIA:'#008E97',
-  MIN:'#4F2683', NE:'#002244', NO:'#D3BC8D', NYG:'#0B2265', NYJ:'#125740',
-  PHI:'#004C54', PIT:'#FFB612', SEA:'#69BE28', SF:'#AA0000', TB:'#D50A0A',
-  TEN:'#4B92DB', WAS:'#5A1414'
-};
 function applyTeamColors(){
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     var teamCell = row.children[3];
@@ -537,12 +436,10 @@ function applyTeamColors(){
   });
 }
 
-// ---- FEATURE: recommended pick (needs + best available combined) ----
 function updateRecommendedPick(){
   var el = document.getElementById('recommended-pick-text');
   if(!el) return;
 
-  // Count current roster by position
   var counts = {QB:0,RB:0,WR:0,TE:0,K:0,DST:0};
   document.querySelectorAll('tr.draftrow.drafted-mine').forEach(function(row){
     var pos = row.getAttribute('data-pos');
@@ -554,20 +451,18 @@ function updateRecommendedPick(){
     return;
   }
 
-  // Build per-position needs: starters first, then bench spots
   var needOrder = [];
   ['QB','RB','WR','TE'].forEach(function(p){
     var startersNeeded = Math.max(0, (ROSTER_SLOTS[p]||0) - (counts[p]||0));
     if(startersNeeded > 0) needOrder.push({type:'starter', pos:p, count:startersNeeded});
   });
-  // bench remaining per position
+
   ['QB','RB','WR','TE','K','DST'].forEach(function(p){
     var filledBench = Math.max(0, (counts[p]||0) - (ROSTER_SLOTS[p]||0));
     var benchLeft = (BENCH_SLOTS[p]||0) - filledBench;
     if(benchLeft > 0) needOrder.push({type:'bench', pos:p, count:benchLeft});
   });
 
-  // Fallback: if no specific need, prefer best available across all positions
   var candidates = [];
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     if(row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')) return;
@@ -580,10 +475,8 @@ function updateRecommendedPick(){
   });
 
   var suggested = [];
-  // respect DOM order (candidates already in DOM order) and fill by needs
   for(var i=0;i<candidates.length && suggested.length<3;i++){
     var c = candidates[i];
-    // check if this candidate satisfies any outstanding starter need
     var satisfies = false;
     for(var j=0;j<needOrder.length;j++){
       var need = needOrder[j];
@@ -593,7 +486,7 @@ function updateRecommendedPick(){
       suggested.push(c);
     }
   }
-  // If still not enough, pad with the next best available regardless of pos
+
   if(suggested.length < 3){
     for(var i=0;i<candidates.length && suggested.length<3;i++){
       if(!suggested.includes(candidates[i])) suggested.push(candidates[i]);
@@ -609,7 +502,6 @@ function updateRecommendedPick(){
   html += '<div style="font-size:0.82rem;color:#a9c2ab;margin-bottom:6px;">Top 3 picks for your roster construction</div>';
   suggested.forEach(function(s, idx){
     var reason = '';
-    // label as Starter or Bench candidate based on simple heuristic
     var startersNeeded = Math.max(0, (ROSTER_SLOTS[s.pos]||0) - (counts[s.pos]||0));
     var filledBench = Math.max(0, (counts[s.pos]||0) - (ROSTER_SLOTS[s.pos]||0));
     var benchLeft = (BENCH_SLOTS[s.pos]||0) - filledBench;
@@ -625,7 +517,6 @@ function updateRecommendedPick(){
   el.innerHTML = html;
 }
 
-// ---- FEATURE: round markers next to rank ----
 function addRoundMarkers(){
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     var rkCell = row.children[0];
@@ -644,10 +535,6 @@ function addRoundMarkers(){
   });
 }
 
-// ---- FEATURE: Edit Ranks (reorder within tier, move between tiers) ----
-var TIER_IDS = ['Sp','S','A','B','C','D','E','F'];
-var TIER_LABELS = {Sp:'S+', S:'S', A:'A', B:'B', C:'C', D:'D', E:'E', F:'F'};
-
 function toggleEditMode(){
   document.body.classList.toggle('edit-mode');
   var btn = document.getElementById('editRanksBtn');
@@ -657,7 +544,7 @@ function toggleEditMode(){
 function addEditControls(){
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     var rkCell = row.children[0];
-    if(rkCell.querySelector('.rank-controls')) return; // already added
+    if(rkCell.querySelector('.rank-controls')) return;
 
     var wrap = document.createElement('div');
     wrap.className = 'rank-controls';
@@ -726,11 +613,10 @@ function moveRowDown(row){
 function moveRowToTier(row, targetTid){
   var targetTbody = document.getElementById('tbody-' + targetTid);
   if(targetTbody){
-    targetTbody.appendChild(row); // lands at the end of that tier; use up/down to fine-position
+    targetTbody.appendChild(row);
     refreshAfterRankEdit();
   }
 }
-
 
 function updateBestAvailable(){
   var byPos = {QB:[], RB:[], WR:[], TE:[]};
@@ -738,7 +624,7 @@ function updateBestAvailable(){
     if(row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')) return;
     var pos = row.getAttribute('data-pos');
     if(!byPos[pos]) return;
-    if(byPos[pos].length >= 3) return; // DOM order already reflects tier + any manual edits — just take first 3
+    if(byPos[pos].length >= 3) return;
     var nameCell = row.querySelector('.pname');
     var name = nameCell ? nameCell.childNodes[0].textContent.trim() : row.getAttribute('data-name');
     var rkText = row.children[0].childNodes[0] ? row.children[0].childNodes[0].textContent.trim() : '?';
@@ -761,13 +647,6 @@ function updateBestAvailable(){
   if(el) el.innerHTML = html;
 }
 
-// ---- CHECKLIST ITEM 3: pick counter / next-pick tracker ----
-// Generalized snake-draft math — works for any team count / draft slot / round count.
-// Reads live from the Teams / Your Pick # / Rounds inputs in the widget (defaults 10/10/16 for this league).
-var LEAGUE_SIZE = 10;
-var MY_DRAFT_SLOT = 10;
-var TOTAL_ROUNDS = 16;
-
 function updatePickSettings(){
   var teamsEl = document.getElementById('pcTeams');
   var slotEl = document.getElementById('pcSlot');
@@ -783,8 +662,6 @@ function updatePickSettings(){
 function getMyPickNumbers(rounds){
   var picks = [];
   for(var r = 1; r <= rounds; r++){
-    // Odd rounds go in normal order (slot N = pick N of the round).
-    // Even rounds reverse (slot N = pick [teams - N + 1] of the round).
     var pickInRound = (r % 2 === 1) ? MY_DRAFT_SLOT : (LEAGUE_SIZE - MY_DRAFT_SLOT + 1);
     var overallPick = (r - 1) * LEAGUE_SIZE + pickInRound;
     picks.push(overallPick);
@@ -838,14 +715,11 @@ function updateNextPickMarker(){
   targetRow.parentNode.insertBefore(markerRow, targetRow);
 }
 
-
-// ---- CHECKLIST ITEM 4: scarcity alerts ----
 function updateScarcityAlerts(){
   var container = document.getElementById('scarcity-alerts');
   if(!container) return;
   var alerts = [];
 
-  // Clear prior visual flags on tier dividers
   document.querySelectorAll('tr.tier-divider-row').forEach(function(div){ 
     div.classList.remove('scarcity-warning'); 
   });
@@ -882,7 +756,6 @@ function updateScarcityAlerts(){
   }
 }
 
-
 function updateRemaining(){
   var total = document.querySelectorAll('tr.draftrow').length;
   var mine = document.querySelectorAll('tr.draftrow.drafted-mine').length;
@@ -896,7 +769,6 @@ function updateRemaining(){
   }
 }
 
-// ---- FEATURE C: post-draft summary + grade ----
 function toggleSummary(){
   var panel = document.getElementById('summary-panel');
   panel.classList.toggle('open');
@@ -991,7 +863,6 @@ function updateMyTeam(){
     if(counts[pos] !== undefined){ counts[pos]++; }
     if(bye && bye !== '-'){ byeCounts[bye] = (byeCounts[bye]||0)+1; }
     rosterHtml += '<div class="rl-row"><span>'+name+'</span><span>'+pos+' &middot; Bye '+bye+'</span></div>';
-    // Value tracking: full board rows have Val in column index 5; tail-table rows (rank 141+) don't have this column
     if(row.children.length >= 6){
       var valText = row.children[5].innerText.trim();
       var v = parseFloat(valText.replace('+',''));
@@ -1003,7 +874,6 @@ function updateMyTeam(){
     }
   });
 
-  // Build starters + bench summary
   var needsHtml = '';
   var positions = ['QB','RB','WR','TE','DST','K'];
   positions.forEach(function(p){
@@ -1036,7 +906,6 @@ function updateMyTeam(){
 
   document.getElementById('roster-list').innerHTML = rosterHtml || '';
 
-  // ---- FEATURE B: draft value tracker ----
   var vtEl = document.getElementById('value-tracker');
   if(vtEl){
     if(valCount === 0){
@@ -1056,14 +925,12 @@ function updateMyTeam(){
     }
   }
 
-  // ---- FEATURE: need-highlighting on board rows ----
   var neededPositions = new Set();
-  // highlight positions where starters still missing
   if((counts.QB||0) < (ROSTER_SLOTS.QB||0)) neededPositions.add('QB');
   if((counts.RB||0) < (ROSTER_SLOTS.RB||0)) neededPositions.add('RB');
   if((counts.WR||0) < (ROSTER_SLOTS.WR||0)) neededPositions.add('WR');
   if((counts.TE||0) < (ROSTER_SLOTS.TE||0)) neededPositions.add('TE');
-  // If starters are all filled, highlight bench-eligible positions with bench slots left
+
   if(neededPositions.size === 0){
     ['RB','WR','TE'].forEach(function(p){
       var benchFilled = Math.max(0, (counts[p]||0) - (ROSTER_SLOTS[p]||0));
@@ -1084,28 +951,31 @@ function updateMyTeam(){
 
 function sortTable(tableId, colIdx, type){
   var table = document.getElementById(tableId);
-  var tbody = table;
-  var rows = Array.prototype.slice.call(table.querySelectorAll('tr.draftrow'));
+  var tbodies = table.querySelectorAll('tbody.tier-group');
   var asc = table.getAttribute('data-sort-col') != colIdx || table.getAttribute('data-sort-dir') !== 'asc';
-  rows.sort(function(a,b){
-    var av = a.children[colIdx].innerText.trim();
-    var bv = b.children[colIdx].innerText.trim();
-    if(type === 'num'){
-      av = parseFloat(av) || 0; bv = parseFloat(bv) || 0;
-    } else if(type === 'val'){
-      av = parseFloat(av.replace('+','')) || 0; bv = parseFloat(bv.replace('+','')) || 0;
-    }
-    if(av < bv) return asc ? -1 : 1;
-    if(av > bv) return asc ? 1 : -1;
-    return 0;
+
+  tbodies.forEach(function(tbody){
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr.draftrow'));
+    rows.sort(function(a,b){
+      var av = a.children[colIdx].innerText.trim();
+      var bv = b.children[colIdx].innerText.trim();
+      if(type === 'num'){
+        av = parseFloat(av) || 0; bv = parseFloat(bv) || 0;
+      } else if(type === 'val'){
+        av = parseFloat(av.replace('+','')) || 0; bv = parseFloat(bv.replace('+','')) || 0;
+      }
+      if(av < bv) return asc ? -1 : 1;
+      if(av > bv) return asc ? 1 : -1;
+      return 0;
+    });
+    rows.forEach(function(r){ tbody.appendChild(r); });
   });
-  rows.forEach(function(r){ table.appendChild(r); });
+
   table.setAttribute('data-sort-col', colIdx);
   table.setAttribute('data-sort-dir', asc ? 'asc' : 'desc');
 }
 
 // ==== PAGE INITIALIZATION ====
-// Restore draft state from localStorage and initialize dashboard on load
 window.addEventListener('load', function(){
   loadState();
   updateDraftDayDashboard();
@@ -1115,7 +985,6 @@ window.addEventListener('load', function(){
   updateMyTeam();
   addRoundMarkers();
   
-  // Ensure autosave button reflects current state
   var btn = document.getElementById('autosaveToggle');
   if(btn){
     btn.innerText = isAutosaveEnabled() ? 'Autosave On' : 'Autosave Off';
