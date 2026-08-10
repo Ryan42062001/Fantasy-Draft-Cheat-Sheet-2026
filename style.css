@@ -538,3 +538,12 @@ tr.search-highlight {
   style.appendChild(document.createTextNode(css));
   document.head.appendChild(style);
 })();
+
+/* Add inside your CSS string in style.js */
+#exportBtn, 
+#importBtn, 
+button[onclick*="export"], 
+button[onclick*="import"] {
+  display: none !important;
+}
+
