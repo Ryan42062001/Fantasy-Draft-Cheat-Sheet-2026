@@ -416,3 +416,9 @@ html{background:#122619 !important;color-scheme:dark;}
   font-weight:900;
 }
 
+/* Search Jump Target Highlight */
+tr.draftrow.search-highlight {
+  outline: 2px solid #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.3) !important;
+  transition: background-color 0.4s ease-in-out;
+}
