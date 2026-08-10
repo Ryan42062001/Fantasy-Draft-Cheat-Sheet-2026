@@ -43,62 +43,114 @@ function setPosFilter(pos, btn){
   applyFilters();
 }
 
-function applyFilters(){
+// ==== SEARCH STATE ====
+var searchMatches = [];
+var currentSearchIndex = -1;
+
+function applyFilters() {
   var searchInput = document.getElementById('searchBox');
-  
-  // FIX #1: Always reset highlights and apply position filters first
-  document.querySelectorAll('tr.draftrow').forEach(function(row){
+  var countEl = document.getElementById('searchMatchCount');
+  var prevBtn = document.getElementById('searchPrevBtn');
+  var nextBtn = document.getElementById('searchNextBtn');
+
+  // 1. Maintain position filters across all rows & clear existing search highlights
+  document.querySelectorAll('tr.draftrow').forEach(function(row) {
     row.classList.remove('search-highlight');
     var pos = row.getAttribute('data-pos');
     var matchesPos = (currentPosFilter === 'ALL' || pos === currentPosFilter);
-    if(matchesPos){
+    if (matchesPos) {
       row.classList.remove('hidden-row');
     } else {
       row.classList.add('hidden-row');
     }
   });
 
-  if(!searchInput) return;
-  var q = searchInput.value.toLowerCase().trim();
-  if (q.length < 2) return;
+  // Reset match tracking state
+  searchMatches = [];
+  currentSearchIndex = -1;
 
-  // Locate first visible matching player
-  var targetRow = null;
+  if (!searchInput) return;
+  var q = searchInput.value.toLowerCase().trim();
+
+  // Reset controls if search query is cleared or under 2 characters
+  if (q.length < 2) {
+    if (countEl) countEl.innerText = '0/0';
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
+    return;
+  }
+
+  // 2. Gather all visible matching rows in DOM order
   var rows = document.querySelectorAll('tr.draftrow:not(.hidden-row)');
   for (var i = 0; i < rows.length; i++) {
     var name = (rows[i].getAttribute('data-name') || '').toLowerCase();
     if (name.indexOf(q) !== -1) {
-      targetRow = rows[i];
-      break;
+      searchMatches.push(rows[i]);
     }
   }
 
-  // Scroll to element
-  if (targetRow) {
-    var headerOffset = 140;
-    var elementPosition = targetRow.getBoundingClientRect().top + window.pageYOffset;
-    var offsetPosition = elementPosition - headerOffset;
+  // 3. Update counter & enable/disable navigation buttons
+  if (searchMatches.length > 0) {
+    currentSearchIndex = 0;
+    if (countEl) countEl.innerText = '1/' + searchMatches.length;
+    if (prevBtn) prevBtn.disabled = (searchMatches.length <= 1);
+    if (nextBtn) nextBtn.disabled = (searchMatches.length <= 1);
+    scrollToCurrentMatch();
+  } else {
+    if (countEl) countEl.innerText = '0/0';
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
+  }
+}
 
-    window.scrollTo({
-      top: offsetPosition,
+function navigateSearch(direction) {
+  if (searchMatches.length <= 1) return;
+
+  // Cycle index forwards or backwards
+  currentSearchIndex = (currentSearchIndex + direction + searchMatches.length) % searchMatches.length;
+
+  var countEl = document.getElementById('searchMatchCount');
+  if (countEl) {
+    countEl.innerText = (currentSearchIndex + 1) + '/' + searchMatches.length;
+  }
+
+  scrollToCurrentMatch();
+}
+
+function scrollToCurrentMatch() {
+  if (currentSearchIndex < 0 || currentSearchIndex >= searchMatches.length) return;
+
+  // Remove highlight from all prior matches
+  searchMatches.forEach(function(row) {
+    row.classList.remove('search-highlight');
+  });
+
+  var targetRow = searchMatches[currentSearchIndex];
+  if (!targetRow) return;
+
+  var headerOffset = 140;
+  var elementPosition = targetRow.getBoundingClientRect().top + window.pageYOffset;
+  var offsetPosition = elementPosition - headerOffset;
+
+  window.scrollTo({
+    top: offsetPosition,
+    behavior: 'smooth'
+  });
+
+  var parentWrapper = targetRow.closest('div');
+  if (parentWrapper && parentWrapper.scrollHeight > parentWrapper.clientHeight) {
+    var parentRect = parentWrapper.getBoundingClientRect();
+    var targetRect = targetRow.getBoundingClientRect();
+    parentWrapper.scrollTo({
+      top: parentWrapper.scrollTop + (targetRect.top - parentRect.top) - headerOffset,
       behavior: 'smooth'
     });
-
-    var parentWrapper = targetRow.closest('div');
-    if (parentWrapper && parentWrapper.scrollHeight > parentWrapper.clientHeight) {
-      var parentRect = parentWrapper.getBoundingClientRect();
-      var targetRect = targetRow.getBoundingClientRect();
-      parentWrapper.scrollTo({
-        top: parentWrapper.scrollTop + (targetRect.top - parentRect.top) - headerOffset,
-        behavior: 'smooth'
-      });
-    }
-
-    targetRow.classList.add('search-highlight');
-    setTimeout(function(){
-      targetRow.classList.remove('search-highlight');
-    }, 2000);
   }
+
+  targetRow.classList.add('search-highlight');
+  setTimeout(function() {
+    targetRow.classList.remove('search-highlight');
+  }, 2000);
 }
 
 // ==== DRAFT DAY DASHBOARD ====
