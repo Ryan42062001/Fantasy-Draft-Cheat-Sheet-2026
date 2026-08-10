@@ -44,18 +44,41 @@ function setPosFilter(pos, btn){
 }
 
 function applyFilters(){
-  var q = document.getElementById('searchBox').value.toLowerCase();
+  var q = document.getElementById('searchBox').value.toLowerCase().trim();
+  
+  // 1. Maintain position filters without hiding non-searched players
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     var pos = row.getAttribute('data-pos');
-    var name = row.getAttribute('data-name') || '';
     var matchesPos = (currentPosFilter === 'ALL' || pos === currentPosFilter);
-    var matchesSearch = (q === '' || name.indexOf(q) !== -1);
-    if(matchesPos && matchesSearch){
+    if(matchesPos){
       row.classList.remove('hidden-row');
     } else {
       row.classList.add('hidden-row');
     }
   });
+
+  // 2. Stop execution on empty input or single characters to prevent accidental scrolling
+  if (q.length < 2) return;
+
+  // 3. Locate first matching visible player and scroll to them
+  var rows = document.querySelectorAll('tr.draftrow:not(.hidden-row)');
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var name = (row.getAttribute('data-name') || '').toLowerCase();
+    
+    if (name.indexOf(q) !== -1) {
+      // Smooth scroll to target player
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // Apply visual highlight
+      row.classList.add('search-highlight');
+      setTimeout(function(){
+        row.classList.remove('search-highlight');
+      }, 2000);
+      
+      break; // Stop loop after finding first match
+    }
+  }
 }
 
 
