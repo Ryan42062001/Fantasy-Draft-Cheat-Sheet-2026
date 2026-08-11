@@ -33,7 +33,7 @@ window.ORIGINAL_ORDER = [];
 // ==== SAFE UTILITY CALLERS ====
 function safeCall(fnName) {
   if (typeof window[fnName] === 'function') {
-    window[fnName]();
+    try { window[fnName](); } catch(e) { console.warn('SafeCall failed for ' + fnName, e); }
   }
 }
 
@@ -43,8 +43,8 @@ function updateMyTeam() {
   if (!myTeamContainer) return;
   var html = '';
   document.querySelectorAll('tr.draftrow.drafted-mine').forEach(function(row) {
-    var name = row.getAttribute('data-name');
-    var pos = row.getAttribute('data-pos');
+    var name = row.getAttribute('data-name') || 'Unknown Player';
+    var pos = row.getAttribute('data-pos') || 'N/A';
     html += '<div class="team-player-card"><b>' + pos + '</b> - ' + name + '</div>';
   });
   myTeamContainer.innerHTML = html || '<em>No players drafted yet.</em>';
@@ -63,7 +63,7 @@ function updateBestAvailable() {
         var rkCell = row.children[0];
         var rk = rkCell ? rkCell.innerText.replace(/Rd\d+/, '').trim() : '';
         var nameCell = row.querySelector('.pname');
-        var name = nameCell ? nameCell.childNodes[0].textContent.trim() : row.getAttribute('data-name');
+        var name = nameCell ? nameCell.childNodes[0].textContent.trim() : (row.getAttribute('data-name') || 'Player');
         top3.push('#' + rk + ' ' + name);
       }
     });
@@ -96,8 +96,8 @@ function jumpTo(id){
 
 function setPosFilter(pos, btn){
   currentPosFilter = pos;
-  document.querySelectorAll('.filterbtn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+  document.querySelectorAll('.filterbtn').forEach(function(b){ b.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
   applyFilters();
 }
 
@@ -111,9 +111,9 @@ function updateDraftDayDashboard(){
   
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     var pos = row.getAttribute('data-pos');
-    if(totalByPos[pos] !== undefined) totalByPos[pos]++;
+    if(pos && totalByPos[pos] !== undefined) totalByPos[pos]++;
     if(row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')){
-      if(draftedCounts[pos] !== undefined) draftedCounts[pos]++;
+      if(pos && draftedCounts[pos] !== undefined) draftedCounts[pos]++;
     }
   });
   
@@ -146,7 +146,7 @@ function triggerAllBoardUpdates() {
 }
 
 function toggleDraft(row){
-  if(document.body.classList.contains('edit-mode')) return;
+  if(!row || document.body.classList.contains('edit-mode')) return;
   if(row.classList.contains('drafted-mine')){
     row.classList.remove('drafted-mine');
     row.classList.add('drafted-other');
@@ -163,12 +163,16 @@ function resetBoard(){
   var btn = document.getElementById('resetBtn');
   if(!resetArmed){
     resetArmed = true;
-    btn.innerText = 'Tap again to confirm';
-    btn.classList.add('armed');
+    if(btn) {
+      btn.innerText = 'Tap again to confirm';
+      btn.classList.add('armed');
+    }
     resetArmTimer = setTimeout(function(){
       resetArmed = false;
-      btn.innerText = 'Reset all';
-      btn.classList.remove('armed');
+      if(btn) {
+        btn.innerText = 'Reset all';
+        btn.classList.remove('armed');
+      }
     }, 3000);
     return;
   }
@@ -178,8 +182,10 @@ function resetBoard(){
     row.classList.remove('drafted-mine','drafted-other');
   });
   triggerAllBoardUpdates();
-  btn.innerText = 'Reset all';
-  btn.classList.remove('armed');
+  if(btn) {
+    btn.innerText = 'Reset all';
+    btn.classList.remove('armed');
+  }
   scheduleSave();
 }
 
@@ -188,13 +194,18 @@ function saveState(){
     var state = {};
     document.querySelectorAll('tr.draftrow').forEach(function(row){
       var name = row.getAttribute('data-name');
-      if(row.classList.contains('drafted-mine')) state[name] = 'mine';
-      else if(row.classList.contains('drafted-other')) state[name] = 'taken';
+      if(name) {
+        if(row.classList.contains('drafted-mine')) state[name] = 'mine';
+        else if(row.classList.contains('drafted-other')) state[name] = 'taken';
+      }
     });
     var order = [];
     document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
       var tid = tbody.id.replace('tbody-','');
-      tbody.querySelectorAll('tr.draftrow').forEach(function(row){ order.push({n: row.getAttribute('data-name'), t: tid}); });
+      tbody.querySelectorAll('tr.draftrow').forEach(function(row){
+        var name = row.getAttribute('data-name');
+        if(name) order.push({n: name, t: tid});
+      });
     });
     var payload = { savedAt: new Date().toISOString(), teams: LEAGUE_SIZE, slot: MY_DRAFT_SLOT, rounds: TOTAL_ROUNDS, state: state, order: order };
     localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(payload));
@@ -241,12 +252,14 @@ function toggleAutosave(){
 }
 
 function loadState(){
-  triggerAllBoardUpdates();
   applyTeamColors();
   window.ORIGINAL_ORDER = [];
   document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
     var tid = tbody.id.replace('tbody-','');
-    tbody.querySelectorAll('tr.draftrow').forEach(function(row){ window.ORIGINAL_ORDER.push({n: row.getAttribute('data-name'), t: tid}); });
+    tbody.querySelectorAll('tr.draftrow').forEach(function(row){
+      var name = row.getAttribute('data-name');
+      if(name) window.ORIGINAL_ORDER.push({n: name, t: tid});
+    });
   });
   addEditControls();
 
@@ -258,18 +271,21 @@ function loadState(){
       var raw = localStorage.getItem(AUTOSAVE_KEY);
       if(raw){
         var payload = JSON.parse(raw);
-        if(payload.teams && document.getElementById('pcTeams')) document.getElementById('pcTeams').value = payload.teams;
-        if(payload.slot && document.getElementById('pcSlot')) document.getElementById('pcSlot').value = payload.slot;
-        if(payload.rounds && document.getElementById('pcRounds')) document.getElementById('pcRounds').value = payload.rounds;
+        var pcTeams = document.getElementById('pcTeams'); if(payload.teams && pcTeams) pcTeams.value = payload.teams;
+        var pcSlot = document.getElementById('pcSlot'); if(payload.slot && pcSlot) pcSlot.value = payload.slot;
+        var pcRounds = document.getElementById('pcRounds'); if(payload.rounds && pcRounds) pcRounds.value = payload.rounds;
+        
         updatePickSettings();
         if(payload.order){ applyCustomOrder(payload.order); }
-        document.querySelectorAll('tr.draftrow').forEach(function(row){
-          var name = row.getAttribute('data-name');
-          row.classList.remove('drafted-mine','drafted-other');
-          if(payload.state && payload.state[name] === 'mine') row.classList.add('drafted-mine');
-          else if(payload.state && payload.state[name] === 'taken') row.classList.add('drafted-other');
-        });
-        triggerAllBoardUpdates();
+        
+        if(payload.state) {
+          document.querySelectorAll('tr.draftrow').forEach(function(row){
+            var name = row.getAttribute('data-name');
+            row.classList.remove('drafted-mine','drafted-other');
+            if(name && payload.state[name] === 'mine') row.classList.add('drafted-mine');
+            else if(name && payload.state[name] === 'taken') row.classList.add('drafted-other');
+          });
+        }
         if(diagEl) diagEl.innerHTML = 'Autosave: restored backup from '+(payload.savedAt||'previous session');
       } else {
         if(diagEl) diagEl.innerHTML = 'Autosave: No prior backup found.';
@@ -281,6 +297,8 @@ function loadState(){
     console.error('Restore from autosave failed', e);
     if(diagEl) diagEl.innerHTML = '<b>Autosave restore failed.</b>';
   }
+  
+  triggerAllBoardUpdates();
 }
 
 function flashSaveIndicator(text, color){
@@ -306,7 +324,8 @@ function applyCustomOrder(orderArray){
   if(!orderArray || !orderArray.length) return;
   var rowMap = {};
   document.querySelectorAll('tr.draftrow').forEach(function(row){
-    rowMap[row.getAttribute('data-name')] = row;
+    var name = row.getAttribute('data-name');
+    if(name) rowMap[name] = row;
   });
   orderArray.forEach(function(entry){
     var row = rowMap[entry.n];
@@ -352,7 +371,7 @@ function updateRecommendedPick(){
   var counts = {QB:0,RB:0,WR:0,TE:0,K:0,DST:0};
   document.querySelectorAll('tr.draftrow.drafted-mine').forEach(function(row){
     var pos = row.getAttribute('data-pos');
-    if(counts[pos] !== undefined) counts[pos]++;
+    if(pos && counts[pos] !== undefined) counts[pos]++;
   });
   var totalDrafted = document.querySelectorAll('tr.draftrow.drafted-mine').length;
   if(totalDrafted === 0){
@@ -375,23 +394,22 @@ function updateRecommendedPick(){
   var candidates = [];
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     if(row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')) return;
-    var pos = row.getAttribute('data-pos');
+    var pos = row.getAttribute('data-pos') || 'N/A';
     var rkCell = row.children[0];
     var rawRk = rkCell ? rkCell.innerText.replace(/Rd\d+/, '').trim() : '';
     var rk = parseInt(rawRk, 10) || 9999;
     var nameCell = row.querySelector('.pname');
-    var name = nameCell ? nameCell.childNodes[0].textContent.trim() : row.getAttribute('data-name');
+    var name = nameCell ? nameCell.childNodes[0].textContent.trim() : (row.getAttribute('data-name') || 'Unknown');
     var round = Math.ceil(rk / LEAGUE_SIZE);
     candidates.push({row:row, pos:pos, rk:rk, name:name, round:round});
   });
 
   var suggested = [];
-  for(var i=0;i<candidates.length && suggested.length<3;i++){
+  for(var i=0; i<candidates.length && suggested.length<3; i++){
     var c = candidates[i];
     var satisfies = false;
-    for(var j=0;j<needOrder.length;j++){
-      var need = needOrder[j];
-      if(need.pos === c.pos){ satisfies = true; break; }
+    for(var j=0; j<needOrder.length; j++){
+      if(needOrder[j].pos === c.pos){ satisfies = true; break; }
     }
     if(needOrder.length === 0 || satisfies){
       suggested.push(c);
@@ -399,8 +417,8 @@ function updateRecommendedPick(){
   }
 
   if(suggested.length < 3){
-    for(var i=0; i<candidates.length && suggested.length<3; i++){
-      var candidate = candidates[i];
+    for(var k=0; k<candidates.length && suggested.length<3; k++){
+      var candidate = candidates[k];
       var isAlreadySuggested = suggested.some(function(item){ return item.name === candidate.name; });
       if(!isAlreadySuggested) {
         suggested.push(candidate);
@@ -455,21 +473,27 @@ function addRoundMarkers(){
 var searchMatches = [];
 var currentSearchIndex = -1;
 
-// ==== DOM INITIALIZATION & OBSERVER ====
-document.addEventListener('DOMContentLoaded', function() {
-  // 1. Initial State Hydration
-  loadState();
-
-  // 2. Clear Export/Import Elements & Prep Search UI
+// ==== INITIALIZATION RUNNER ====
+function initApp() {
   removeExportImportButtons();
   setupSearchUI();
-  
-  // 3. Attach click handlers to row elements for dynamic draft toggling
-  document.querySelectorAll('tr.draftrow').forEach(function(row) {
-    row.onclick = function() { toggleDraft(row); };
+  loadState();
+}
+
+// ==== DOM INITIALIZATION & OBSERVER ====
+document.addEventListener('DOMContentLoaded', function() {
+  // 1. Initial application startup
+  initApp();
+
+  // 2. Global Event Delegation for Row Clicks (Handles dynamic or static rows)
+  document.body.addEventListener('click', function(e) {
+    var row = e.target.closest('tr.draftrow');
+    if (row && !e.target.closest('select') && !e.target.closest('button') && !e.target.closest('input')) {
+      toggleDraft(row);
+    }
   });
 
-  // 4. Continuous DOM observer to purge export/import controls dynamically injected post-DOM
+  // 3. Continuous DOM observer to manage export/import buttons
   var observer = new MutationObserver(function() {
     removeExportImportButtons();
   });
