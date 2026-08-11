@@ -81,6 +81,72 @@ function getMyPickNumbers() {
   return myPicks;
 }
 
+function updatePickCounter() {
+  var pcTeams = document.getElementById('pcTeams');
+  var pcRounds = document.getElementById('pcRounds');
+  var counter = document.getElementById('pick-counter-text');
+
+  if (!counter) return;
+
+  var teams = Math.max(
+    2,
+    parseInt(pcTeams ? pcTeams.value : LEAGUE_SIZE, 10) || LEAGUE_SIZE
+  );
+
+  var rounds = Math.max(
+    1,
+    parseInt(pcRounds ? pcRounds.value : TOTAL_ROUNDS, 10) || TOTAL_ROUNDS
+  );
+
+  var totalPicks = teams * rounds;
+
+  // Every player marked Taken or Mine counts as one completed pick.
+  var completedPicks = document.querySelectorAll(
+    'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
+  ).length;
+
+  var currentPick = Math.min(completedPicks + 1, totalPicks);
+
+  var myPicks = getMyPickNumbers();
+
+  // Find the next pick belonging to you.
+  var nextMyPick = null;
+
+  for (var i = 0; i < myPicks.length; i++) {
+    if (myPicks[i] >= currentPick) {
+      nextMyPick = myPicks[i];
+      break;
+    }
+  }
+
+  if (currentPick > totalPicks) {
+    counter.innerHTML =
+      'Draft complete &middot; <b>' + totalPicks + ' picks</b>';
+
+    return;
+  }
+
+  if (nextMyPick === currentPick) {
+    counter.innerHTML =
+      'Pick <b>' + currentPick + '</b> of ' + totalPicks +
+      ' &middot; <span style="color:#8fd4a0;font-weight:900;">YOUR PICK!</span>';
+
+  } else if (nextMyPick !== null) {
+    var picksUntilNext = nextMyPick - currentPick;
+
+    counter.innerHTML =
+      'Pick <b>' + currentPick + '</b> of ' + totalPicks +
+      ' &middot; your next pick: <b>#' + nextMyPick + '</b>' +
+      ' <span style="color:#a9c2ab;">(' + picksUntilNext +
+      ' pick' + (picksUntilNext === 1 ? '' : 's') + ' away)</span>';
+
+  } else {
+    counter.innerHTML =
+      'Pick <b>' + currentPick + '</b> of ' + totalPicks +
+      ' &middot; no more picks';
+  }
+}
+
 function updateNextPickDisplay() {
   var totalDrafted = document.querySelectorAll('tr.draftrow.drafted-mine, tr.draftrow.drafted-other').length;
   var currentOverallPick = totalDrafted + 1;
@@ -221,6 +287,7 @@ function triggerAllBoardUpdates() {
   updateMyTeam();
   updateRemaining();
   updateBestAvailable();
+  updatePickCounter();
   updateNextPickDisplay();
   updateNextPickMarker();
   updateScarcityAlerts();
