@@ -83,7 +83,80 @@ function updateBestAvailable() {
 
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 function updatePickCounter() { safeCall('updatePickCounterCustom'); }
-function updateNextPickMarker() { safeCall('updateNextPickMarkerCustom'); }
+// ==== NEXT PICK MARKER CALCULATOR & RENDERER ====
+function updateNextPickMarker() {
+  // 1. Clean up existing marker
+  var existingMarker = document.getElementById('next-pick-marker');
+  if (existingMarker) existingMarker.remove();
+
+  // 2. Calculate current overall pick count
+  var takenCount = document.querySelectorAll('tr.draftrow.drafted-mine, tr.draftrow.drafted-other').length;
+  var currentOverallPick = takenCount + 1;
+
+  // 3. Determine user's draft picks (Snake Draft Math)
+  var myPicks = [];
+  for (var round = 1; round <= TOTAL_ROUNDS; round++) {
+    var pickInRound = (round % 2 === 1) 
+      ? MY_DRAFT_SLOT 
+      : (LEAGUE_SIZE - MY_DRAFT_SLOT + 1);
+    var overallPick = (round - 1) * LEAGUE_SIZE + pickInRound;
+    myPicks.push(overallPick);
+  }
+
+  // 4. Find the immediate next upcoming pick for the user
+  var nextUserPick = myPicks.find(function(pick) {
+    return pick >= currentOverallPick;
+  });
+
+  if (!nextUserPick) return; // Draft completed or past all rounds
+
+  var picksAway = nextUserPick - currentOverallPick;
+
+  // 5. Find target player row in the table near that pick rank
+  var rows = Array.from(document.querySelectorAll('tr.draftrow:not(.hidden-row)'));
+  var targetRow = null;
+
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    if (row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')) continue;
+    
+    var rkCell = row.children[0];
+    var rk = parseInt(rkCell ? rkCell.innerText.replace(/Rd\d+/, '').trim() : '0', 10);
+    
+    // Target player row matching or exceeding target pick rank
+    if (rk >= nextUserPick) {
+      targetRow = row;
+      break;
+    }
+  }
+
+  // Fallback to first available undrafted row if no higher rank row matches
+  if (!targetRow) {
+    targetRow = rows.find(function(r) {
+      return !r.classList.contains('drafted-mine') && !r.classList.contains('drafted-other');
+    });
+  }
+
+  if (!targetRow) return;
+
+  // 6. Build and inject the line element
+  var marker = document.createElement('tr');
+  marker.id = 'next-pick-marker';
+  
+  var td = document.createElement('td');
+  td.colSpan = targetRow.children.length || 6;
+  
+  var label = picksAway === 0 
+    ? '🚨 YOUR PICK IS ON THE CLOCK (Pick #' + nextUserPick + ')' 
+    : '🎯 ESTIMATED NEXT PICK: Pick #' + nextUserPick + ' (' + picksAway + ' pick' + (picksAway > 1 ? 's' : '') + ' away)';
+    
+  td.innerHTML = '<div class="next-pick-line"><span>' + label + '</span></div>';
+  marker.appendChild(td);
+
+  // Insert line directly before target row
+  targetRow.parentNode.insertBefore(marker, targetRow);
+}
+
 function updateScarcityAlerts() { safeCall('updateScarcityAlertsCustom'); }
 function addEditControls() { safeCall('addEditControlsCustom'); }
 function updatePickSettings() { safeCall('updatePickSettingsCustom'); }
