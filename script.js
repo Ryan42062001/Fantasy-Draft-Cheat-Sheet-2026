@@ -598,26 +598,39 @@ function addRoundMarkers(){
 var searchMatches = [];
 var currentSearchIndex = -1;
 
-// ==== DOM INITIALIZATION ====
+// ==== DOM INITIALIZATION & OBSERVER ====
 document.addEventListener('DOMContentLoaded', function() {
   removeExportImportButtons();
   setupSearchUI();
+  
+  // Continuous DOM observer to destroy buttons loaded asynchronously or post-DOM
+  var observer = new MutationObserver(function() {
+    removeExportImportButtons();
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
 });
 
 // ==== REMOVE EXPORT/IMPORT CONTROLS ====
 function removeExportImportButtons() {
-  // Target individual buttons and full panels
-  var targets = document.querySelectorAll(
-    '#exportBtn, #importBtn, #export-panel, .export-btn, .import-btn, [onclick*="Export"], [onclick*="import"]'
-  );
-  
-  targets.forEach(function(el) {
+  // Broad selector targeting panels, triggers, and action attributes
+  var selectors = [
+    '#exportBtn', '#importBtn', '#export-panel', '#import-panel',
+    '.export-btn', '.import-btn', '.export-toggle', '.import-toggle',
+    '[onclick*="Export"]', '[onclick*="import"]', '[onclick*="ExportImport"]',
+    '[data-action="export"]', '[data-action="import"]'
+  ];
+
+  document.querySelectorAll(selectors.join(',')).forEach(function(el) {
     el.remove();
   });
 
-  // Fallback text check to clear remaining buttons
-  document.querySelectorAll('button').forEach(function(btn) {
-    var txt = btn.innerText.toLowerCase();
+  // Fallback text query for standard buttons and link elements
+  document.querySelectorAll('button, a.btn, div.btn').forEach(function(btn) {
+    var txt = (btn.innerText || btn.textContent || '').toLowerCase();
     if (txt.includes('export') || txt.includes('import')) {
       btn.remove();
     }
@@ -631,7 +644,6 @@ function setupSearchUI() {
 
   var parent = searchInput.parentElement;
   
-  // Wrap search box in container if not already wrapped
   if (!parent.classList.contains('dynamic-search-wrapper')) {
     var container = document.createElement('div');
     container.className = 'dynamic-search-wrapper';
@@ -641,7 +653,6 @@ function setupSearchUI() {
     container = parent;
   }
 
-  // Build Counter Element
   if (!document.getElementById('searchMatchCount')) {
     var countSpan = document.createElement('span');
     countSpan.id = 'searchMatchCount';
@@ -649,7 +660,6 @@ function setupSearchUI() {
     container.appendChild(countSpan);
   }
 
-  // Build Prev Button
   if (!document.getElementById('searchPrevBtn')) {
     var prevBtn = document.createElement('button');
     prevBtn.type = 'button';
@@ -661,7 +671,6 @@ function setupSearchUI() {
     container.appendChild(prevBtn);
   }
 
-  // Build Next Button
   if (!document.getElementById('searchNextBtn')) {
     var nextBtn = document.createElement('button');
     nextBtn.type = 'button';
@@ -673,7 +682,6 @@ function setupSearchUI() {
     container.appendChild(nextBtn);
   }
 
-  // Attach search event handler directly
   searchInput.oninput = applyFilters;
 }
 
@@ -702,15 +710,14 @@ function applyFilters() {
   if (!searchInput) return;
   var q = searchInput.value.toLowerCase().trim();
 
-  // Guard clause for query length
   if (q.length < 2) {
     if (countEl) countEl.innerText = '0/0';
     if (prevBtn) prevBtn.disabled = true;
     if (nextBtn) nextBtn.disabled = true;
+    if (typeof updateNextPickMarker === 'function') updateNextPickMarker();
     return;
   }
 
-  // Find all visible matching rows
   var rows = document.querySelectorAll('tr.draftrow:not(.hidden-row)');
   rows.forEach(function(row) {
     var name = (row.getAttribute('data-name') || row.innerText || '').toLowerCase();
@@ -719,7 +726,6 @@ function applyFilters() {
     }
   });
 
-  // Update UI control states
   if (searchMatches.length > 0) {
     currentSearchIndex = 0;
     if (countEl) countEl.innerText = '1/' + searchMatches.length;
@@ -731,13 +737,17 @@ function applyFilters() {
     if (prevBtn) prevBtn.disabled = true;
     if (nextBtn) nextBtn.disabled = true;
   }
+
+  // Re-calculate and re-apply pick line indicator after filtering
+  if (typeof updateNextPickMarker === 'function') {
+    updateNextPickMarker();
+  }
 }
 
 // ==== MULTI-MATCH NAVIGATION CONTROLLER ====
 function navigateSearch(direction) {
   if (searchMatches.length <= 1) return;
 
-  // Loop index forward/backward
   currentSearchIndex = (currentSearchIndex + direction + searchMatches.length) % searchMatches.length;
 
   var countEl = document.getElementById('searchMatchCount');
@@ -758,7 +768,6 @@ function scrollToCurrentMatch() {
   var targetRow = searchMatches[currentSearchIndex];
   if (!targetRow) return;
 
-  // Scroll target row into view taking sticky toolbar headers into account
   var headerOffset = 130;
   var elementPosition = targetRow.getBoundingClientRect().top + window.pageYOffset;
   var offsetPosition = elementPosition - headerOffset;
