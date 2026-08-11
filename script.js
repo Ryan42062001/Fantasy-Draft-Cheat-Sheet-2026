@@ -30,6 +30,64 @@ var resetArmTimer = null;
 var _saveTimer = null;
 window.ORIGINAL_ORDER = [];
 
+// ==== SAFE UTILITY CALLERS ====
+function safeCall(fnName) {
+  if (typeof window[fnName] === 'function') {
+    window[fnName]();
+  }
+}
+
+// ==== CORE DASHBOARD & RECOMMENDER UPDATES ====
+function updateMyTeam() {
+  var myTeamContainer = document.getElementById('my-team-list');
+  if (!myTeamContainer) return;
+  var html = '';
+  document.querySelectorAll('tr.draftrow.drafted-mine').forEach(function(row) {
+    var name = row.getAttribute('data-name');
+    var pos = row.getAttribute('data-pos');
+    html += '<div class="team-player-card"><b>' + pos + '</b> - ' + name + '</div>';
+  });
+  myTeamContainer.innerHTML = html || '<em>No players drafted yet.</em>';
+}
+
+function updateBestAvailable() {
+  var container = document.getElementById('best-available-list');
+  if (!container) return;
+  var positions = ['QB', 'RB', 'WR', 'TE', 'DST', 'K'];
+  var html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:10px;">';
+  
+  positions.forEach(function(pos) {
+    var top3 = [];
+    document.querySelectorAll('tr.draftrow[data-pos="' + pos + '"]').forEach(function(row) {
+      if (top3.length < 3 && !row.classList.contains('drafted-mine') && !row.classList.contains('drafted-other')) {
+        var rkCell = row.children[0];
+        var rk = rkCell ? rkCell.innerText.replace(/Rd\d+/, '').trim() : '';
+        var nameCell = row.querySelector('.pname');
+        var name = nameCell ? nameCell.childNodes[0].textContent.trim() : row.getAttribute('data-name');
+        top3.push('#' + rk + ' ' + name);
+      }
+    });
+    
+    html += '<div style="background:rgba(255,255,255,0.04); padding:8px; border-radius:6px;">';
+    html += '<strong style="color:#5fa87c;">Top 3 ' + pos + '</strong>';
+    if (top3.length > 0) {
+      top3.forEach(function(p) { html += '<div style="font-size:0.75rem; margin-top:4px;">' + p + '</div>'; });
+    } else {
+      html += '<div style="font-size:0.75rem; color:#888;">None left</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function updateRemaining() { safeCall('updateRemainingCustom'); }
+function updatePickCounter() { safeCall('updatePickCounterCustom'); }
+function updateNextPickMarker() { safeCall('updateNextPickMarkerCustom'); }
+function updateScarcityAlerts() { safeCall('updateScarcityAlertsCustom'); }
+function addEditControls() { safeCall('addEditControlsCustom'); }
+function updatePickSettings() { safeCall('updatePickSettingsCustom'); }
+
 // ==== POSITION FILTERING ====
 function jumpTo(id){
   var el = document.getElementById(id);
@@ -41,116 +99,6 @@ function setPosFilter(pos, btn){
   document.querySelectorAll('.filterbtn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   applyFilters();
-}
-
-// ==== SEARCH STATE ====
-var searchMatches = [];
-var currentSearchIndex = -1;
-
-function applyFilters() {
-  var searchInput = document.getElementById('searchBox');
-  var countEl = document.getElementById('searchMatchCount');
-  var prevBtn = document.getElementById('searchPrevBtn');
-  var nextBtn = document.getElementById('searchNextBtn');
-
-  // 1. Maintain position filters across all rows & clear existing search highlights
-  document.querySelectorAll('tr.draftrow').forEach(function(row) {
-    row.classList.remove('search-highlight');
-    var pos = row.getAttribute('data-pos');
-    var matchesPos = (currentPosFilter === 'ALL' || pos === currentPosFilter);
-    if (matchesPos) {
-      row.classList.remove('hidden-row');
-    } else {
-      row.classList.add('hidden-row');
-    }
-  });
-
-  // Reset match tracking state
-  searchMatches = [];
-  currentSearchIndex = -1;
-
-  if (!searchInput) return;
-  var q = searchInput.value.toLowerCase().trim();
-
-  // Reset controls if search query is cleared or under 2 characters
-  if (q.length < 2) {
-    if (countEl) countEl.innerText = '0/0';
-    if (prevBtn) prevBtn.disabled = true;
-    if (nextBtn) nextBtn.disabled = true;
-    return;
-  }
-
-  // 2. Gather all visible matching rows in DOM order
-  var rows = document.querySelectorAll('tr.draftrow:not(.hidden-row)');
-  for (var i = 0; i < rows.length; i++) {
-    var name = (rows[i].getAttribute('data-name') || '').toLowerCase();
-    if (name.indexOf(q) !== -1) {
-      searchMatches.push(rows[i]);
-    }
-  }
-
-  // 3. Update counter & enable/disable navigation buttons
-  if (searchMatches.length > 0) {
-    currentSearchIndex = 0;
-    if (countEl) countEl.innerText = '1/' + searchMatches.length;
-    if (prevBtn) prevBtn.disabled = (searchMatches.length <= 1);
-    if (nextBtn) nextBtn.disabled = (searchMatches.length <= 1);
-    scrollToCurrentMatch();
-  } else {
-    if (countEl) countEl.innerText = '0/0';
-    if (prevBtn) prevBtn.disabled = true;
-    if (nextBtn) nextBtn.disabled = true;
-  }
-}
-
-function navigateSearch(direction) {
-  if (searchMatches.length <= 1) return;
-
-  // Cycle index forwards or backwards
-  currentSearchIndex = (currentSearchIndex + direction + searchMatches.length) % searchMatches.length;
-
-  var countEl = document.getElementById('searchMatchCount');
-  if (countEl) {
-    countEl.innerText = (currentSearchIndex + 1) + '/' + searchMatches.length;
-  }
-
-  scrollToCurrentMatch();
-}
-
-function scrollToCurrentMatch() {
-  if (currentSearchIndex < 0 || currentSearchIndex >= searchMatches.length) return;
-
-  // Remove highlight from all prior matches
-  searchMatches.forEach(function(row) {
-    row.classList.remove('search-highlight');
-  });
-
-  var targetRow = searchMatches[currentSearchIndex];
-  if (!targetRow) return;
-
-  var headerOffset = 140;
-  var elementPosition = targetRow.getBoundingClientRect().top + window.pageYOffset;
-  var offsetPosition = elementPosition - headerOffset;
-
-  window.scrollTo({
-    top: offsetPosition,
-    behavior: 'smooth'
-  });
-
-  var parentWrapper = targetRow.closest('div');
-  if (parentWrapper && parentWrapper.scrollHeight > parentWrapper.clientHeight) {
-    var parentRect = parentWrapper.getBoundingClientRect();
-    var targetRect = targetRow.getBoundingClientRect();
-    parentWrapper.scrollTo({
-      top: parentWrapper.scrollTop + (targetRect.top - parentRect.top) - headerOffset,
-      behavior: 'smooth'
-    });
-  }
-
-  targetRow.classList.add('search-highlight');
-  setTimeout(function() {
-    targetRow.classList.remove('search-highlight');
-  }, 2000);
 }
 
 // ==== DRAFT DAY DASHBOARD ====
@@ -185,6 +133,18 @@ function updateDraftDayDashboard(){
   container.innerHTML = html;
 }
 
+function triggerAllBoardUpdates() {
+  updateMyTeam();
+  updateRemaining();
+  updateBestAvailable();
+  updatePickCounter();
+  updateNextPickMarker();
+  updateScarcityAlerts();
+  updateRecommendedPick();
+  updateDraftDayDashboard();
+  addRoundMarkers();
+}
+
 function toggleDraft(row){
   if(document.body.classList.contains('edit-mode')) return;
   if(row.classList.contains('drafted-mine')){
@@ -195,15 +155,7 @@ function toggleDraft(row){
   } else {
     row.classList.add('drafted-mine');
   }
-  updateMyTeam();
-  updateRemaining();
-  updateBestAvailable();
-  updatePickCounter();
-  updateNextPickMarker();
-  updateScarcityAlerts();
-  updateRecommendedPick();
-  updateDraftDayDashboard();
-  addRoundMarkers();
+  triggerAllBoardUpdates();
   scheduleSave();
 }
 
@@ -225,15 +177,7 @@ function resetBoard(){
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     row.classList.remove('drafted-mine','drafted-other');
   });
-  updateMyTeam();
-  updateRemaining();
-  updateBestAvailable();
-  updatePickCounter();
-  updateNextPickMarker();
-  updateScarcityAlerts();
-  updateRecommendedPick();
-  updateDraftDayDashboard();
-  addRoundMarkers();
+  triggerAllBoardUpdates();
   btn.innerText = 'Reset all';
   btn.classList.remove('armed');
   scheduleSave();
@@ -260,7 +204,7 @@ function saveState(){
   } catch(e){
     console.error('Autosave failed', e);
     flashSaveIndicator('Autosave failed', '#e08a8a');
-    var diagEl = document.getElementById('storage-diag'); if(diagEl) diagEl.innerHTML = '<b>Autosave failed — use Export to back up your picks.</b>';
+    var diagEl = document.getElementById('storage-diag'); if(diagEl) diagEl.innerHTML = '<b>Autosave failed.</b>';
     return false;
   }
 }
@@ -297,13 +241,7 @@ function toggleAutosave(){
 }
 
 function loadState(){
-  updateMyTeam();
-  updateRemaining();
-  updateBestAvailable();
-  updatePickCounter();
-  updateScarcityAlerts();
-  updateRecommendedPick();
-  addRoundMarkers();
+  triggerAllBoardUpdates();
   applyTeamColors();
   window.ORIGINAL_ORDER = [];
   document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
@@ -320,9 +258,9 @@ function loadState(){
       var raw = localStorage.getItem(AUTOSAVE_KEY);
       if(raw){
         var payload = JSON.parse(raw);
-        if(payload.teams) document.getElementById('pcTeams').value = payload.teams;
-        if(payload.slot) document.getElementById('pcSlot').value = payload.slot;
-        if(payload.rounds) document.getElementById('pcRounds').value = payload.rounds;
+        if(payload.teams && document.getElementById('pcTeams')) document.getElementById('pcTeams').value = payload.teams;
+        if(payload.slot && document.getElementById('pcSlot')) document.getElementById('pcSlot').value = payload.slot;
+        if(payload.rounds && document.getElementById('pcRounds')) document.getElementById('pcRounds').value = payload.rounds;
         updatePickSettings();
         if(payload.order){ applyCustomOrder(payload.order); }
         document.querySelectorAll('tr.draftrow').forEach(function(row){
@@ -331,61 +269,17 @@ function loadState(){
           if(payload.state && payload.state[name] === 'mine') row.classList.add('drafted-mine');
           else if(payload.state && payload.state[name] === 'taken') row.classList.add('drafted-other');
         });
-        updateMyTeam(); updateRemaining(); updateBestAvailable(); updatePickCounter(); updateNextPickMarker(); updateScarcityAlerts(); updateRecommendedPick(); addRoundMarkers();
+        triggerAllBoardUpdates();
         if(diagEl) diagEl.innerHTML = 'Autosave: restored backup from '+(payload.savedAt||'previous session');
       } else {
         if(diagEl) diagEl.innerHTML = 'Autosave: No prior backup found.';
       }
     } else {
-      if(diagEl) diagEl.innerHTML = 'Autosave is disabled. Use Export to back up your picks.';
+      if(diagEl) diagEl.innerHTML = 'Autosave is disabled.';
     }
   } catch(e){
     console.error('Restore from autosave failed', e);
-    if(diagEl) diagEl.innerHTML = '<b>Autosave restore failed — use Export to back up your picks.</b>';
-  }
-}
-
-function toggleExportImport(){
-  var panel = document.getElementById('export-panel');
-  panel.classList.toggle('open');
-}
-
-function doExport(){
-  var state = {};
-  document.querySelectorAll('tr.draftrow').forEach(function(row){
-    var name = row.getAttribute('data-name');
-    if(row.classList.contains('drafted-mine')) state[name] = 'mine';
-    else if(row.classList.contains('drafted-other')) state[name] = 'taken';
-  });
-  var order = [];
-  document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
-    var tid = tbody.id.replace('tbody-','');
-    tbody.querySelectorAll('tr.draftrow').forEach(function(row){
-      order.push({n: row.getAttribute('data-name'), t: tid});
-    });
-  });
-  var payload = {
-    savedAt: new Date().toISOString(),
-    teams: LEAGUE_SIZE, slot: MY_DRAFT_SLOT, rounds: TOTAL_ROUNDS,
-    state: state,
-    order: order
-  };
-  document.getElementById('exportBox').value = JSON.stringify(payload);
-}
-
-function copyExport(){
-  var box = document.getElementById('exportBox');
-  if(!box.value){ doExport(); }
-  box.select();
-  box.setSelectionRange(0, 999999);
-  try{
-    navigator.clipboard.writeText(box.value).then(function(){
-      flashSaveIndicator('Copied!', '#8fd4a0');
-    }).catch(function(){
-      flashSaveIndicator('Select + copy manually', '#e08a8a');
-    });
-  } catch(e){
-    flashSaveIndicator('Select + copy manually', '#e08a8a');
+    if(diagEl) diagEl.innerHTML = '<b>Autosave restore failed.</b>';
   }
 }
 
@@ -423,46 +317,8 @@ function applyCustomOrder(orderArray){
   });
   addEditControls();
   syncEditControls();
-  updateBestAvailable();
-  updateRecommendedPick();
-  updateScarcityAlerts();
-  addRoundMarkers();
+  triggerAllBoardUpdates();
   scheduleSave();
-}
-
-function doImport(){
-  var raw = document.getElementById('importBox').value.trim();
-  var statusEl = document.getElementById('import-status');
-  if(!raw){ statusEl.innerHTML = '&#9888; Paste an exported code first.'; statusEl.style.color='#e08a8a'; return; }
-  try{
-    var payload = JSON.parse(raw);
-    var state = payload.state || payload;
-    if(payload.teams){ document.getElementById('pcTeams').value = payload.teams; }
-    if(payload.slot){ document.getElementById('pcSlot').value = payload.slot; }
-    if(payload.rounds){ document.getElementById('pcRounds').value = payload.rounds; }
-    updatePickSettings();
-    if(payload.order){ applyCustomOrder(payload.order); }
-    document.querySelectorAll('tr.draftrow').forEach(function(row){
-      var name = row.getAttribute('data-name');
-      row.classList.remove('drafted-mine','drafted-other');
-      if(state[name] === 'mine') row.classList.add('drafted-mine');
-      else if(state[name] === 'taken') row.classList.add('drafted-other');
-    });
-    updateMyTeam();
-    updateRemaining();
-    updateBestAvailable();
-    updatePickCounter();
-    updateScarcityAlerts();
-    updateRecommendedPick();
-    addRoundMarkers();
-    statusEl.innerHTML = '&#9989; Imported successfully — board updated.';
-    statusEl.style.color = '#8fd4a0';
-    scheduleSave();
-  } catch(e){
-    statusEl.innerHTML = '&#10060; Could not read that code — make sure you pasted the full export text.';
-    statusEl.style.color = '#e08a8a';
-    console.log('Import failed:', e);
-  }
 }
 
 function resetRanks(){
@@ -520,7 +376,9 @@ function updateRecommendedPick(){
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     if(row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')) return;
     var pos = row.getAttribute('data-pos');
-    var rk = parseInt(row.children[0].innerText.trim(),10) || 9999;
+    var rkCell = row.children[0];
+    var rawRk = rkCell ? rkCell.innerText.replace(/Rd\d+/, '').trim() : '';
+    var rk = parseInt(rawRk, 10) || 9999;
     var nameCell = row.querySelector('.pname');
     var name = nameCell ? nameCell.childNodes[0].textContent.trim() : row.getAttribute('data-name');
     var round = Math.ceil(rk / LEAGUE_SIZE);
@@ -540,7 +398,6 @@ function updateRecommendedPick(){
     }
   }
 
-  // FIX #5: Check name/attribute string rather than object reference equity
   if(suggested.length < 3){
     for(var i=0; i<candidates.length && suggested.length<3; i++){
       var candidate = candidates[i];
@@ -578,14 +435,14 @@ function updateRecommendedPick(){
 function addRoundMarkers(){
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     var rkCell = row.children[0];
-    var rk = parseInt(rkCell.innerText.trim(), 10);
+    if(!rkCell) return;
+    var rk = parseInt(rkCell.innerText.replace(/Rd\d+/, '').trim(), 10);
     if(!rk) return;
     var round = Math.ceil(rk / LEAGUE_SIZE);
     var existing = rkCell.querySelector('.round-tag');
     if(existing){
       existing.innerText = 'Rd'+round;
     } else {
-      // FIX #2: Clear text node drift when injecting elements
       var tag = document.createElement('div');
       tag.className = 'round-tag';
       tag.innerText = 'Rd'+round;
@@ -600,10 +457,19 @@ var currentSearchIndex = -1;
 
 // ==== DOM INITIALIZATION & OBSERVER ====
 document.addEventListener('DOMContentLoaded', function() {
+  // 1. Initial State Hydration
+  loadState();
+
+  // 2. Clear Export/Import Elements & Prep Search UI
   removeExportImportButtons();
   setupSearchUI();
   
-  // Continuous DOM observer to destroy buttons loaded asynchronously or post-DOM
+  // 3. Attach click handlers to row elements for dynamic draft toggling
+  document.querySelectorAll('tr.draftrow').forEach(function(row) {
+    row.onclick = function() { toggleDraft(row); };
+  });
+
+  // 4. Continuous DOM observer to purge export/import controls dynamically injected post-DOM
   var observer = new MutationObserver(function() {
     removeExportImportButtons();
   });
@@ -616,7 +482,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ==== REMOVE EXPORT/IMPORT CONTROLS ====
 function removeExportImportButtons() {
-  // Broad selector targeting panels, triggers, and action attributes
   var selectors = [
     '#exportBtn', '#importBtn', '#export-panel', '#import-panel',
     '.export-btn', '.import-btn', '.export-toggle', '.import-toggle',
@@ -628,7 +493,6 @@ function removeExportImportButtons() {
     el.remove();
   });
 
-  // Fallback text query for standard buttons and link elements
   document.querySelectorAll('button, a.btn, div.btn').forEach(function(btn) {
     var txt = (btn.innerText || btn.textContent || '').toLowerCase();
     if (txt.includes('export') || txt.includes('import')) {
@@ -643,9 +507,10 @@ function setupSearchUI() {
   if (!searchInput) return;
 
   var parent = searchInput.parentElement;
+  var container;
   
   if (!parent.classList.contains('dynamic-search-wrapper')) {
-    var container = document.createElement('div');
+    container = document.createElement('div');
     container.className = 'dynamic-search-wrapper';
     parent.insertBefore(container, searchInput);
     container.appendChild(searchInput);
@@ -692,7 +557,6 @@ function applyFilters() {
   var prevBtn = document.getElementById('searchPrevBtn');
   var nextBtn = document.getElementById('searchNextBtn');
 
-  // Reset row visibility and search highlights
   document.querySelectorAll('tr.draftrow').forEach(function(row) {
     row.classList.remove('search-highlight');
     var pos = row.getAttribute('data-pos');
@@ -714,7 +578,7 @@ function applyFilters() {
     if (countEl) countEl.innerText = '0/0';
     if (prevBtn) prevBtn.disabled = true;
     if (nextBtn) nextBtn.disabled = true;
-    if (typeof updateNextPickMarker === 'function') updateNextPickMarker();
+    updateNextPickMarker();
     return;
   }
 
@@ -738,10 +602,7 @@ function applyFilters() {
     if (nextBtn) nextBtn.disabled = true;
   }
 
-  // Re-calculate and re-apply pick line indicator after filtering
-  if (typeof updateNextPickMarker === 'function') {
-    updateNextPickMarker();
-  }
+  updateNextPickMarker();
 }
 
 // ==== MULTI-MATCH NAVIGATION CONTROLLER ====
