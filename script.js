@@ -50,50 +50,87 @@ function updateMyTeam() {
   myTeamContainer.innerHTML = html || '<em>No players drafted yet.</em>';
 }
 
+// ==== DEACTIVATED BEST AVAILABLE WIDGET ====
 function updateBestAvailable() {
   var container = document.getElementById('best-available-list');
-  if (!container) return;
-  var positions = ['QB', 'RB', 'WR', 'TE', 'DST', 'K'];
-  var html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:10px;">';
-  
-  positions.forEach(function(pos) {
-    var top3 = [];
-    document.querySelectorAll('tr.draftrow[data-pos="' + pos + '"]').forEach(function(row) {
-      if (top3.length < 3 && !row.classList.contains('drafted-mine') && !row.classList.contains('drafted-other')) {
-        var rkCell = row.children[0];
-        var rk = rkCell ? rkCell.innerText.replace(/Rd\d+/, '').trim() : '';
-        var nameCell = row.querySelector('.pname');
-        var name = nameCell ? nameCell.childNodes[0].textContent.trim() : (row.getAttribute('data-name') || 'Player');
-        top3.push('#' + rk + ' ' + name);
-      }
-    });
-    
-    html += '<div style="background:rgba(255,255,255,0.04); padding:8px; border-radius:6px;">';
-    html += '<strong style="color:#5fa87c;">Top 3 ' + pos + '</strong>';
-    if (top3.length > 0) {
-      top3.forEach(function(p) { html += '<div style="font-size:0.75rem; margin-top:4px;">' + p + '</div>'; });
-    } else {
-      html += '<div style="font-size:0.75rem; color:#888;">None left</div>';
-    }
-    html += '</div>';
-  });
-  html += '</div>';
-  container.innerHTML = html;
+  if (container) container.innerHTML = '';
 }
 
 function updateRemaining() { safeCall('updateRemainingCustom'); }
-function updatePickCounter() { safeCall('updatePickCounterCustom'); }
+
+// ==== REAL-TIME DRAFT POSITION & PICK COUNTER WIDGET ====
+function updatePickCounter() {
+  var container = document.getElementById('pick-counter-container') || document.getElementById('pick-counter');
+  if (!container) return;
+
+  var totalDrafted = document.querySelectorAll('tr.draftrow.drafted-mine, tr.draftrow.drafted-other').length;
+  var currentOverall = totalDrafted + 1;
+  
+  var currentRound = Math.ceil(currentOverall / LEAGUE_SIZE);
+  var currentPickInRound = currentOverall - ((currentRound - 1) * LEAGUE_SIZE);
+
+  var myPicks = [];
+  for (var r = 1; r <= TOTAL_ROUNDS; r++) {
+    var pickInRound = (r % 2 === 1) 
+      ? MY_DRAFT_SLOT 
+      : (LEAGUE_SIZE - MY_DRAFT_SLOT + 1);
+    var overallPick = (r - 1) * LEAGUE_SIZE + pickInRound;
+    myPicks.push(overallPick);
+  }
+
+  var nextUserPick = myPicks.find(function(p) { return p >= currentOverall; });
+  var picksAway = nextUserPick ? (nextUserPick - currentOverall) : 0;
+  var myNextRound = nextUserPick ? Math.ceil(nextUserPick / LEAGUE_SIZE) : 0;
+
+  var statusText = '';
+  var statusColor = '#5fa87c';
+
+  if (!nextUserPick) {
+    statusText = 'DRAFT COMPLETE';
+    statusColor = '#a9c2ab';
+  } else if (picksAway === 0) {
+    statusText = 'ON THE CLOCK!';
+    statusColor = '#c1554b';
+  } else if (picksAway <= 3) {
+    statusText = picksAway + ' PICKS AWAY (ON DECK)';
+    statusColor = '#e0a83f';
+  } else {
+    statusText = picksAway + ' PICKS AWAY';
+    statusColor = '#5fa87c';
+  }
+
+  var html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; background:rgba(255,255,255,0.04); padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); text-align:center;">';
+  
+  html += '<div>';
+  html += '<div style="font-size:0.7rem; color:#a9c2ab; text-transform:uppercase;">Current Pick</div>';
+  html += '<div style="font-size:1.2rem; font-weight:900; color:#fff;">#' + currentOverall + '</div>';
+  html += '<div style="font-size:0.68rem; color:#888;">Rd ' + currentRound + ', Pick ' + currentPickInRound + '</div>';
+  html += '</div>';
+
+  html += '<div>';
+  html += '<div style="font-size:0.7rem; color:#a9c2ab; text-transform:uppercase;">Your Next Pick</div>';
+  html += '<div style="font-size:1.2rem; font-weight:900; color:' + statusColor + ';">' + (nextUserPick ? '#' + nextUserPick : 'N/A') + '</div>';
+  html += '<div style="font-size:0.68rem; color:#888;">' + (myNextRound ? 'Round ' + myNextRound : 'Done') + '</div>';
+  html += '</div>';
+
+  html += '<div style="grid-column: span 2;">';
+  html += '<div style="font-size:0.7rem; color:#a9c2ab; text-transform:uppercase;">Draft Status</div>';
+  html += '<div style="font-size:1rem; font-weight:800; color:' + statusColor + '; margin-top:2px;">' + statusText + '</div>';
+  html += '</div>';
+
+  html += '</div>';
+
+  container.innerHTML = html;
+}
+
 // ==== NEXT PICK MARKER CALCULATOR & RENDERER ====
 function updateNextPickMarker() {
-  // 1. Clean up existing marker
   var existingMarker = document.getElementById('next-pick-marker');
   if (existingMarker) existingMarker.remove();
 
-  // 2. Calculate current overall pick count
   var takenCount = document.querySelectorAll('tr.draftrow.drafted-mine, tr.draftrow.drafted-other').length;
   var currentOverallPick = takenCount + 1;
 
-  // 3. Determine user's draft picks (Snake Draft Math)
   var myPicks = [];
   for (var round = 1; round <= TOTAL_ROUNDS; round++) {
     var pickInRound = (round % 2 === 1) 
@@ -103,16 +140,14 @@ function updateNextPickMarker() {
     myPicks.push(overallPick);
   }
 
-  // 4. Find the immediate next upcoming pick for the user
   var nextUserPick = myPicks.find(function(pick) {
     return pick >= currentOverallPick;
   });
 
-  if (!nextUserPick) return; // Draft completed or past all rounds
+  if (!nextUserPick) return;
 
   var picksAway = nextUserPick - currentOverallPick;
 
-  // 5. Find target player row in the table near that pick rank
   var rows = Array.from(document.querySelectorAll('tr.draftrow:not(.hidden-row)'));
   var targetRow = null;
 
@@ -123,14 +158,12 @@ function updateNextPickMarker() {
     var rkCell = row.children[0];
     var rk = parseInt(rkCell ? rkCell.innerText.replace(/Rd\d+/, '').trim() : '0', 10);
     
-    // Target player row matching or exceeding target pick rank
     if (rk >= nextUserPick) {
       targetRow = row;
       break;
     }
   }
 
-  // Fallback to first available undrafted row if no higher rank row matches
   if (!targetRow) {
     targetRow = rows.find(function(r) {
       return !r.classList.contains('drafted-mine') && !r.classList.contains('drafted-other');
@@ -139,7 +172,6 @@ function updateNextPickMarker() {
 
   if (!targetRow) return;
 
-  // 6. Build and inject the line element
   var marker = document.createElement('tr');
   marker.id = 'next-pick-marker';
   
@@ -153,13 +185,25 @@ function updateNextPickMarker() {
   td.innerHTML = '<div class="next-pick-line"><span>' + label + '</span></div>';
   marker.appendChild(td);
 
-  // Insert line directly before target row
   targetRow.parentNode.insertBefore(marker, targetRow);
 }
 
 function updateScarcityAlerts() { safeCall('updateScarcityAlertsCustom'); }
 function addEditControls() { safeCall('addEditControlsCustom'); }
-function updatePickSettings() { safeCall('updatePickSettingsCustom'); }
+
+// ==== PICK SETTINGS & SYNC ====
+function updatePickSettings() {
+  var pcTeams = document.getElementById('pcTeams');
+  var pcSlot = document.getElementById('pcSlot');
+  var pcRounds = document.getElementById('pcRounds');
+
+  if (pcTeams && pcTeams.value) LEAGUE_SIZE = parseInt(pcTeams.value, 10) || 10;
+  if (pcSlot && pcSlot.value) MY_DRAFT_SLOT = parseInt(pcSlot.value, 10) || 10;
+  if (pcRounds && pcRounds.value) TOTAL_ROUNDS = parseInt(pcRounds.value, 10) || 16;
+
+  triggerAllBoardUpdates();
+  scheduleSave();
+}
 
 // ==== POSITION FILTERING ====
 function jumpTo(id){
@@ -206,6 +250,7 @@ function updateDraftDayDashboard(){
   container.innerHTML = html;
 }
 
+// ==== MASTER BOARD UPDATER ====
 function triggerAllBoardUpdates() {
   updateMyTeam();
   updateRemaining();
@@ -550,15 +595,23 @@ var currentSearchIndex = -1;
 function initApp() {
   removeExportImportButtons();
   setupSearchUI();
+  
+  // Attach Pick Settings listeners to input elements
+  ['pcTeams', 'pcSlot', 'pcRounds'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('change', updatePickSettings);
+      el.addEventListener('input', updatePickSettings);
+    }
+  });
+
   loadState();
 }
 
 // ==== DOM INITIALIZATION & OBSERVER ====
 document.addEventListener('DOMContentLoaded', function() {
-  // 1. Initial application startup
   initApp();
 
-  // 2. Global Event Delegation for Row Clicks (Handles dynamic or static rows)
   document.body.addEventListener('click', function(e) {
     var row = e.target.closest('tr.draftrow');
     if (row && !e.target.closest('select') && !e.target.closest('button') && !e.target.closest('input')) {
@@ -566,7 +619,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // 3. Continuous DOM observer to manage export/import buttons
   var observer = new MutationObserver(function() {
     removeExportImportButtons();
   });
