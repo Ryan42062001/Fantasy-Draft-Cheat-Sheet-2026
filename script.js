@@ -28,6 +28,9 @@ var currentPosFilter = 'ALL';
 var resetArmed = false;
 var resetArmTimer = null;
 var _saveTimer = null;
+var appObserver = null;
+var searchMatches = [];
+var currentSearchIndex = -1;
 window.ORIGINAL_ORDER = [];
 
 // ==== SAFE UTILITY CALLERS ====
@@ -50,7 +53,6 @@ function updateMyTeam() {
   myTeamContainer.innerHTML = html || '<em>No players drafted yet.</em>';
 }
 
-// ==== DEACTIVATED BEST AVAILABLE WIDGET ====
 function updateBestAvailable() {
   var container = document.getElementById('best-available-list');
   if (container) container.innerHTML = '';
@@ -58,103 +60,56 @@ function updateBestAvailable() {
 
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 
-// ==== REAL-TIME DRAFT POSITION & PICK COUNTER WIDGET ====
-// ==========================================
-// DYNAMIC DRAFT POSITION & NEXT PICK TRACKER
-// ==========================================
-
-// 1. Helper to calculate your pick numbers dynamically from UI inputs
+// ==== REAL-TIME DRAFT POSITION & PICK COUNTER ====
 function getMyPickNumbers() {
-    // CHANGE THESE IDs if your <input> tags use different IDs in index.html
-    const leagueSizeInput = document.getElementById('league-size-input');
-    const mySlotInput = document.getElementById('draft-slot-input');
-    const totalRoundsInput = document.getElementById('total-rounds-input');
+  var pcTeams = document.getElementById('pcTeams');
+  var pcSlot = document.getElementById('pcSlot');
+  var pcRounds = document.getElementById('pcRounds');
 
-    // Parse numeric values with strict validation guards
-    const leagueSize = Math.max(1, parseInt(leagueSizeInput?.value, 10) || 12);
-    let mySlot = Math.max(1, parseInt(mySlotInput?.value, 10) || 1);
-    const totalRounds = Math.max(1, parseInt(totalRoundsInput?.value, 10) || 15);
+  var leagueSize = Math.max(1, parseInt(pcTeams ? pcTeams.value : LEAGUE_SIZE, 10) || 10);
+  var mySlot = Math.max(1, parseInt(pcSlot ? pcSlot.value : MY_DRAFT_SLOT, 10) || 10);
+  var totalRounds = Math.max(1, parseInt(pcRounds ? pcRounds.value : TOTAL_ROUNDS, 10) || 16);
 
-    // Prevent draft slot from exceeding league size
-    if (mySlot > leagueSize) {
-        mySlot = leagueSize;
-    }
+  if (mySlot > leagueSize) mySlot = leagueSize;
 
-    let myPicks = [];
-
-    // Snake draft calculation logic
-    for (let round = 1; round <= totalRounds; round++) {
-        let pickInRound = (round % 2 !== 0) 
-            ? mySlot 
-            : (leagueSize - mySlot + 1);
-            
-        let overallPick = (round - 1) * leagueSize + pickInRound;
-        myPicks.push(overallPick);
-    }
-
-    return myPicks;
+  var myPicks = [];
+  for (var round = 1; round <= totalRounds; round++) {
+    var pickInRound = (round % 2 !== 0) ? mySlot : (leagueSize - mySlot + 1);
+    var overallPick = (round - 1) * leagueSize + pickInRound;
+    myPicks.push(overallPick);
+  }
+  return myPicks;
 }
 
-// 2. Main function to update the display
 function updateNextPickDisplay() {
-    // Count drafted players across the board
-    const totalDrafted = document.querySelectorAll('.player-row.drafted').length;
-    const currentOverallPick = totalDrafted + 1;
+  var totalDrafted = document.querySelectorAll('tr.draftrow.drafted-mine, tr.draftrow.drafted-other').length;
+  var currentOverallPick = totalDrafted + 1;
+  var myScheduledPicks = getMyPickNumbers();
 
-    // Get current pick schedule based on active settings
-    const myScheduledPicks = getMyPickNumbers();
+  var nextPickOverall = myScheduledPicks.find(function(pick) {
+    return pick >= currentOverallPick;
+  });
 
-    // Find the next upcoming pick
-    const nextPickOverall = myScheduledPicks.find(pick => pick >= currentOverallPick);
-
-    // Render output to the target element
-    // CHANGE THIS ID if your display tag uses a different ID
-    const nextPickElement = document.getElementById('next-pick-display');
-    if (nextPickElement) {
-        if (nextPickOverall) {
-            const picksAway = nextPickOverall - currentOverallPick;
-            nextPickElement.innerText = picksAway === 0 
-                ? "ON THE CLOCK!" 
-                : `Next Pick: #${nextPickOverall} (${picksAway} pick${picksAway > 1 ? 's' : ''} away)`;
-        } else {
-            nextPickElement.innerText = "Draft Complete";
-        }
+  var nextPickElement = document.getElementById('next-pick-display') || document.getElementById('pick-counter');
+  if (nextPickElement) {
+    if (nextPickOverall) {
+      var picksAway = nextPickOverall - currentOverallPick;
+      nextPickElement.innerText = picksAway === 0 
+        ? "ON THE CLOCK!" 
+        : "Next Pick: #" + nextPickOverall + " (" + picksAway + " pick" + (picksAway > 1 ? "s" : "") + " away)";
+    } else {
+      nextPickElement.innerText = "Draft Complete";
     }
+  }
 }
 
-// 3. Attach event listeners to update automatically when you change input boxes
-document.addEventListener('DOMContentLoaded', () => {
-    const inputIds = ['league-size-input', 'draft-slot-input', 'total-rounds-input'];
-    
-    inputIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('input', updateNextPickDisplay);
-            el.addEventListener('change', updateNextPickDisplay);
-        }
-    });
-
-    // Initial calculation on page load
-    updateNextPickDisplay();
-});
-
-
-// ==== NEXT PICK MARKER CALCULATOR & RENDERER ====
 function updateNextPickMarker() {
   var existingMarker = document.getElementById('next-pick-marker');
   if (existingMarker) existingMarker.remove();
 
   var takenCount = document.querySelectorAll('tr.draftrow.drafted-mine, tr.draftrow.drafted-other').length;
   var currentOverallPick = takenCount + 1;
-
-  var myPicks = [];
-  for (var round = 1; round <= TOTAL_ROUNDS; round++) {
-    var pickInRound = (round % 2 === 1) 
-      ? MY_DRAFT_SLOT 
-      : (LEAGUE_SIZE - MY_DRAFT_SLOT + 1);
-    var overallPick = (round - 1) * LEAGUE_SIZE + pickInRound;
-    myPicks.push(overallPick);
-  }
+  var myPicks = getMyPickNumbers();
 
   var nextUserPick = myPicks.find(function(pick) {
     return pick >= currentOverallPick;
@@ -163,7 +118,6 @@ function updateNextPickMarker() {
   if (!nextUserPick) return;
 
   var picksAway = nextUserPick - currentOverallPick;
-
   var rows = Array.from(document.querySelectorAll('tr.draftrow:not(.hidden-row)'));
   var targetRow = null;
 
@@ -207,7 +161,6 @@ function updateNextPickMarker() {
 function updateScarcityAlerts() { safeCall('updateScarcityAlertsCustom'); }
 function addEditControls() { safeCall('addEditControlsCustom'); }
 
-// ==== PICK SETTINGS & SYNC ====
 function updatePickSettings() {
   var pcTeams = document.getElementById('pcTeams');
   var pcSlot = document.getElementById('pcSlot');
@@ -221,7 +174,6 @@ function updatePickSettings() {
   scheduleSave();
 }
 
-// ==== POSITION FILTERING ====
 function jumpTo(id){
   var el = document.getElementById(id);
   if(el){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
@@ -234,7 +186,6 @@ function setPosFilter(pos, btn){
   applyFilters();
 }
 
-// ==== DRAFT DAY DASHBOARD ====
 function updateDraftDayDashboard(){
   var container = document.getElementById('draft-day-dashboard');
   if(!container) return;
@@ -266,12 +217,11 @@ function updateDraftDayDashboard(){
   container.innerHTML = html;
 }
 
-// ==== MASTER BOARD UPDATER ====
 function triggerAllBoardUpdates() {
   updateMyTeam();
   updateRemaining();
   updateBestAvailable();
-  updatePickCounter();
+  updateNextPickDisplay();
   updateNextPickMarker();
   updateScarcityAlerts();
   updateRecommendedPick();
@@ -395,11 +345,11 @@ function loadState(){
       if(name) window.ORIGINAL_ORDER.push({n: name, t: tid});
     });
   });
-  addEditControls();
 
   var enabled = isAutosaveEnabled();
   setAutosaveEnabled(enabled);
   var diagEl = document.getElementById('storage-diag');
+  
   try{
     if(enabled){
       var raw = localStorage.getItem(AUTOSAVE_KEY);
@@ -409,8 +359,11 @@ function loadState(){
         var pcSlot = document.getElementById('pcSlot'); if(payload.slot && pcSlot) pcSlot.value = payload.slot;
         var pcRounds = document.getElementById('pcRounds'); if(payload.rounds && pcRounds) pcRounds.value = payload.rounds;
         
-        updatePickSettings();
-        if(payload.order){ applyCustomOrder(payload.order); }
+        if (pcTeams && pcTeams.value) LEAGUE_SIZE = parseInt(pcTeams.value, 10) || 10;
+        if (pcSlot && pcSlot.value) MY_DRAFT_SLOT = parseInt(pcSlot.value, 10) || 10;
+        if (pcRounds && pcRounds.value) TOTAL_ROUNDS = parseInt(pcRounds.value, 10) || 16;
+
+        if(payload.order){ applyCustomOrder(payload.order, true); }
         
         if(payload.state) {
           document.querySelectorAll('tr.draftrow').forEach(function(row){
@@ -432,6 +385,7 @@ function loadState(){
     if(diagEl) diagEl.innerHTML = '<b>Autosave restore failed.</b>';
   }
   
+  addEditControls();
   triggerAllBoardUpdates();
 }
 
@@ -454,7 +408,7 @@ function syncEditControls(){
   });
 }
 
-function applyCustomOrder(orderArray){
+function applyCustomOrder(orderArray, skipSave){
   if(!orderArray || !orderArray.length) return;
   var rowMap = {};
   document.querySelectorAll('tr.draftrow').forEach(function(row){
@@ -470,8 +424,10 @@ function applyCustomOrder(orderArray){
   });
   addEditControls();
   syncEditControls();
-  triggerAllBoardUpdates();
-  scheduleSave();
+  if(!skipSave) {
+    triggerAllBoardUpdates();
+    scheduleSave();
+  }
 }
 
 function resetRanks(){
@@ -603,50 +559,9 @@ function addRoundMarkers(){
   });
 }
 
-// ==== GLOBAL SEARCH STATE ====
-var searchMatches = [];
-var currentSearchIndex = -1;
-
-// ==== INITIALIZATION RUNNER ====
-function initApp() {
-  removeExportImportButtons();
-  setupSearchUI();
-  
-  // Attach Pick Settings listeners to input elements
-  ['pcTeams', 'pcSlot', 'pcRounds'].forEach(function(id) {
-    var el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('change', updatePickSettings);
-      el.addEventListener('input', updatePickSettings);
-    }
-  });
-
-  loadState();
-}
-
-// ==== DOM INITIALIZATION & OBSERVER ====
-document.addEventListener('DOMContentLoaded', function() {
-  initApp();
-
-  document.body.addEventListener('click', function(e) {
-    var row = e.target.closest('tr.draftrow');
-    if (row && !e.target.closest('select') && !e.target.closest('button') && !e.target.closest('input')) {
-      toggleDraft(row);
-    }
-  });
-
-  var observer = new MutationObserver(function() {
-    removeExportImportButtons();
-  });
-
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-});
-
-// ==== REMOVE EXPORT/IMPORT CONTROLS ====
 function removeExportImportButtons() {
+  if (appObserver) appObserver.disconnect();
+
   var selectors = [
     '#exportBtn', '#importBtn', '#export-panel', '#import-panel',
     '.export-btn', '.import-btn', '.export-toggle', '.import-toggle',
@@ -664,9 +579,12 @@ function removeExportImportButtons() {
       btn.remove();
     }
   });
+
+  if (appObserver) {
+    appObserver.observe(document.body, { childList: true, subtree: true });
+  }
 }
 
-// ==== SEARCH UI INJECTION ====
 function setupSearchUI() {
   var searchInput = document.getElementById('searchBox');
   if (!searchInput) return;
@@ -715,7 +633,6 @@ function setupSearchUI() {
   searchInput.oninput = applyFilters;
 }
 
-// ==== SEARCH & FILTERING LOGIC ====
 function applyFilters() {
   var searchInput = document.getElementById('searchBox');
   var countEl = document.getElementById('searchMatchCount');
@@ -770,7 +687,6 @@ function applyFilters() {
   updateNextPickMarker();
 }
 
-// ==== MULTI-MATCH NAVIGATION CONTROLLER ====
 function navigateSearch(direction) {
   if (searchMatches.length <= 1) return;
 
@@ -787,12 +703,22 @@ function navigateSearch(direction) {
 function scrollToCurrentMatch() {
   if (currentSearchIndex < 0 || currentSearchIndex >= searchMatches.length) return;
 
+  var targetRow = searchMatches[currentSearchIndex];
+  if (!targetRow || !document.body.contains(targetRow)) {
+    searchMatches.splice(currentSearchIndex, 1);
+    if (searchMatches.length === 0) {
+      currentSearchIndex = -1;
+      return;
+    }
+    currentSearchIndex = currentSearchIndex % searchMatches.length;
+    targetRow = searchMatches[currentSearchIndex];
+  }
+
+  if (!targetRow) return;
+
   searchMatches.forEach(function(row) {
     row.classList.remove('search-highlight');
   });
-
-  var targetRow = searchMatches[currentSearchIndex];
-  if (!targetRow) return;
 
   var headerOffset = 130;
   var elementPosition = targetRow.getBoundingClientRect().top + window.pageYOffset;
@@ -808,3 +734,40 @@ function scrollToCurrentMatch() {
     targetRow.classList.remove('search-highlight');
   }, 2500);
 }
+
+// ==== INITIALIZATION RUNNER ====
+function initApp() {
+  setupSearchUI();
+  
+  ['pcTeams', 'pcSlot', 'pcRounds'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('change', updatePickSettings);
+      el.addEventListener('input', updatePickSettings);
+    }
+  });
+
+  loadState();
+}
+
+// ==== SINGLE DOM READY LISTENER ====
+document.addEventListener('DOMContentLoaded', function() {
+  appObserver = new MutationObserver(function() {
+    removeExportImportButtons();
+  });
+
+  appObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  removeExportImportButtons();
+  initApp();
+
+  document.body.addEventListener('click', function(e) {
+    var row = e.target.closest('tr.draftrow');
+    if (row && !e.target.closest('select') && !e.target.closest('button') && !e.target.closest('input')) {
+      toggleDraft(row);
+    }
+  });
+});
