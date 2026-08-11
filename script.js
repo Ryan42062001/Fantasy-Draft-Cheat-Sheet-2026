@@ -585,7 +585,11 @@ function resetRanks(){
     flashSaveIndicator('Nothing to reset', '#e08a8a');
     return;
   }
+
   applyCustomOrder(window.ORIGINAL_ORDER);
+
+  syncEditControls();
+
   flashSaveIndicator('Ranks reset', '#8fd4a0');
 }
 
