@@ -547,3 +547,38 @@ button[onclick*="import"] {
   display: none !important;
 }
 
+/* ESTIMATED PICK INDICATOR LINE */
+#next-pick-marker td {
+  padding: 0 !important;
+  border: none !important;
+}
+
+.next-pick-line {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 12px 0;
+  position: relative;
+}
+
+.next-pick-line::before,
+.next-pick-line::after {
+  content: '';
+  flex: 1;
+  border-bottom: 2px dashed #e0a83f;
+}
+
+.next-pick-line span {
+  padding: 4px 12px;
+  background: #e0a83f;
+  color: #0b162a;
+  font-weight: 800;
+  font-size: 0.75rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(224, 168, 63, 0.4);
+  white-space: nowrap;
+  margin: 0 8px;
+}
+
