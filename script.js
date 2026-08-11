@@ -59,69 +59,85 @@ function updateBestAvailable() {
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 
 // ==== REAL-TIME DRAFT POSITION & PICK COUNTER WIDGET ====
-function updatePickCounter() {
-  var container = document.getElementById('pick-counter-container') || document.getElementById('pick-counter');
-  if (!container) return;
+// ==========================================
+// DYNAMIC DRAFT POSITION & NEXT PICK TRACKER
+// ==========================================
 
-  var totalDrafted = document.querySelectorAll('tr.draftrow.drafted-mine, tr.draftrow.drafted-other').length;
-  var currentOverall = totalDrafted + 1;
-  
-  var currentRound = Math.ceil(currentOverall / LEAGUE_SIZE);
-  var currentPickInRound = currentOverall - ((currentRound - 1) * LEAGUE_SIZE);
+// 1. Helper to calculate your pick numbers dynamically from UI inputs
+function getMyPickNumbers() {
+    // CHANGE THESE IDs if your <input> tags use different IDs in index.html
+    const leagueSizeInput = document.getElementById('league-size-input');
+    const mySlotInput = document.getElementById('draft-slot-input');
+    const totalRoundsInput = document.getElementById('total-rounds-input');
 
-  var myPicks = [];
-  for (var r = 1; r <= TOTAL_ROUNDS; r++) {
-    var pickInRound = (r % 2 === 1) 
-      ? MY_DRAFT_SLOT 
-      : (LEAGUE_SIZE - MY_DRAFT_SLOT + 1);
-    var overallPick = (r - 1) * LEAGUE_SIZE + pickInRound;
-    myPicks.push(overallPick);
-  }
+    // Parse numeric values with strict validation guards
+    const leagueSize = Math.max(1, parseInt(leagueSizeInput?.value, 10) || 12);
+    let mySlot = Math.max(1, parseInt(mySlotInput?.value, 10) || 1);
+    const totalRounds = Math.max(1, parseInt(totalRoundsInput?.value, 10) || 15);
 
-  var nextUserPick = myPicks.find(function(p) { return p >= currentOverall; });
-  var picksAway = nextUserPick ? (nextUserPick - currentOverall) : 0;
-  var myNextRound = nextUserPick ? Math.ceil(nextUserPick / LEAGUE_SIZE) : 0;
+    // Prevent draft slot from exceeding league size
+    if (mySlot > leagueSize) {
+        mySlot = leagueSize;
+    }
 
-  var statusText = '';
-  var statusColor = '#5fa87c';
+    let myPicks = [];
 
-  if (!nextUserPick) {
-    statusText = 'DRAFT COMPLETE';
-    statusColor = '#a9c2ab';
-  } else if (picksAway === 0) {
-    statusText = 'ON THE CLOCK!';
-    statusColor = '#c1554b';
-  } else if (picksAway <= 3) {
-    statusText = picksAway + ' PICKS AWAY (ON DECK)';
-    statusColor = '#e0a83f';
-  } else {
-    statusText = picksAway + ' PICKS AWAY';
-    statusColor = '#5fa87c';
-  }
+    // Snake draft calculation logic
+    for (let round = 1; round <= totalRounds; round++) {
+        let pickInRound = (round % 2 !== 0) 
+            ? mySlot 
+            : (leagueSize - mySlot + 1);
+            
+        let overallPick = (round - 1) * leagueSize + pickInRound;
+        myPicks.push(overallPick);
+    }
 
-  var html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; background:rgba(255,255,255,0.04); padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); text-align:center;">';
-  
-  html += '<div>';
-  html += '<div style="font-size:0.7rem; color:#a9c2ab; text-transform:uppercase;">Current Pick</div>';
-  html += '<div style="font-size:1.2rem; font-weight:900; color:#fff;">#' + currentOverall + '</div>';
-  html += '<div style="font-size:0.68rem; color:#888;">Rd ' + currentRound + ', Pick ' + currentPickInRound + '</div>';
-  html += '</div>';
-
-  html += '<div>';
-  html += '<div style="font-size:0.7rem; color:#a9c2ab; text-transform:uppercase;">Your Next Pick</div>';
-  html += '<div style="font-size:1.2rem; font-weight:900; color:' + statusColor + ';">' + (nextUserPick ? '#' + nextUserPick : 'N/A') + '</div>';
-  html += '<div style="font-size:0.68rem; color:#888;">' + (myNextRound ? 'Round ' + myNextRound : 'Done') + '</div>';
-  html += '</div>';
-
-  html += '<div style="grid-column: span 2;">';
-  html += '<div style="font-size:0.7rem; color:#a9c2ab; text-transform:uppercase;">Draft Status</div>';
-  html += '<div style="font-size:1rem; font-weight:800; color:' + statusColor + '; margin-top:2px;">' + statusText + '</div>';
-  html += '</div>';
-
-  html += '</div>';
-
-  container.innerHTML = html;
+    return myPicks;
 }
+
+// 2. Main function to update the display
+function updateNextPickDisplay() {
+    // Count drafted players across the board
+    const totalDrafted = document.querySelectorAll('.player-row.drafted').length;
+    const currentOverallPick = totalDrafted + 1;
+
+    // Get current pick schedule based on active settings
+    const myScheduledPicks = getMyPickNumbers();
+
+    // Find the next upcoming pick
+    const nextPickOverall = myScheduledPicks.find(pick => pick >= currentOverallPick);
+
+    // Render output to the target element
+    // CHANGE THIS ID if your display tag uses a different ID
+    const nextPickElement = document.getElementById('next-pick-display');
+    if (nextPickElement) {
+        if (nextPickOverall) {
+            const picksAway = nextPickOverall - currentOverallPick;
+            nextPickElement.innerText = picksAway === 0 
+                ? "ON THE CLOCK!" 
+                : `Next Pick: #${nextPickOverall} (${picksAway} pick${picksAway > 1 ? 's' : ''} away)`;
+        } else {
+            nextPickElement.innerText = "Draft Complete";
+        }
+    }
+}
+
+// 3. Attach event listeners to update automatically when you change input boxes
+document.addEventListener('DOMContentLoaded', () => {
+    const inputIds = ['league-size-input', 'draft-slot-input', 'total-rounds-input'];
+    
+    inputIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', updateNextPickDisplay);
+            el.addEventListener('change', updateNextPickDisplay);
+        }
+    });
+
+    // Initial calculation on page load
+    updateNextPickDisplay();
+});
+
 
 // ==== NEXT PICK MARKER CALCULATOR & RENDERER ====
 function updateNextPickMarker() {
