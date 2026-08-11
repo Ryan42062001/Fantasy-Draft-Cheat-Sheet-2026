@@ -231,14 +231,21 @@ function triggerAllBoardUpdates() {
 
 function toggleDraft(row){
   if(!row || document.body.classList.contains('edit-mode')) return;
-  if(row.classList.contains('drafted-mine')){
-    row.classList.remove('drafted-mine');
-    row.classList.add('drafted-other');
-  } else if(row.classList.contains('drafted-other')){
+
+  if(row.classList.contains('drafted-other')){
+    // Taken → Mine
     row.classList.remove('drafted-other');
-  } else {
     row.classList.add('drafted-mine');
+
+  } else if(row.classList.contains('drafted-mine')){
+    // Mine → Available
+    row.classList.remove('drafted-mine');
+
+  } else {
+    // Available → Taken
+    row.classList.add('drafted-other');
   }
+
   triggerAllBoardUpdates();
   scheduleSave();
 }
@@ -406,6 +413,149 @@ function syncEditControls(){
       select.value = currentTbody.id.replace('tbody-','');
     }
   });
+}
+
+// ==== EDIT RANKS ====
+
+function toggleEditMode(){
+  var isEditing = document.body.classList.toggle('edit-mode');
+  var btn = document.getElementById('editRanksBtn');
+
+  if(btn){
+    btn.innerHTML = isEditing
+      ? '&#10003; Done Editing'
+      : '&#9998; Edit Ranks';
+
+    btn.classList.toggle('editing', isEditing);
+  }
+
+  if(isEditing){
+    addEditControlsCustom();
+  } else {
+    document.querySelectorAll('.rank-controls').forEach(function(el){
+      el.remove();
+    });
+  }
+}
+
+function addEditControlsCustom(){
+  document.querySelectorAll('tr.draftrow').forEach(function(row){
+
+    if(row.querySelector('.rank-controls')) return;
+
+    var playerCell = row.querySelector('.pname');
+    if(!playerCell) return;
+
+    var controls = document.createElement('span');
+    controls.className = 'rank-controls';
+
+    var upBtn = document.createElement('button');
+    upBtn.type = 'button';
+    upBtn.className = 'rank-move-btn';
+    upBtn.innerHTML = '&#9650;';
+    upBtn.title = 'Move player up';
+    upBtn.onclick = function(e){
+      e.stopPropagation();
+      moveRowUp(row);
+    };
+
+    var downBtn = document.createElement('button');
+    downBtn.type = 'button';
+    downBtn.className = 'rank-move-btn';
+    downBtn.innerHTML = '&#9660;';
+    downBtn.title = 'Move player down';
+    downBtn.onclick = function(e){
+      e.stopPropagation();
+      moveRowDown(row);
+    };
+
+    var select = document.createElement('select');
+    select.title = 'Move player to tier';
+
+    TIER_IDS.forEach(function(tierId){
+      var option = document.createElement('option');
+      option.value = tierId;
+      option.textContent = TIER_LABELS[tierId];
+      select.appendChild(option);
+    });
+
+    var currentTbody = row.closest('tbody.tier-group');
+    if(currentTbody){
+      select.value = currentTbody.id.replace('tbody-', '');
+    }
+
+    select.onchange = function(e){
+      e.stopPropagation();
+      moveRowToTier(row, select.value);
+    };
+
+    controls.appendChild(upBtn);
+    controls.appendChild(downBtn);
+    controls.appendChild(select);
+
+    playerCell.appendChild(controls);
+  });
+}
+
+function moveRowUp(row){
+  if(!row || !row.parentElement) return;
+
+  var previous = row.previousElementSibling;
+
+  while(previous && !previous.classList.contains('draftrow')){
+    previous = previous.previousElementSibling;
+  }
+
+  if(previous){
+    row.parentElement.insertBefore(row, previous);
+    syncEditControls();
+    triggerAllBoardUpdates();
+    scheduleSave();
+  }
+}
+
+function moveRowDown(row){
+  if(!row || !row.parentElement) return;
+
+  var next = row.nextElementSibling;
+
+  while(next && !next.classList.contains('draftrow')){
+    next = next.nextElementSibling;
+  }
+
+  if(next){
+    row.parentElement.insertBefore(next, row);
+    syncEditControls();
+    triggerAllBoardUpdates();
+    scheduleSave();
+  }
+}
+
+function moveRowToTier(row, tierId){
+  if(!row) return;
+
+  var targetTbody = document.getElementById('tbody-' + tierId);
+  if(!targetTbody) return;
+
+  var currentTbody = row.closest('tbody.tier-group');
+
+  if(currentTbody === targetTbody){
+    syncEditControls();
+    return;
+  }
+
+  // Insert immediately after the tier divider
+  var divider = targetTbody.querySelector('.tier-divider-row');
+
+  if(divider){
+    divider.after(row);
+  } else {
+    targetTbody.appendChild(row);
+  }
+
+  syncEditControls();
+  triggerAllBoardUpdates();
+  scheduleSave();
 }
 
 function applyCustomOrder(orderArray, skipSave){
@@ -763,35 +913,4 @@ document.addEventListener('DOMContentLoaded', function() {
   // 2. Safely clean buttons once without MutationObserver loops
   removeExportImportButtons();
 
-  // 3. Bind Edit Ranks modal trigger explicitly
-  var editRanksBtn = document.getElementById('edit-ranks-btn'); // Adjust ID if yours is different
-  if (editRanksBtn) {
-    editRanksBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      if (typeof openEditRanksModal === 'function') {
-        openEditRanksModal();
-      } else {
-        console.error("openEditRanksModal function is missing!");
-      }
-    });
-  }
-
-  // 4. Global Event Delegation for Draft Picker
-  document.body.addEventListener('click', function(e) {
-    var row = e.target.closest('tr.draftrow, tr.player-row');
-    
-    if (row) {
-      // Allow draft toggle if clicking a draft button or picking on the row directly
-      var draftBtn = e.target.closest('.draft-btn, .picker-btn');
-      if (draftBtn) {
-        toggleDraft(row);
-        return;
-      }
-
-      // Ignore inputs/selects so editing a rank field doesn't accidentally draft the player
-      if (!e.target.closest('select') && !e.target.closest('input')) {
-        toggleDraft(row);
-      }
-    }
   });
-});
