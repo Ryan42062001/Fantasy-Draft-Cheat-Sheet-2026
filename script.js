@@ -752,22 +752,46 @@ function initApp() {
 
 // ==== SINGLE DOM READY LISTENER ====
 document.addEventListener('DOMContentLoaded', function() {
-  appObserver = new MutationObserver(function() {
-    removeExportImportButtons();
-  });
+  
+  // 1. Initialize core application state safely
+  try {
+    initApp();
+  } catch (err) {
+    console.error("Initialization failed inside initApp():", err);
+  }
 
-  appObserver.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-
+  // 2. Safely clean buttons once without MutationObserver loops
   removeExportImportButtons();
-  initApp();
 
+  // 3. Bind Edit Ranks modal trigger explicitly
+  var editRanksBtn = document.getElementById('edit-ranks-btn'); // Adjust ID if yours is different
+  if (editRanksBtn) {
+    editRanksBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (typeof openEditRanksModal === 'function') {
+        openEditRanksModal();
+      } else {
+        console.error("openEditRanksModal function is missing!");
+      }
+    });
+  }
+
+  // 4. Global Event Delegation for Draft Picker
   document.body.addEventListener('click', function(e) {
-    var row = e.target.closest('tr.draftrow');
-    if (row && !e.target.closest('select') && !e.target.closest('button') && !e.target.closest('input')) {
-      toggleDraft(row);
+    var row = e.target.closest('tr.draftrow, tr.player-row');
+    
+    if (row) {
+      // Allow draft toggle if clicking a draft button or picking on the row directly
+      var draftBtn = e.target.closest('.draft-btn, .picker-btn');
+      if (draftBtn) {
+        toggleDraft(row);
+        return;
+      }
+
+      // Ignore inputs/selects so editing a rank field doesn't accidentally draft the player
+      if (!e.target.closest('select') && !e.target.closest('input')) {
+        toggleDraft(row);
+      }
     }
   });
 });
