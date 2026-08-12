@@ -74,73 +74,102 @@ function updateMyTeam() {
     });
   });
 
-  /* ---- Calculate starting lineup ---- */
+  /* ---- Assign players to starting slots ---- */
 
-  var qbStarters = Math.min(counts.QB, 1);
-  var rbStarters = Math.min(counts.RB, 2);
-  var wrStarters = Math.min(counts.WR, 2);
-  var teStarters = Math.min(counts.TE, 1);
-  var kStarters = Math.min(counts.K, 1);
-  var dstStarters = Math.min(counts.DST, 1);
+  var starters = {
+    QB: [],
+    RB: [],
+    WR: [],
+    TE: [],
+    FLEX: [],
+    K: [],
+    DST: []
+  };
 
   /*
-   * FLEX requires an ADDITIONAL RB/WR/TE.
-   * Players already filling RB2/WR2/TE1 do NOT count toward FLEX.
+   * Fill the dedicated starting positions first.
    */
-  var rbExtra = Math.max(0, counts.RB - 2);
-  var wrExtra = Math.max(0, counts.WR - 2);
-  var teExtra = Math.max(0, counts.TE - 1);
+  players.forEach(function(player) {
 
-  var flexStarters = Math.min(
-    rbExtra + wrExtra + teExtra,
-    1
-  );
+    if (player.pos === 'QB' && starters.QB.length < 1) {
+      starters.QB.push(player);
+    }
+
+    else if (player.pos === 'RB' && starters.RB.length < 2) {
+      starters.RB.push(player);
+    }
+
+    else if (player.pos === 'WR' && starters.WR.length < 2) {
+      starters.WR.push(player);
+    }
+
+    else if (player.pos === 'TE' && starters.TE.length < 1) {
+      starters.TE.push(player);
+    }
+
+    else if (player.pos === 'K' && starters.K.length < 1) {
+      starters.K.push(player);
+    }
+
+    else if (player.pos === 'DST' && starters.DST.length < 1) {
+      starters.DST.push(player);
+    }
+  });
+
+  /*
+   * Any extra RB/WR/TE goes into FLEX.
+   */
+  players.forEach(function(player) {
+
+    var isDedicatedStarter =
+      starters.QB.includes(player) ||
+      starters.RB.includes(player) ||
+      starters.WR.includes(player) ||
+      starters.TE.includes(player) ||
+      starters.K.includes(player) ||
+      starters.DST.includes(player);
+
+    if (
+      !isDedicatedStarter &&
+      starters.FLEX.length < 1 &&
+      ['RB', 'WR', 'TE'].includes(player.pos)
+    ) {
+      starters.FLEX.push(player);
+    }
+  });
+
+  /* ---- Calculate total starters ---- */
 
   var totalStarters =
-    qbStarters +
-    rbStarters +
-    wrStarters +
-    teStarters +
-    flexStarters +
-    kStarters +
-    dstStarters;
+    starters.QB.length +
+    starters.RB.length +
+    starters.WR.length +
+    starters.TE.length +
+    starters.FLEX.length +
+    starters.K.length +
+    starters.DST.length;
 
   /* ---- Update starter counter ---- */
 
-  /* ---- Update starter counter ---- */
+  if (starterCountElement) {
+    starterCountElement.textContent =
+      totalStarters + ' / 9 starters';
+  }
 
-if (starterCountElement) {
-  starterCountElement.textContent =
-    totalStarters + ' / 9 starters';
-}
+  /* ---- Update My Team button ---- */
 
-/* ---- Update My Team button ---- */
+  var myTeamButton = document.querySelector('.myteam-toggle');
 
-var myTeamButton = document.querySelector('.myteam-toggle');
+  if (myTeamButton) {
+    var panel = document.getElementById('myteam-panel');
+    var isOpen = panel && panel.classList.contains('open');
 
-if (myTeamButton) {
-  var panel = document.getElementById('myteam-panel');
-  var isOpen = panel && panel.classList.contains('open');
-
-  myTeamButton.innerText =
-    (isOpen ? 'Hide My Team' : 'My Team') +
-    ' · ' +
-    totalStarters +
-    '/9';
-}
-
-var myTeamButton = document.querySelector('.myteam-toggle');
-
-if (myTeamButton) {
-  var panel = document.getElementById('myteam-panel');
-  var isOpen = panel && panel.classList.contains('open');
-
-  myTeamButton.innerText =
-    (isOpen ? 'Hide My Team' : 'My Team') +
-    ' · ' +
-    totalStarters +
-    '/9';
-}
+    myTeamButton.innerText =
+      (isOpen ? 'Hide My Team' : 'My Team') +
+      ' · ' +
+      totalStarters +
+      '/9';
+  }
 
   /* ---- Roster needs ---- */
 
@@ -191,10 +220,7 @@ if (myTeamButton) {
       );
     }
 
-    /*
-     * FLEX is an additional RB/WR/TE.
-     */
-    if (flexStarters < 1) {
+    if (starters.FLEX.length < 1) {
       needs.push(
         '<span class="roster-need roster-need-open">FLEX 0/1</span>'
       );
@@ -229,18 +255,66 @@ if (myTeamButton) {
     needsContainer.innerHTML = needs.join('');
   }
 
-  /* ---- Player list ---- */
+  /* ---- Build starting lineup display ---- */
 
-  if (players.length === 0) {
-    myTeamContainer.innerHTML =
-      '<div class="empty-roster">No players drafted yet.</div>';
-    return;
+  function slotHTML(label, player, positionClass) {
+
+    if (player) {
+      return (
+        '<div class="starter-slot filled">' +
+          '<span class="starter-position ' + positionClass + '">' +
+            label +
+          '</span>' +
+          '<span class="starter-player">' +
+            player.name +
+          '</span>' +
+          '<span class="starter-check">✓</span>' +
+        '</div>'
+      );
+    }
+
+    return (
+      '<div class="starter-slot empty">' +
+        '<span class="starter-position ' + positionClass + '">' +
+          label +
+        '</span>' +
+        '<span class="starter-player empty-player">' +
+          '—' +
+        '</span>' +
+        '<span class="starter-missing">OPEN</span>' +
+      '</div>'
+    );
   }
 
-  var html = '';
+  var lineupHTML =
+    '<div class="starting-lineup">' +
+      '<div class="starting-lineup-title">STARTERS</div>' +
+
+      slotHTML('QB', starters.QB[0], 'pos-QB') +
+
+      slotHTML('RB', starters.RB[0], 'pos-RB') +
+      slotHTML('RB', starters.RB[1], 'pos-RB') +
+
+      slotHTML('WR', starters.WR[0], 'pos-WR') +
+      slotHTML('WR', starters.WR[1], 'pos-WR') +
+
+      slotHTML('TE', starters.TE[0], 'pos-TE') +
+
+      slotHTML('FLEX', starters.FLEX[0], 'pos-FLEX') +
+
+      slotHTML('K', starters.K[0], 'pos-K') +
+
+      slotHTML('DST', starters.DST[0], 'pos-DST') +
+
+    '</div>';
+
+  /*
+   * Add the starting lineup above the existing roster list.
+   */
+  var existingRosterHTML = '';
 
   players.forEach(function(player) {
-    html +=
+    existingRosterHTML +=
       '<div class="team-player-card">' +
         '<span class="pos-pill pos-' + player.pos + '">' +
           player.pos +
@@ -251,7 +325,11 @@ if (myTeamButton) {
       '</div>';
   });
 
-  myTeamContainer.innerHTML = html;
+  myTeamContainer.innerHTML =
+    lineupHTML +
+    '<div class="roster-divider">ALL DRAFTED PLAYERS</div>' +
+    (existingRosterHTML ||
+      '<div class="empty-roster">No players drafted yet.</div>');
 }
 
 function toggleMyTeam() {
