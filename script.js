@@ -1319,15 +1319,14 @@ function getDraftAssistantState() {
    * Find the current overall pick from the existing draft counter.
    * If the existing function/state is available, use it.
    */
-  var currentPick = 1;
+  var completedPicks = document.querySelectorAll(
+  'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
+).length;
 
-  if (typeof currentOverallPick !== 'undefined' &&
-      !isNaN(parseInt(currentOverallPick))) {
-    currentPick = parseInt(currentOverallPick);
-  } else if (typeof currentPickNumber !== 'undefined' &&
-             !isNaN(parseInt(currentPickNumber))) {
-    currentPick = parseInt(currentPickNumber);
-  }
+var currentPick = Math.min(
+  completedPicks + 1,
+  totalPicks
+);
 
   /*
    * Determine the user's picks using snake-draft logic.
