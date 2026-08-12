@@ -601,3 +601,74 @@ body.edit-mode tr.draftrow {
 body.edit-mode tr.draftrow:hover td {
   background: rgba(224,168,63,0.08);
 }
+
+/* ==== MY TEAM PANEL ==== */
+
+#myteam-panel {
+  display: none;
+}
+
+#myteam-panel.open {
+  display: block;
+}
+
+#myteam-panel .roster-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.team-player-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.team-player-name {
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.empty-roster {
+  color: #a9c2ab;
+  font-size: 0.78rem;
+  padding: 10px 0;
+}
+
+#needs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 8px 0 12px;
+}
+
+.roster-need {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 7px;
+  border-radius: 5px;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.roster-need-open {
+  color: #e08a8a;
+  background: rgba(193,85,75,0.15);
+  border: 1px solid rgba(193,85,75,0.4);
+}
+
+.roster-need-filled {
+  color: #8fd4a0;
+  background: rgba(95,168,124,0.15);
+  border: 1px solid rgba(95,168,124,0.4);
+}
+
+.myteam-toggle.active {
+  background: rgba(95,168,124,0.25);
+  border-color: #5fa87c;
+}
