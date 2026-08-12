@@ -262,24 +262,34 @@ function toggleMyTeam() {
 
   var isOpen = panel.classList.toggle('open');
 
-  if (button) {
-  button.classList.toggle('active', isOpen);
-
-  var countElement = document.getElementById('myteam-starter-count');
-  var countText = countElement
-    ? countElement.textContent
-    : '0 / 9 starters';
-
-  var shortCount = countText.replace(' starters', '');
-
-  button.innerText =
-    (isOpen ? 'Hide My Team' : 'My Team') +
-    ' · ' +
-    shortCount;
-}
-
   if (isOpen) {
     updateMyTeam();
+  } else {
+    var starterCountElement =
+      document.getElementById('myteam-starter-count');
+
+    var starterText = starterCountElement
+      ? starterCountElement.textContent
+      : '0 / 9 starters';
+
+    var shortCount = starterText.replace(' starters', '');
+
+    if (button) {
+      button.classList.remove('active');
+      button.innerText = 'My Team · ' + shortCount;
+    }
+  }
+
+  if (button && isOpen) {
+    var currentCount =
+      document.getElementById('myteam-starter-count');
+
+    var countText = currentCount
+      ? currentCount.textContent.replace(' starters', '')
+      : '0 / 9';
+
+    button.classList.add('active');
+    button.innerText = 'Hide My Team · ' + countText;
   }
 }
 
