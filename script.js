@@ -42,15 +42,105 @@ function safeCall(fnName) {
 
 // ==== CORE DASHBOARD & RECOMMENDER UPDATES ====
 function updateMyTeam() {
-  var myTeamContainer = document.getElementById('my-team-list');
+  var myTeamContainer = document.getElementById('roster-list');
+  var needsContainer = document.getElementById('needs-row');
+
   if (!myTeamContainer) return;
-  var html = '';
+
+  var counts = {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0,
+    K: 0,
+    DST: 0
+  };
+
+  var players = [];
+
   document.querySelectorAll('tr.draftrow.drafted-mine').forEach(function(row) {
     var name = row.getAttribute('data-name') || 'Unknown Player';
     var pos = row.getAttribute('data-pos') || 'N/A';
-    html += '<div class="team-player-card"><b>' + pos + '</b> - ' + name + '</div>';
+
+    if (counts[pos] !== undefined) {
+      counts[pos]++;
+    }
+
+    players.push({
+      name: name,
+      pos: pos,
+      row: row
+    });
   });
-  myTeamContainer.innerHTML = html || '<em>No players drafted yet.</em>';
+
+  /* ---- Roster needs ---- */
+
+  if (needsContainer) {
+    var needs = [];
+
+    ['QB', 'RB', 'WR', 'TE', 'K', 'DST'].forEach(function(pos) {
+      var required = ROSTER_SLOTS[pos] || 0;
+      var have = counts[pos] || 0;
+
+      if (have < required) {
+        needs.push(
+          '<span class="roster-need roster-need-open">' +
+          pos + ' ' + have + '/' + required +
+          '</span>'
+        );
+      } else {
+        needs.push(
+          '<span class="roster-need roster-need-filled">' +
+          pos + ' ✓' +
+          '</span>'
+        );
+      }
+    });
+
+    needsContainer.innerHTML = needs.join('');
+  }
+
+  /* ---- Player list ---- */
+
+  if (players.length === 0) {
+    myTeamContainer.innerHTML =
+      '<div class="empty-roster">No players drafted yet.</div>';
+    return;
+  }
+
+  var html = '';
+
+  players.forEach(function(player) {
+    html +=
+      '<div class="team-player-card">' +
+        '<span class="pos-pill pos-' + player.pos + '">' +
+          player.pos +
+        '</span>' +
+        '<span class="team-player-name">' +
+          player.name +
+        '</span>' +
+      '</div>';
+  });
+
+  myTeamContainer.innerHTML = html;
+}
+
+function toggleMyTeam() {
+  var panel = document.getElementById('myteam-panel');
+  var button = document.querySelector('.myteam-toggle');
+
+  if (!panel) return;
+
+  var isOpen = panel.classList.toggle('open');
+
+  if (button) {
+    button.classList.toggle('active', isOpen);
+    button.innerText = isOpen ? 'Hide My Team' : 'My Team';
+  }
+
+  if (isOpen) {
+    updateMyTeam();
+  }
 }
 
 function updateBestAvailable() {
