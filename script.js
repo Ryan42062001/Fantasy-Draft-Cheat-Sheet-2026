@@ -2344,19 +2344,6 @@ function debugVorp() {
     html;
 }
 
-function debugVorp() {
-
-  var players =
-    getDraftAssistantPlayers();
-
-  var available =
-    players.filter(function(player) {
-      return player.available;
-    });
-
-  var result =
-    calculateAllVorp(available);
-
   var topPlayers =
   result.players
     .filter(function(player) {
