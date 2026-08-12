@@ -2372,44 +2372,103 @@ function debugVorp() {
     '<strong>Replacement Levels</strong><br>';
 
 
-  ['QB','RB','WR','TE'].forEach(
-    function(position) {
+['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
 
-      var replacement =
-        result.replacements[position];
+  var replacement =
+    result.replacements[position];
 
-      html +=
-        position +
-        ': ' +
+  if (replacement) {
 
-        (
-          replacement
-            ? replacement.name +
-              ' (#' +
-              replacement.rank +
-              ')'
-            : 'None'
-        ) +
+    var pool =
+      result.profiles
+        .filter(function(profile) {
 
-        '<br>';
-    }
-  );
+          return profile.player.position === position &&
+            profile.player.available &&
+            profile.player.rank;
+        })
+        .sort(function(a, b) {
+
+          return Number(a.player.rank) -
+                 Number(b.player.rank);
+        });
+
+    var positionalRank =
+      pool.findIndex(function(profile) {
+
+        return profile.player.name ===
+          replacement.name;
+      }) + 1;
+
+    html +=
+      position +
+      ': ' +
+      replacement.name +
+      ' — ' +
+      position +
+      ' #' +
+      positionalRank +
+      ' — Overall #' +
+      replacement.rank +
+      '<br>';
+
+  } else {
+
+    html +=
+      position +
+      ': None<br>';
+  }
+
+});
 
 
   var flexReplacement =
-    result.replacements.FLEX;
+  result.replacements.FLEX;
+
+if (flexReplacement) {
+
+  var flexPool =
+    result.profiles
+      .filter(function(profile) {
+
+        return (
+          profile.player.position === 'RB' ||
+          profile.player.position === 'WR' ||
+          profile.player.position === 'TE'
+        ) &&
+        profile.player.available &&
+        profile.player.rank;
+      })
+      .sort(function(a, b) {
+
+        return Number(a.player.rank) -
+               Number(b.player.rank);
+      });
+
+  var flexRank =
+    flexPool.findIndex(function(profile) {
+
+      return profile.player.name ===
+        flexReplacement.name;
+    }) + 1;
 
   html +=
     'FLEX: ' +
+    flexReplacement.name +
+    ' — FLEX #' +
+    flexRank +
+    ' — Overall #' +
+    flexReplacement.rank +
+    '<hr>' +
 
-    (
-      flexReplacement
-        ? flexReplacement.name +
-          ' (#' +
-          flexReplacement.rank +
-          ')'
-        : 'None'
-    ) +
+    '<strong>Top VORP Players</strong><br>';
+
+} else {
+
+  html +=
+    'FLEX: None<hr>' +
+    '<strong>Top VORP Players</strong><br>';
+}
 
     '<hr>' +
 
