@@ -233,9 +233,20 @@ function toggleMyTeam() {
   var isOpen = panel.classList.toggle('open');
 
   if (button) {
-    button.classList.toggle('active', isOpen);
-    button.innerText = isOpen ? 'Hide My Team' : 'My Team';
-  }
+  button.classList.toggle('active', isOpen);
+
+  var countElement = document.getElementById('myteam-starter-count');
+  var countText = countElement
+    ? countElement.textContent
+    : '0 / 9 starters';
+
+  var shortCount = countText.replace(' starters', '');
+
+  button.innerText =
+    (isOpen ? 'Hide My Team' : 'My Team') +
+    ' · ' +
+    shortCount;
+}
 
   if (isOpen) {
     updateMyTeam();
