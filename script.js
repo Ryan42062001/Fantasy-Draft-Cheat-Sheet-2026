@@ -2165,8 +2165,6 @@ function calculateAllFantasyVorp(players) {
 
 function debugVorp() {
 
-alert("debugVorp is running");
-
   var players =
     getDraftAssistantPlayers();
 
