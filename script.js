@@ -802,21 +802,34 @@ function syncEditControls(){
 
 function syncRankData(){
 
-  var rank = 1;
+  var overallRank = 1;
+
+  var positionRanks = {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0,
+    K: 0,
+    DST: 0
+  };
 
   document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
 
     tbody.querySelectorAll('tr.draftrow').forEach(function(row){
 
-      /*
-       * Update the authoritative rank stored on
-       * the player row.
-       */
-      row.setAttribute('data-rank', String(rank));
+      var position =
+        row.getAttribute('data-pos');
 
       /*
-       * Update the visible rank cell while preserving
-       * the round marker.
+       * Update overall rank.
+       */
+      row.setAttribute(
+        'data-rank',
+        String(overallRank)
+      );
+
+      /*
+       * Update visible overall rank.
        */
       var rankCell = row.children[0];
 
@@ -826,14 +839,35 @@ function syncRankData(){
           rankCell.querySelector('.round-tag');
 
         rankCell.textContent =
-          String(rank);
+          String(overallRank);
 
         if(roundTag){
           rankCell.appendChild(roundTag);
         }
       }
 
-      rank++;
+      /*
+       * Update positional rank.
+       */
+      if(positionRanks[position] !== undefined){
+
+        positionRanks[position]++;
+
+        var posRank =
+          positionRanks[position];
+
+        var posRankLabel =
+          row.querySelector('.posrk');
+
+        if(posRankLabel){
+
+          posRankLabel.textContent =
+            position + posRank;
+        }
+      }
+
+      overallRank++;
+
     });
 
   });
