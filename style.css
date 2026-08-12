@@ -644,7 +644,7 @@ body.edit-mode tr.draftrow:hover td {
 #myteam-panel .roster-list {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   margin-top: 10px;
 }
 
@@ -673,7 +673,7 @@ body.edit-mode tr.draftrow:hover td {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  margin: 8px 0 10px;
+  margin: 8px 0 12px;
 }
 
 .roster-need {
