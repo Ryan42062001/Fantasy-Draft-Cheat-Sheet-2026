@@ -1309,9 +1309,9 @@ document.addEventListener('DOMContentLoaded', function() {
    ========================================================= */
 
 function getDraftAssistantState() {
-  var teams = parseInt(document.getElementById('num-teams')?.value) || 10;
-  var rounds = parseInt(document.getElementById('num-rounds')?.value) || 16;
-  var draftSlot = parseInt(document.getElementById('draft-position')?.value) || 1;
+  var teams = parseInt(document.getElementById('pcTeams')?.value) || 10;
+  var rounds = parseInt(document.getElementById('pcRounds')?.value) || 16;
+  var draftSlot = parseInt(document.getElementById('pcSlot')?.value) || 1;
 
   var totalPicks = teams * rounds;
 
