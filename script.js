@@ -800,6 +800,45 @@ function syncEditControls(){
   });
 }
 
+function syncRankData(){
+
+  var rank = 1;
+
+  document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
+
+    tbody.querySelectorAll('tr.draftrow').forEach(function(row){
+
+      /*
+       * Update the authoritative rank stored on
+       * the player row.
+       */
+      row.setAttribute('data-rank', String(rank));
+
+      /*
+       * Update the visible rank cell while preserving
+       * the round marker.
+       */
+      var rankCell = row.children[0];
+
+      if(rankCell){
+
+        var roundTag =
+          rankCell.querySelector('.round-tag');
+
+        rankCell.textContent =
+          String(rank);
+
+        if(roundTag){
+          rankCell.appendChild(roundTag);
+        }
+      }
+
+      rank++;
+    });
+
+  });
+}
+
 // ==== EDIT RANKS ====
 
 function toggleEditMode(){
@@ -892,11 +931,14 @@ function moveRowUp(row){
   }
 
   if(previous){
-    row.parentElement.insertBefore(row, previous);
-    syncEditControls();
-    triggerAllBoardUpdates();
-    scheduleSave();
-  }
+  row.parentElement.insertBefore(row, previous);
+
+  syncRankData();
+  syncEditControls();
+
+  triggerAllBoardUpdates();
+  scheduleSave();
+}
 }
 
 function moveRowDown(row){
@@ -909,11 +951,14 @@ function moveRowDown(row){
   }
 
   if(next){
-    row.parentElement.insertBefore(next, row);
-    syncEditControls();
-    triggerAllBoardUpdates();
-    scheduleSave();
-  }
+  row.parentElement.insertBefore(next, row);
+
+  syncRankData();
+  syncEditControls();
+
+  triggerAllBoardUpdates();
+  scheduleSave();
+}
 }
 
 function moveRowToTier(row, tierId){
@@ -933,14 +978,16 @@ function moveRowToTier(row, tierId){
   var divider = targetTbody.querySelector('.tier-divider-row');
 
   if(divider){
-    divider.after(row);
-  } else {
-    targetTbody.appendChild(row);
-  }
+  divider.after(row);
+} else {
+  targetTbody.appendChild(row);
+}
 
-  syncEditControls();
-  triggerAllBoardUpdates();
-  scheduleSave();
+syncRankData();
+syncEditControls();
+
+triggerAllBoardUpdates();
+scheduleSave();
 }
 
 function applyCustomOrder(orderArray, skipSave){
@@ -951,14 +998,17 @@ function applyCustomOrder(orderArray, skipSave){
     if(name) rowMap[name] = row;
   });
   orderArray.forEach(function(entry){
-    var row = rowMap[entry.n];
-    var targetTbody = document.getElementById('tbody-' + entry.t);
-    if(row && targetTbody){
-      targetTbody.appendChild(row);
-    }
-  });
-  addEditControls();
-  syncEditControls();
+  var row = rowMap[entry.n];
+  var targetTbody = document.getElementById('tbody-' + entry.t);
+
+  if(row && targetTbody){
+    targetTbody.appendChild(row);
+  }
+});
+
+syncRankData();
+addEditControls();
+syncEditControls();
   if(!skipSave) {
     triggerAllBoardUpdates();
     scheduleSave();
