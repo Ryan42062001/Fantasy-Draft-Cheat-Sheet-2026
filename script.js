@@ -1758,49 +1758,123 @@ function calculateReplacementLevels(players) {
 
   var replacement = {};
 
+  /*
+   * Build a separate ranked pool for each position.
+   *
+   * Player rank is OVERALL rank, so we sort each
+   * position independently by that overall rank.
+   */
+  var positionPools = {};
+
   ['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
 
-    var available =
-      getAvailableAtPosition(
-        players,
-        position
-      );
+    positionPools[position] =
+      players
+        .filter(function(player) {
 
-    /*
-     * Replacement is the first player AFTER
-     * the dedicated starters.
-     *
-     * Example:
-     *
-     * 10-team league
-     * 1 QB starter
-     *
-     * QB replacement ≈ QB #11
-     */
-    var index =
+          return player.available &&
+            player.position === position &&
+            player.rank;
+        })
+        .sort(function(a, b) {
+
+          return Number(a.rank) -
+                 Number(b.rank);
+        });
+  });
+
+
+  /*
+   * Dedicated-position replacement levels.
+   *
+   * Example:
+   *
+   * 10 teams × 1 QB = 10 starting QBs
+   *
+   * Therefore QB #11 is the first replacement-level
+   * QB available after the dedicated starters.
+   */
+  ['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
+
+    var pool =
+      positionPools[position];
+
+    var starterCount =
       settings[position];
 
+    /*
+     * The player immediately after the dedicated
+     * starter pool is the basic replacement player.
+     */
     replacement[position] =
-      available[index] || null;
+      pool[starterCount] || null;
+
   });
 
 
   /*
    * FLEX replacement.
+   *
+   * First remove the players required to satisfy
+   * dedicated RB / WR / TE starting positions.
    */
-  var flexPool =
-    calculateFlexPool(
-      players,
-      settings
-    );
+  var remainingFlexPool = [];
 
+
+  ['RB', 'WR', 'TE'].forEach(function(position) {
+
+    var pool =
+      positionPools[position];
+
+    var dedicatedCount =
+      settings[position];
+
+    /*
+     * Everyone after the dedicated starter pool
+     * is a candidate to fill FLEX.
+     */
+    var remaining =
+      pool.slice(dedicatedCount);
+
+    remainingFlexPool =
+      remainingFlexPool.concat(
+        remaining
+      );
+
+  });
+
+
+  /*
+   * Sort all remaining RB/WR/TE players together
+   * by overall rank.
+   */
+  remainingFlexPool.sort(function(a, b) {
+
+    return Number(a.rank) -
+           Number(b.rank);
+
+  });
+
+
+  /*
+   * The last FLEX starter becomes the FLEX
+   * replacement level.
+   *
+   * Example:
+   *
+   * 10 teams = 10 FLEX spots
+   *
+   * Therefore the 10th player in this pool is
+   * approximately the FLEX replacement player.
+   */
   replacement.FLEX =
-    flexPool[settings.FLEX - 1] || null;
+    remainingFlexPool[
+      settings.FLEX - 1
+    ] || null;
 
 
   return replacement;
 }
-
 
 /*
  * Find the effective replacement player for
