@@ -73,11 +73,19 @@
 
     <div class="roster-list" id="roster-list"></div>
 
-    <button class="panel-action-btn"
+<button class="panel-action-btn"
 
-            style="margin-top:12px;background:var(--gem);color:#2a1f00;"
+        style="margin-top:12px;background:var(--gem);color:#2a1f00;"
 
-  <div class="widget-box" id="pick-counter-box">
+        onclick="toggleSummary()">
+
+  &#128202; View Draft Summary
+
+</button>
+
+</div>
+
+    <div class="widget-box" id="pick-counter-box">
     <div class="widget-title" style="margin-bottom:6px;">&#128203; Draft Position</div>
     <div class="pc-inputs">
       <label>Teams <input type="number" id="pcTeams" value="10" min="2" max="20" onchange="updatePickSettings()"></label>
