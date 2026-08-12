@@ -1474,15 +1474,27 @@ function getDraftAssistantPlayers() {
      * Rank is taken from the existing row rather than
      * creating a second ranking database.
      */
-    var rankText =
-      row.getAttribute('data-rank') ||
-      row.querySelector('.rank')?.textContent ||
-      row.cells[0]?.textContent ||
-      '';
+    var rankText = row.getAttribute('data-rank') || '';
 
-    var rank = parseInt(
-      String(rankText).replace(/[^\d]/g, '')
-    );
+if (!rankText) {
+  var rankCell = row.children[0];
+
+  if (rankCell) {
+    var rankClone = rankCell.cloneNode(true);
+
+    // Remove the round marker that our existing code adds.
+    var roundTag = rankClone.querySelector('.round-tag');
+
+    if (roundTag) {
+      roundTag.remove();
+    }
+
+    rankText = rankClone.textContent || '';
+  }
+}
+
+var rankMatch = String(rankText).match(/\d+/);
+var rank = rankMatch ? parseInt(rankMatch[0], 10) : null;
 
     /*
      * Tier comes from the existing tier class when available.
@@ -1917,11 +1929,12 @@ function debugVorp() {
     calculateAllVorp(available);
 
   var topPlayers =
-    result.players
-      .filter(function(player) {
-        return player.available &&
-          player.rank;
-      })
+  result.players
+    .filter(function(player) {
+      return player.available &&
+        player.rank &&
+        ['QB', 'RB', 'WR', 'TE'].includes(player.position);
+    })
       .sort(function(a, b) {
         return b.vorp - a.vorp;
       })
