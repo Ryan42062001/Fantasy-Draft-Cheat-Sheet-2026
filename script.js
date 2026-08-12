@@ -112,6 +112,19 @@ function updateMyTeam() {
       totalStarters + ' / 9 starters';
   }
 
+var myTeamButton = document.querySelector('.myteam-toggle');
+
+if (myTeamButton) {
+  var panel = document.getElementById('myteam-panel');
+  var isOpen = panel && panel.classList.contains('open');
+
+  myTeamButton.innerText =
+    (isOpen ? 'Hide My Team' : 'My Team') +
+    ' · ' +
+    totalStarters +
+    '/9';
+}
+
   /* ---- Roster needs ---- */
 
   if (needsContainer) {
