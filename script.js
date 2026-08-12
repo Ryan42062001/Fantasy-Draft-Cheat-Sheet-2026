@@ -1303,3 +1303,307 @@ document.addEventListener('DOMContentLoaded', function() {
   removeExportImportButtons();
 
   });
+  
+  /* =========================================================
+   DRAFT ASSISTANT — STAGE 1 DATA LAYER
+   ========================================================= */
+
+function getDraftAssistantState() {
+  var teams = parseInt(document.getElementById('num-teams')?.value) || 10;
+  var rounds = parseInt(document.getElementById('num-rounds')?.value) || 16;
+  var draftSlot = parseInt(document.getElementById('draft-position')?.value) || 1;
+
+  var totalPicks = teams * rounds;
+
+  /*
+   * Find the current overall pick from the existing draft counter.
+   * If the existing function/state is available, use it.
+   */
+  var currentPick = 1;
+
+  if (typeof currentOverallPick !== 'undefined' &&
+      !isNaN(parseInt(currentOverallPick))) {
+    currentPick = parseInt(currentOverallPick);
+  } else if (typeof currentPickNumber !== 'undefined' &&
+             !isNaN(parseInt(currentPickNumber))) {
+    currentPick = parseInt(currentPickNumber);
+  }
+
+  /*
+   * Determine the user's picks using snake-draft logic.
+   */
+  var myPicks = [];
+
+  for (var round = 1; round <= rounds; round++) {
+    var pickInRound;
+
+    if (round % 2 === 1) {
+      pickInRound = draftSlot;
+    } else {
+      pickInRound = teams - draftSlot + 1;
+    }
+
+    myPicks.push((round - 1) * teams + pickInRound);
+  }
+
+  var myNextPick = null;
+
+  for (var i = 0; i < myPicks.length; i++) {
+    if (myPicks[i] >= currentPick) {
+      myNextPick = myPicks[i];
+      break;
+    }
+  }
+
+  var picksUntilMyTurn =
+    myNextPick === null ? null : myNextPick - currentPick;
+
+  return {
+    teams: teams,
+    rounds: rounds,
+    draftSlot: draftSlot,
+    totalPicks: totalPicks,
+    currentPick: currentPick,
+    myNextPick: myNextPick,
+    picksUntilMyTurn: picksUntilMyTurn,
+    onClock: picksUntilMyTurn === 0,
+    myPicks: myPicks
+  };
+}
+
+
+/* ---------------------------------------------------------
+   ROSTER STATE
+   --------------------------------------------------------- */
+
+function getDraftAssistantRosterState() {
+  var counts = {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0,
+    K: 0,
+    DST: 0
+  };
+
+  document.querySelectorAll(
+    'tr.draftrow.drafted-mine'
+  ).forEach(function(row) {
+
+    var pos = row.getAttribute('data-pos');
+
+    if (counts[pos] !== undefined) {
+      counts[pos]++;
+    }
+  });
+
+  var required = {
+    QB: 1,
+    RB: 2,
+    WR: 2,
+    TE: 1,
+    K: 1,
+    DST: 1
+  };
+
+  var needs = {};
+
+  Object.keys(required).forEach(function(pos) {
+    needs[pos] = counts[pos] < required[pos];
+  });
+
+  /*
+   * FLEX logic:
+   *
+   * FLEX requires ONE additional RB/WR/TE beyond
+   * the normal 2 RB / 2 WR / 1 TE starting requirements.
+   *
+   * Therefore:
+   *
+   * 2 RB + 2 WR + 1 TE = FLEX filled
+   *
+   * 2 RB + 1 WR + 1 TE = FLEX still open
+   */
+  var flexEligiblePlayers =
+    counts.RB + counts.WR + counts.TE;
+
+  var requiredFlexEligiblePlayers = 5;
+
+  needs.FLEX =
+    flexEligiblePlayers < requiredFlexEligiblePlayers;
+
+  return {
+    counts: counts,
+    required: required,
+    needs: needs,
+    flexEligiblePlayers: flexEligiblePlayers,
+    requiredFlexEligiblePlayers: requiredFlexEligiblePlayers
+  };
+}
+
+
+/* ---------------------------------------------------------
+   AVAILABLE PLAYERS
+   --------------------------------------------------------- */
+
+function getDraftAssistantPlayers() {
+  var players = [];
+
+  document.querySelectorAll('tr.draftrow').forEach(function(row) {
+
+    var status = 'available';
+
+    if (row.classList.contains('drafted-mine')) {
+      status = 'mine';
+    } else if (row.classList.contains('drafted-taken')) {
+      status = 'taken';
+    }
+
+    /*
+     * Get player name and position from the existing row.
+     */
+    var name =
+      row.getAttribute('data-name') ||
+      row.querySelector('.player-name')?.textContent?.trim() ||
+      'Unknown Player';
+
+    var position =
+      row.getAttribute('data-pos') ||
+      '';
+
+    /*
+     * Rank is taken from the existing row rather than
+     * creating a second ranking database.
+     */
+    var rankText =
+      row.getAttribute('data-rank') ||
+      row.querySelector('.rank')?.textContent ||
+      row.cells[0]?.textContent ||
+      '';
+
+    var rank = parseInt(
+      String(rankText).replace(/[^\d]/g, '')
+    );
+
+    /*
+     * Tier comes from the existing tier class when available.
+     */
+    var tier = '';
+
+    row.classList.forEach(function(className) {
+      if (className.indexOf('tier-') === 0) {
+        tier = className.replace('tier-', '');
+      }
+    });
+
+    players.push({
+      row: row,
+      name: name,
+      position: position,
+      rank: isNaN(rank) ? null : rank,
+      tier: tier,
+      status: status,
+      available: status === 'available'
+    });
+  });
+
+  return players;
+}
+
+
+/* ---------------------------------------------------------
+   PHONE-FRIENDLY DEBUG PANEL
+   --------------------------------------------------------- */
+
+function debugDraftAssistant() {
+  var draft = getDraftAssistantState();
+  var roster = getDraftAssistantRosterState();
+  var players = getDraftAssistantPlayers();
+
+  var availablePlayers = players.filter(function(player) {
+    return player.available;
+  });
+
+  var panel = document.getElementById(
+    'draft-assistant-debug-panel'
+  );
+
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'draft-assistant-debug-panel';
+
+    panel.style.cssText =
+      'position:fixed;' +
+      'left:10px;' +
+      'right:10px;' +
+      'bottom:10px;' +
+      'z-index:99999;' +
+      'background:#111;' +
+      'color:#fff;' +
+      'padding:16px;' +
+      'border-radius:12px;' +
+      'font-family:Arial,sans-serif;' +
+      'font-size:14px;' +
+      'line-height:1.5;' +
+      'box-shadow:0 4px 20px rgba(0,0,0,.4);' +
+      'max-height:80vh;' +
+      'overflow:auto;';
+
+    document.body.appendChild(panel);
+  }
+
+  var flexStatus =
+    roster.needs.FLEX
+      ? 'OPEN'
+      : 'FILLED';
+
+  var clockStatus =
+    draft.onClock
+      ? 'YES'
+      : 'NO';
+
+  panel.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+      '<strong style="font-size:18px;">🧪 Draft Assistant Debug</strong>' +
+      '<button onclick="document.getElementById(\'draft-assistant-debug-panel\').remove()" ' +
+      'style="background:none;border:0;color:white;font-size:24px;">&times;</button>' +
+    '</div>' +
+
+    '<hr>' +
+
+    '<strong>Draft State</strong><br>' +
+    'Teams: ' + draft.teams + '<br>' +
+    'Rounds: ' + draft.rounds + '<br>' +
+    'Draft Slot: ' + draft.draftSlot + '<br>' +
+    'Total Picks: ' + draft.totalPicks + '<br>' +
+    'Current Pick: ' + draft.currentPick + '<br>' +
+    'My Next Pick: ' + (draft.myNextPick ?? 'None') + '<br>' +
+    'Picks Until My Turn: ' +
+      (draft.picksUntilMyTurn ?? 'None') + '<br>' +
+    'On Clock: <strong>' + clockStatus + '</strong>' +
+
+    '<hr>' +
+
+    '<strong>Roster</strong><br>' +
+    'QB: ' + roster.counts.QB + '/1<br>' +
+    'RB: ' + roster.counts.RB + '/2<br>' +
+    'WR: ' + roster.counts.WR + '/2<br>' +
+    'TE: ' + roster.counts.TE + '/1<br>' +
+    'FLEX: <strong>' + flexStatus + '</strong><br>' +
+    'K: ' + roster.counts.K + '/1<br>' +
+    'DST: ' + roster.counts.DST + '/1' +
+
+    '<hr>' +
+
+    '<strong>Players</strong><br>' +
+    'Total Player Rows: ' + players.length + '<br>' +
+    'Available: ' + availablePlayers.length + '<br>' +
+    'Mine: ' +
+      players.filter(function(p) {
+        return p.status === 'mine';
+      }).length + '<br>' +
+    'Taken: ' +
+      players.filter(function(p) {
+        return p.status === 'taken';
+      }).length;
+}
