@@ -764,6 +764,22 @@ body.edit-mode tr.draftrow:hover td {
 }
 
 @media (max-width: 600px) {
+  
+  .starter-slot {
+
+    grid-template-columns: 45px 1fr auto;
+
+    padding: 6px 7px;
+
+  }
+
+  .starter-player {
+
+    font-size: 0.7rem;
+
+  }
+
+
 
   #myteam-panel {
     margin: 8px 6px 10px;
@@ -789,3 +805,78 @@ body.edit-mode tr.draftrow:hover td {
     gap: 5px;
   }
 }
+
+/* ==== STARTING LINEUP ==== */
+
+.starting-lineup {
+  margin-top: 10px;
+}
+
+.starting-lineup-title {
+  margin-bottom: 6px;
+  color: var(--gem);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.starter-slot {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  gap: 8px;
+
+  padding: 7px 9px;
+  margin-bottom: 4px;
+
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+}
+
+.starter-slot.empty {
+  background: rgba(193,85,75,0.06);
+  border-color: rgba(193,85,75,0.18);
+}
+
+.starter-position {
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.starter-player {
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.empty-player {
+  color: #777;
+}
+
+.starter-check {
+  color: #8fd4a0;
+  font-weight: 900;
+}
+
+.starter-missing {
+  color: #e08a8a;
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+
+.roster-divider {
+  margin: 12px 0 6px;
+  padding-top: 8px;
+
+  border-top: 1px solid rgba(255,255,255,0.1);
+
+  color: #a9c2ab;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.pos-FLEX {
+  color: var(--gem);
+}
+
