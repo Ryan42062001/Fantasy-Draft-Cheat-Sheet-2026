@@ -1606,3 +1606,428 @@ function debugDraftAssistant() {
         return p.status === 'taken';
       }).length;
 }
+
+/* =========================================================
+   DRAFT ASSISTANT — STAGE 2
+   DYNAMIC VORP ENGINE
+   ========================================================= */
+
+/*
+ * Get the number of starting players required at each position
+ * for the entire league.
+ *
+ * This uses the league settings rather than hard-coding
+ * 10-team or 12-team assumptions.
+ */
+function getVorpLeagueDemand() {
+  var teams =
+    parseInt(document.getElementById('pcTeams')?.value) || 10;
+
+  return {
+    QB: teams * 1,
+    RB: teams * 2,
+    WR: teams * 2,
+    TE: teams * 1,
+    FLEX: teams * 1
+  };
+}
+
+
+/*
+ * Get all available RB / WR / TE players that can potentially
+ * fill a FLEX position.
+ */
+function getVorpFlexPool(players) {
+  return players
+    .filter(function(player) {
+      return player.available &&
+        ['RB', 'WR', 'TE'].includes(player.position);
+    })
+    .sort(function(a, b) {
+      return (a.rank || 9999) - (b.rank || 9999);
+    });
+}
+
+
+/*
+ * Calculate the number of RB/WR/TE players that are required
+ * beyond the dedicated position starters because of FLEX.
+ */
+function getVorpFlexReplacementRank(players) {
+  var demand = getVorpLeagueDemand();
+
+  var flexPool = getVorpFlexPool(players);
+
+  /*
+   * The FLEX replacement player is the player around the point
+   * where the league's FLEX starters would be filled.
+   *
+   * We use the current remaining player pool so the calculation
+   * changes as players are drafted.
+   */
+  var flexIndex = demand.FLEX - 1;
+
+  if (flexPool.length === 0) {
+    return null;
+  }
+
+  if (flexIndex >= flexPool.length) {
+    flexIndex = flexPool.length - 1;
+  }
+
+  return flexPool[flexIndex];
+}
+
+
+/*
+ * Calculate replacement level for each position.
+ */
+function calculateVorpReplacementLevels(players) {
+  var demand = getVorpLeagueDemand();
+
+  var positions = ['QB', 'RB', 'WR', 'TE'];
+
+  var replacement = {};
+
+  positions.forEach(function(pos) {
+
+    var available = players
+      .filter(function(player) {
+        return player.available &&
+          player.position === pos;
+      })
+      .sort(function(a, b) {
+        return (a.rank || 9999) - (b.rank || 9999);
+      });
+
+    /*
+     * Dedicated starters provide the first replacement level.
+     */
+    var dedicatedIndex = demand[pos];
+
+    var dedicatedReplacement = null;
+
+    if (available.length > 0) {
+
+      if (dedicatedIndex >= available.length) {
+        dedicatedIndex = available.length - 1;
+      }
+
+      dedicatedReplacement = available[dedicatedIndex];
+    }
+
+    replacement[pos] = {
+      dedicated: dedicatedReplacement,
+      dedicatedRank:
+        dedicatedReplacement
+          ? dedicatedReplacement.rank
+          : null
+    };
+  });
+
+
+  /*
+   * FLEX replacement pool.
+   */
+  var flexReplacement =
+    getVorpFlexReplacementRank(players);
+
+  replacement.FLEX = {
+    player: flexReplacement,
+    rank: flexReplacement
+      ? flexReplacement.rank
+      : null
+  };
+
+  return replacement;
+}
+
+
+/*
+ * Convert a player's overall rank into a simple value score.
+ *
+ * Higher-ranked players receive higher values.
+ *
+ * This is intentionally normalized so the value remains
+ * useful regardless of league size.
+ */
+function calculateVorpPlayerValue(player, players) {
+
+  if (!player.rank) {
+    return 0;
+  }
+
+  var availableRanks = players
+    .filter(function(p) {
+      return p.available && p.rank;
+    })
+    .map(function(p) {
+      return p.rank;
+    })
+    .sort(function(a, b) {
+      return a - b;
+    });
+
+  if (availableRanks.length === 0) {
+    return 0;
+  }
+
+  var bestRank = availableRanks[0];
+  var worstRank =
+    availableRanks[availableRanks.length - 1];
+
+  if (worstRank === bestRank) {
+    return 1;
+  }
+
+  /*
+   * Normalize rank into a 0-100 scale.
+   */
+  var value =
+    100 *
+    (worstRank - player.rank) /
+    (worstRank - bestRank);
+
+  return Math.max(0, Math.min(100, value));
+}
+
+
+/*
+ * Calculate positional VORP.
+ *
+ * VORP =
+ *
+ * Player Value
+ * -
+ * Replacement Player Value
+ */
+function calculatePlayerVorp(player, players, replacementLevels) {
+
+  if (!player.available || !player.rank) {
+    return 0;
+  }
+
+  var playerValue =
+    calculateVorpPlayerValue(player, players);
+
+  var replacementPlayer = null;
+
+  /*
+   * RB / WR / TE can potentially be replaced through FLEX,
+   * so we compare against both their dedicated replacement
+   * level and the FLEX replacement level.
+   */
+  if (['RB', 'WR', 'TE'].includes(player.position)) {
+
+    var dedicated =
+      replacementLevels[player.position]?.dedicated;
+
+    var flex =
+      replacementLevels.FLEX?.player;
+
+    /*
+     * Use whichever replacement player provides the
+     * higher value as the relevant replacement benchmark.
+     */
+    var dedicatedValue = dedicated
+      ? calculateVorpPlayerValue(dedicated, players)
+      : 0;
+
+    var flexValue = flex
+      ? calculateVorpPlayerValue(flex, players)
+      : 0;
+
+    var replacementValue =
+      Math.max(dedicatedValue, flexValue);
+
+    return Math.max(
+      0,
+      playerValue - replacementValue
+    );
+  }
+
+  /*
+   * QB and TE have dedicated starting requirements.
+   */
+  replacementPlayer =
+    replacementLevels[player.position]?.dedicated;
+
+  if (!replacementPlayer) {
+    return playerValue;
+  }
+
+  var replacementValue =
+    calculateVorpPlayerValue(
+      replacementPlayer,
+      players
+    );
+
+  return Math.max(
+    0,
+    playerValue - replacementValue
+  );
+}
+
+
+/*
+ * Calculate VORP for every available player.
+ */
+function calculateAllVorp(players) {
+
+  var replacementLevels =
+    calculateVorpReplacementLevels(players);
+
+  players.forEach(function(player) {
+
+    if (!player.available) {
+      player.vorp = 0;
+      return;
+    }
+
+    player.vorp =
+      calculatePlayerVorp(
+        player,
+        players,
+        replacementLevels
+      );
+  });
+
+  return {
+    players: players,
+    replacementLevels: replacementLevels
+  };
+}
+
+
+/* ---------------------------------------------------------
+   VORP DEBUG TEST
+   --------------------------------------------------------- */
+
+function debugVorp() {
+
+  var players =
+    getDraftAssistantPlayers();
+
+  var available =
+    players.filter(function(player) {
+      return player.available;
+    });
+
+  var result =
+    calculateAllVorp(available);
+
+  var topPlayers =
+    result.players
+      .filter(function(player) {
+        return player.available &&
+          player.rank;
+      })
+      .sort(function(a, b) {
+        return b.vorp - a.vorp;
+      })
+      .slice(0, 10);
+
+  var panel =
+    document.getElementById(
+      'draft-assistant-vorp-panel'
+    );
+
+  if (!panel) {
+
+    panel =
+      document.createElement('div');
+
+    panel.id =
+      'draft-assistant-vorp-panel';
+
+    panel.style.cssText =
+      'position:fixed;' +
+      'left:10px;' +
+      'right:10px;' +
+      'bottom:10px;' +
+      'z-index:100000;' +
+      'background:#111;' +
+      'color:#fff;' +
+      'padding:16px;' +
+      'border-radius:12px;' +
+      'font-family:Arial,sans-serif;' +
+      'font-size:14px;' +
+      'line-height:1.5;' +
+      'box-shadow:0 4px 20px rgba(0,0,0,.4);' +
+      'max-height:80vh;' +
+      'overflow:auto;';
+
+    document.body.appendChild(panel);
+  }
+
+  var demand =
+    getVorpLeagueDemand();
+
+  var html =
+    '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+      '<strong style="font-size:18px;">📊 VORP Debug</strong>' +
+      '<button onclick="document.getElementById(\'draft-assistant-vorp-panel\').remove()" ' +
+      'style="background:none;border:0;color:white;font-size:24px;">&times;</button>' +
+    '</div>' +
+
+    '<hr>' +
+
+    '<strong>League Demand</strong><br>' +
+    'Teams: ' +
+      (parseInt(document.getElementById('pcTeams')?.value) || 10) +
+      '<br>' +
+    'QB Starters: ' + demand.QB + '<br>' +
+    'RB Starters: ' + demand.RB + '<br>' +
+    'WR Starters: ' + demand.WR + '<br>' +
+    'TE Starters: ' + demand.TE + '<br>' +
+    'FLEX Starters: ' + demand.FLEX +
+
+    '<hr>' +
+
+    '<strong>Replacement Levels</strong><br>';
+
+  ['QB', 'RB', 'WR', 'TE'].forEach(function(pos) {
+
+    var replacement =
+      result.replacementLevels[pos]?.dedicated;
+
+    html +=
+      pos + ': ' +
+      (replacement
+        ? replacement.name +
+          ' (#' + replacement.rank + ')'
+        : 'None') +
+      '<br>';
+  });
+
+  var flexReplacement =
+    result.replacementLevels.FLEX?.player;
+
+  html +=
+    'FLEX: ' +
+    (flexReplacement
+      ? flexReplacement.name +
+        ' (#' + flexReplacement.rank + ')'
+      : 'None') +
+
+    '<hr>' +
+
+    '<strong>Top VORP Players</strong><br>';
+
+  topPlayers.forEach(function(player, index) {
+
+    html +=
+      (index + 1) +
+      '. ' +
+      player.name +
+      ' — ' +
+      player.position +
+      ' #' +
+      player.rank +
+      ' — VORP: ' +
+      player.vorp.toFixed(2) +
+      '<br>';
+  });
+
+  panel.innerHTML = html;
+}
