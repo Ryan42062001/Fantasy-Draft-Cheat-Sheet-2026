@@ -880,3 +880,36 @@ body.edit-mode tr.draftrow:hover td {
   color: var(--gem);
 }
 
+/* ==== MOBILE STICKY TOOLBAR FIX ==== */
+
+@media (max-width: 600px) {
+
+  /* Let the header scroll away on mobile */
+  header {
+    position: static;
+  }
+
+  /* Keep the player filters/My Team button visible */
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  /* Do NOT let the edit/reset controls cover the toolbar */
+  .statusbar {
+    position: static;
+  }
+
+  /* Tier navigation scrolls normally */
+  .nav {
+    position: static;
+  }
+
+  /* Keep the table header below the toolbar */
+  table.rt th {
+    top: 0;
+    z-index: 2;
+  }
+}
+
