@@ -1453,10 +1453,10 @@ function getDraftAssistantPlayers() {
     var status = 'available';
 
     if (row.classList.contains('drafted-mine')) {
-      status = 'mine';
-    } else if (row.classList.contains('drafted-taken')) {
-      status = 'taken';
-    }
+  status = 'mine';
+} else if (row.classList.contains('drafted-other')) {
+  status = 'taken';
+}
 
     /*
      * Get player name and position from the existing row.
