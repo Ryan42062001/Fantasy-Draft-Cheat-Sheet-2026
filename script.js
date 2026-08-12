@@ -107,10 +107,27 @@ function updateMyTeam() {
 
   /* ---- Update starter counter ---- */
 
-  if (starterCountElement) {
-    starterCountElement.textContent =
-      totalStarters + ' / 9 starters';
-  }
+  /* ---- Update starter counter ---- */
+
+if (starterCountElement) {
+  starterCountElement.textContent =
+    totalStarters + ' / 9 starters';
+}
+
+/* ---- Update My Team button ---- */
+
+var myTeamButton = document.querySelector('.myteam-toggle');
+
+if (myTeamButton) {
+  var panel = document.getElementById('myteam-panel');
+  var isOpen = panel && panel.classList.contains('open');
+
+  myTeamButton.innerText =
+    (isOpen ? 'Hide My Team' : 'My Team') +
+    ' · ' +
+    totalStarters +
+    '/9';
+}
 
 var myTeamButton = document.querySelector('.myteam-toggle');
 
