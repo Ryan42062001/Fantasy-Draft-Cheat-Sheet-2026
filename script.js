@@ -44,6 +44,7 @@ function safeCall(fnName) {
 function updateMyTeam() {
   var myTeamContainer = document.getElementById('roster-list');
   var needsContainer = document.getElementById('needs-row');
+  var starterCountElement = document.getElementById('myteam-starter-count');
 
   if (!myTeamContainer) return;
 
@@ -73,29 +74,127 @@ function updateMyTeam() {
     });
   });
 
+  /* ---- Calculate starting lineup ---- */
+
+  var qbStarters = Math.min(counts.QB, 1);
+  var rbStarters = Math.min(counts.RB, 2);
+  var wrStarters = Math.min(counts.WR, 2);
+  var teStarters = Math.min(counts.TE, 1);
+  var kStarters = Math.min(counts.K, 1);
+  var dstStarters = Math.min(counts.DST, 1);
+
+  /*
+   * FLEX requires an ADDITIONAL RB/WR/TE.
+   * Players already filling RB2/WR2/TE1 do NOT count toward FLEX.
+   */
+  var rbExtra = Math.max(0, counts.RB - 2);
+  var wrExtra = Math.max(0, counts.WR - 2);
+  var teExtra = Math.max(0, counts.TE - 1);
+
+  var flexStarters = Math.min(
+    rbExtra + wrExtra + teExtra,
+    1
+  );
+
+  var totalStarters =
+    qbStarters +
+    rbStarters +
+    wrStarters +
+    teStarters +
+    flexStarters +
+    kStarters +
+    dstStarters;
+
+  /* ---- Update starter counter ---- */
+
+  if (starterCountElement) {
+    starterCountElement.textContent =
+      totalStarters + ' / 9 starters';
+  }
+
   /* ---- Roster needs ---- */
 
   if (needsContainer) {
     var needs = [];
 
-    ['QB', 'RB', 'WR', 'TE', 'K', 'DST'].forEach(function(pos) {
-      var required = ROSTER_SLOTS[pos] || 0;
-      var have = counts[pos] || 0;
+    if (counts.QB < 1) {
+      needs.push(
+        '<span class="roster-need roster-need-open">QB ' +
+        counts.QB + '/1</span>'
+      );
+    } else {
+      needs.push(
+        '<span class="roster-need roster-need-filled">QB ✓</span>'
+      );
+    }
 
-      if (have < required) {
-        needs.push(
-          '<span class="roster-need roster-need-open">' +
-          pos + ' ' + have + '/' + required +
-          '</span>'
-        );
-      } else {
-        needs.push(
-          '<span class="roster-need roster-need-filled">' +
-          pos + ' ✓' +
-          '</span>'
-        );
-      }
-    });
+    if (counts.RB < 2) {
+      needs.push(
+        '<span class="roster-need roster-need-open">RB ' +
+        counts.RB + '/2</span>'
+      );
+    } else {
+      needs.push(
+        '<span class="roster-need roster-need-filled">RB ✓</span>'
+      );
+    }
+
+    if (counts.WR < 2) {
+      needs.push(
+        '<span class="roster-need roster-need-open">WR ' +
+        counts.WR + '/2</span>'
+      );
+    } else {
+      needs.push(
+        '<span class="roster-need roster-need-filled">WR ✓</span>'
+      );
+    }
+
+    if (counts.TE < 1) {
+      needs.push(
+        '<span class="roster-need roster-need-open">TE ' +
+        counts.TE + '/1</span>'
+      );
+    } else {
+      needs.push(
+        '<span class="roster-need roster-need-filled">TE ✓</span>'
+      );
+    }
+
+    /*
+     * FLEX is an additional RB/WR/TE.
+     */
+    if (flexStarters < 1) {
+      needs.push(
+        '<span class="roster-need roster-need-open">FLEX 0/1</span>'
+      );
+    } else {
+      needs.push(
+        '<span class="roster-need roster-need-filled">FLEX ✓</span>'
+      );
+    }
+
+    if (counts.K < 1) {
+      needs.push(
+        '<span class="roster-need roster-need-open">K ' +
+        counts.K + '/1</span>'
+      );
+    } else {
+      needs.push(
+        '<span class="roster-need roster-need-filled">K ✓</span>'
+      );
+    }
+
+    if (counts.DST < 1) {
+      needs.push(
+        '<span class="roster-need roster-need-open">DST ' +
+        counts.DST + '/1</span>'
+      );
+    } else {
+      needs.push(
+        '<span class="roster-need roster-need-filled">DST ✓</span>'
+      );
+    }
 
     needsContainer.innerHTML = needs.join('');
   }
