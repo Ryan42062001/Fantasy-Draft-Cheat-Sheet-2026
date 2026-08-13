@@ -2180,6 +2180,209 @@ function calculateTierDrop(
   };
 }
 
+function calculatePositionTierCliff(
+  position,
+  players,
+  vorpProfiles
+) {
+
+  if (!position || !players || !vorpProfiles) {
+    return {
+      position: position || 'N/A',
+      severity: 'NONE',
+      cliffScore: 0,
+      beforePlayer: null,
+      afterPlayer: null,
+      scoreGap: 0
+    };
+  }
+
+  /*
+   * Get available players at this position
+   * that already have a VORP profile.
+   */
+  var positionProfiles =
+    vorpProfiles
+      .filter(function(profile) {
+
+        return profile &&
+          profile.player &&
+          profile.player.available &&
+          profile.player.position === position;
+
+      })
+      .sort(function(a, b) {
+
+        return (
+          Number(a.player.rank) || 9999
+        ) -
+        (
+          Number(b.player.rank) || 9999
+        );
+
+      });
+
+
+  /*
+   * Need at least two players to identify
+   * a drop-off.
+   */
+  if (positionProfiles.length < 2) {
+
+    return {
+      position: position,
+      severity: 'NONE',
+      cliffScore: 0,
+      beforePlayer: null,
+      afterPlayer: null,
+      scoreGap: 0
+    };
+
+  }
+
+
+  /*
+   * Compare adjacent players.
+   *
+   * We use VORP because that is already one
+   * of the core value measurements in the
+   * Decision Engine.
+   */
+  var gaps = [];
+
+  for (
+    var i = 0;
+    i < positionProfiles.length - 1;
+    i++
+  ) {
+
+    var current =
+      positionProfiles[i];
+
+    var next =
+      positionProfiles[i + 1];
+
+
+    var currentVorp =
+      Number(current.vorp) || 0;
+
+    var nextVorp =
+      Number(next.vorp) || 0;
+
+
+    var vorpGap =
+      Math.max(
+        0,
+        currentVorp - nextVorp
+      );
+
+
+    gaps.push({
+
+      beforePlayer:
+        current.player,
+
+      afterPlayer:
+        next.player,
+
+      vorpGap:
+        vorpGap,
+
+      rankGap:
+        (
+          Number(next.player.rank) || 0
+        ) -
+        (
+          Number(current.player.rank) || 0
+        )
+
+    });
+
+  }
+
+
+  /*
+   * Find the largest VORP drop.
+   */
+  gaps.sort(function(a, b) {
+
+    return b.vorpGap - a.vorpGap;
+
+  });
+
+
+  var largestGap =
+    gaps[0];
+
+
+  if (!largestGap) {
+
+    return {
+      position: position,
+      severity: 'NONE',
+      cliffScore: 0,
+      beforePlayer: null,
+      afterPlayer: null,
+      scoreGap: 0
+    };
+
+  }
+
+
+  /*
+   * Convert the VORP gap into a 0-100
+   * cliff score.
+   *
+   * This is intentionally conservative.
+   */
+  var cliffScore =
+    Math.min(
+      100,
+      largestGap.vorpGap * 2
+    );
+
+
+  var severity =
+    'LOW';
+
+
+  if (cliffScore >= 70) {
+
+    severity = 'HIGH';
+
+  } else if (cliffScore >= 40) {
+
+    severity = 'MODERATE';
+
+  }
+
+
+  return {
+
+    position:
+      position,
+
+    severity:
+      severity,
+
+    cliffScore:
+      cliffScore,
+
+    beforePlayer:
+      largestGap.beforePlayer,
+
+    afterPlayer:
+      largestGap.afterPlayer,
+
+    scoreGap:
+      largestGap.vorpGap,
+
+    rankGap:
+      largestGap.rankGap
+
+  };
+
+}
 
 /*
  * Calculate positional scarcity.
@@ -4093,6 +4296,29 @@ function debugDecisionEngine(){
 
   var vorpResult =
   calculateAllFantasyVorp(players);
+
+  var tierCliffs = {};
+
+[
+  'QB',
+  'RB',
+  'WR',
+  'TE'
+].forEach(function(position) {
+
+  tierCliffs[position] =
+    calculatePositionTierCliff(
+      position,
+      players,
+      vorpResult.profiles
+    );
+
+});
+
+console.log(
+  'TIER CLIFF DEBUG:',
+  tierCliffs
+);
 
   var draftState = getDraftAssistantState();
 
