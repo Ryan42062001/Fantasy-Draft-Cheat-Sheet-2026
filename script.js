@@ -2193,6 +2193,15 @@ function calculatePositionScarcity(
   replacements
 ) {
 
+  console.log(
+  'SCARCITY INPUT:',
+  player.name,
+  'rank =',
+  player.rank,
+  'position =',
+  player.position || player.pos
+);
+
   if (!player || !player.rank) {
     return 0;
   }
@@ -2202,6 +2211,12 @@ function calculatePositionScarcity(
       player,
       replacements
     );
+
+  console.log(
+  'SCARCITY REPLACEMENT:',
+  player.name,
+  replacement
+);
 
   if (!replacement) {
     return 0;
