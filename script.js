@@ -2713,137 +2713,19 @@ function calculateDraftScarcity(player, context){
     return 0;
   }
 
-  var position =
-    player.position ||
-    player.pos;
+  var players =
+    context.availablePlayers || [];
 
-  if(!position){
-    return 0;
-  }
+  var replacements =
+    context.replacements || {};
 
-  var profiles =
-    context.vorpProfiles || [];
-
-  var positionProfiles =
-    profiles.filter(function(profile){
-
-      if(!profile || !profile.player){
-        return false;
-      }
-
-      var p =
-        profile.player;
-
-      var pPos =
-        p.position ||
-        p.pos;
-
-      return pPos === position &&
-             p.available !== false;
-    });
-
-  if(positionProfiles.length === 0){
-    return 0;
-  }
-
-  /*
-   * Find this player's position among the
-   * available players at his position.
-   */
-
-  var playerVorp =
-    Number(player.vorp) || 0;
-
-  var betterPlayers =
-    positionProfiles.filter(function(profile){
-
-      return Number(profile.vorp || 0) >
-             playerVorp;
-
-    }).length;
-
-  /*
-   * Determine how many players at this position
-   * are needed before replacement level.
-   */
-
-  var starterDemand = 0;
-
-  if(context.rosterSettings &&
-     context.rosterSettings[position]){
-
-    starterDemand =
-      Number(
-        context.rosterSettings[position]
-      ) || 0;
-
-  } else if(context.rosterNeeds &&
-            context.rosterNeeds[position] !== undefined){
-
-    starterDemand =
-      Number(
-        context.rosterNeeds[position]
-      ) || 0;
-
-  }
-
-  /*
-   * Use league demand if available.
-   */
-
-  var teams =
-    Number(context.teams) || 10;
-
-  /*
-   * Estimate the number of players that matter
-   * at this position.
-   *
-   * RB/WR receive additional demand because of
-   * multiple starters and FLEX usage.
-   */
-
-  var positionalDemand =
-    teams * Math.max(1, starterDemand);
-
-  if(position === 'RB' ||
-     position === 'WR'){
-
-    positionalDemand += teams;
-
-  }
-
-  /*
-   * Compare the player's position in the
-   * positional player pool against demand.
-   */
-
-  var remainingAbove =
-    Math.max(
-      0,
-      positionProfiles.length -
-      betterPlayers -
-      1
-    );
-
-  /*
-   * If very few comparable players remain,
-   * scarcity is high.
-   */
-
-  var scarcity =
-    100 -
-    (
-      remainingAbove /
-      Math.max(1, positionalDemand)
-    ) * 100;
-
-  return Math.max(
-    0,
-    Math.min(
-      100,
-      scarcity
+  return Number(
+    calculatePositionScarcity(
+      player,
+      players,
+      replacements
     )
-  );
+  ) || 0;
 }
 
 function calculateDraftDecisionScore(player, context){
@@ -3101,6 +2983,12 @@ function debugDecisionEngine(){
   var vorpResult =
   calculateAllFantasyVorp(players);
 
+  context.availablePlayers =
+  available;
+
+context.replacements =
+  vorpResult.replacements;
+
   var draftState = getDraftAssistantState();
 
 var context = {
@@ -3116,6 +3004,12 @@ var context = {
     WR: Number(ROSTER_SLOTS.WR) || 2,
     TE: Number(ROSTER_SLOTS.TE) || 1
   },
+
+  availablePlayers:
+  available,
+
+replacements:
+  vorpResult.replacements,
 
   currentPick:
     draftState.currentPick,
