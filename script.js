@@ -2930,7 +2930,7 @@ if(context.rosterNeeds &&
     }
   }
 
-
+ 
   /*
    * -------------------------------------------------------
    * 7. FINAL WEIGHTED SCORE
@@ -2950,6 +2950,37 @@ if(context.rosterNeeds &&
       (rosterNeedScore * 0.05) +
       (timingScore * 0.05);
 
+  /*
+ * -------------------------------------------------------
+ * 6.5. STRATEGY ADJUSTMENT
+ * -------------------------------------------------------
+ *
+ * Strategy should influence close decisions without
+ * overpowering tier, rank, or VORP.
+ */
+
+var strategyScore = 0;
+
+if(context.strategy &&
+   context.strategy.targetPosition){
+
+  var targetPosition =
+    context.strategy.targetPosition;
+
+  if(position === targetPosition){
+
+    strategyScore = 4;
+
+  }
+
+}
+
+
+/*
+ * Add the strategy adjustment after the normal
+ * weighted score is calculated.
+ */
+finalScore += strategyScore;
 
   return {
 
@@ -2982,6 +3013,9 @@ if(context.rosterNeeds &&
 
     timingScore:
       timingScore,
+
+    strategyScore:
+  strategyScore,
 
     finalScore:
       finalScore
