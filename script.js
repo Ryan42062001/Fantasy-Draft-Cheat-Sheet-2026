@@ -3386,6 +3386,288 @@ function calculateDecisionRosterNeeds(){
   return needs;
 }
 
+function calculateDraftStrategy() {
+
+  var counts = {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0,
+    K: 0,
+    DST: 0
+  };
+
+  document
+    .querySelectorAll(
+      'tr.draftrow.drafted-mine'
+    )
+    .forEach(function(row){
+
+      var pos =
+        row.getAttribute('data-pos');
+
+      if(pos && counts[pos] !== undefined){
+        counts[pos]++;
+      }
+
+    });
+
+
+  var rbSlots =
+    Number(ROSTER_SLOTS.RB) || 2;
+
+  var wrSlots =
+    Number(ROSTER_SLOTS.WR) || 2;
+
+  var teSlots =
+    Number(ROSTER_SLOTS.TE) || 1;
+
+  var flexSlots =
+    Number(ROSTER_SLOTS.FLEX) || 1;
+
+  var qbSlots =
+    Number(ROSTER_SLOTS.QB) || 1;
+
+
+  /*
+   * -------------------------------------------------------
+   * STARTER REQUIREMENTS
+   * -------------------------------------------------------
+   */
+
+  var rbNeed =
+    Math.max(
+      0,
+      rbSlots - counts.RB
+    );
+
+  var wrNeed =
+    Math.max(
+      0,
+      wrSlots - counts.WR
+    );
+
+  var teNeed =
+    Math.max(
+      0,
+      teSlots - counts.TE
+    );
+
+  var qbNeed =
+    Math.max(
+      0,
+      qbSlots - counts.QB
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * FLEX STATUS
+   * -------------------------------------------------------
+   */
+
+  var dedicatedRB =
+    Math.min(
+      counts.RB,
+      rbSlots
+    );
+
+  var dedicatedWR =
+    Math.min(
+      counts.WR,
+      wrSlots
+    );
+
+  var dedicatedTE =
+    Math.min(
+      counts.TE,
+      teSlots
+    );
+
+  var dedicatedEligible =
+    dedicatedRB +
+    dedicatedWR +
+    dedicatedTE;
+
+  var totalEligible =
+    counts.RB +
+    counts.WR +
+    counts.TE;
+
+  var flexFilled =
+    Math.max(
+      0,
+      totalEligible -
+      dedicatedEligible
+    );
+
+  var flexNeed =
+    Math.max(
+      0,
+      flexSlots - flexFilled
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * POSITIONAL BALANCE
+   * -------------------------------------------------------
+   *
+   * Positive = position still needs attention.
+   * Negative = position is already well stocked.
+   */
+
+  var rbPressure =
+    rbNeed;
+
+  var wrPressure =
+    wrNeed;
+
+  var tePressure =
+    teNeed;
+
+  var qbPressure =
+    qbNeed;
+
+
+  /*
+   * FLEX creates additional value for RB/WR/TE.
+   */
+
+  if(flexNeed > 0){
+
+    rbPressure += flexNeed;
+    wrPressure += flexNeed;
+    tePressure += flexNeed;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * DETERMINE GENERAL TARGET
+   * -------------------------------------------------------
+   */
+
+  var targetPosition = null;
+  var targetPressure = -1;
+
+  [
+    {
+      position: 'RB',
+      pressure: rbPressure
+    },
+    {
+      position: 'WR',
+      pressure: wrPressure
+    },
+    {
+      position: 'TE',
+      pressure: tePressure
+    },
+    {
+      position: 'QB',
+      pressure: qbPressure
+    }
+  ].forEach(function(item){
+
+    if(item.pressure > targetPressure){
+
+      targetPressure =
+        item.pressure;
+
+      targetPosition =
+        item.position;
+
+    }
+
+  });
+
+
+  /*
+   * -------------------------------------------------------
+   * STRATEGY TYPE
+   * -------------------------------------------------------
+   */
+
+  var strategy =
+    'BEST VALUE';
+
+  if(targetPressure >= 2){
+
+    strategy =
+      'FILL NEED';
+
+  } else if(targetPressure === 1){
+
+    strategy =
+      'LEAN ' +
+      targetPosition;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * FLEX STATUS DESCRIPTION
+   * -------------------------------------------------------
+   */
+
+  var flexStatus;
+
+  if(flexNeed > 0){
+
+    flexStatus =
+      'FLEX spot still open';
+
+  } else {
+
+    flexStatus =
+      'FLEX currently covered';
+
+  }
+
+
+  return {
+
+    counts:
+      counts,
+
+    needs: {
+
+      QB: qbNeed,
+      RB: rbNeed,
+      WR: wrNeed,
+      TE: teNeed,
+      FLEX: flexNeed
+
+    },
+
+    pressure: {
+
+      QB: qbPressure,
+      RB: rbPressure,
+      WR: wrPressure,
+      TE: tePressure
+
+    },
+
+    targetPosition:
+      targetPosition,
+
+    targetPressure:
+      targetPressure,
+
+    strategy:
+      strategy,
+
+    flexStatus:
+      flexStatus
+
+  };
+
+}
+
 function debugDecisionEngine(){
 
   var players =
@@ -3430,6 +3712,9 @@ replacements:
 
   rosterNeeds:
   calculateDecisionRosterNeeds(),
+
+  strategy:
+  calculateDraftStrategy(),
 
 };
 
@@ -3649,6 +3934,10 @@ player.explanation.primaryReason +
 
     });
 
+  console.log(
+  'DRAFT STRATEGY:',
+  context.strategy
+);
 
   panel.innerHTML =
     html;
