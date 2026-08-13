@@ -2644,15 +2644,24 @@ function getPlayerTierValue(player){
   }
 
   var tierValues = {
-    'tier-Sp': 100,
-    'tier-S': 92,
-    'tier-A': 78,
-    'tier-B': 62,
-    'tier-C': 45,
-    'tier-D': 30,
-    'tier-E': 15,
-    'tier-F': 5
-  };
+  'Sp': 100,
+  'S': 92,
+  'A': 78,
+  'B': 62,
+  'C': 45,
+  'D': 30,
+  'E': 15,
+  'F': 5,
+
+  'tier-Sp': 100,
+  'tier-S': 92,
+  'tier-A': 78,
+  'tier-B': 62,
+  'tier-C': 45,
+  'tier-D': 30,
+  'tier-E': 15,
+  'tier-F': 5
+};
 
   return {
     id: tierId,
@@ -2848,35 +2857,46 @@ function debugDecisionEngine(){
       return player.available;
     });
 
-  var context = {
+  var vorpResult =
+  calculateAllVorp(available);
 
-    currentPick: 1,
+  var draftState = getDraftAssistantState();
 
-    nextPick: 11,
+var context = {
 
-    positionScarcity: {
-      QB: 0,
-      RB: 0,
-      WR: 0,
-      TE: 0,
-      K: 0,
-      DST: 0
-    },
+  currentPick:
+    draftState.currentPick,
 
-    rosterNeeds: {
-      QB: 0,
-      RB: 0,
-      WR: 0,
-      TE: 0,
-      K: 0,
-      DST: 0
-    }
+  nextPick:
+    draftState.myNextPick,
 
-  };
+  positionScarcity: {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0,
+    K: 0,
+    DST: 0
+  },
+
+  rosterNeeds: {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0,
+    K: 0,
+    DST: 0
+  }
+
+};
 
 
   var scored =
-    available.map(function(player){
+  vorpResult.players
+    .filter(function(player){
+      return player.available;
+    })
+    .map(function(player){
 
       return calculateDraftDecisionScore(
         player,
