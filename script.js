@@ -2858,7 +2858,7 @@ function debugDecisionEngine(){
     });
 
   var vorpResult =
-  calculateAllVorp(available);
+  calculateAllFantasyVorp(players);
 
   var draftState = getDraftAssistantState();
 
@@ -2892,11 +2892,22 @@ var context = {
 
 
   var scored =
-  vorpResult.players
-    .filter(function(player){
-      return player.available;
+  vorpResult.profiles
+    .filter(function(profile){
+      return profile.player &&
+             profile.player.available;
     })
-    .map(function(player){
+    .map(function(profile){
+
+      var player =
+        Object.assign(
+          {},
+          profile.player,
+          {
+            vorp:
+              profile.vorp
+          }
+        );
 
       return calculateDraftDecisionScore(
         player,
