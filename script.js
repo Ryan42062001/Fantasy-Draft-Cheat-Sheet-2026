@@ -2852,14 +2852,6 @@ var vorpScore =
     context
   );
 
-  if(context.positionScarcity &&
-     context.positionScarcity[position] !== undefined){
-
-    scarcityScore =
-      Number(context.positionScarcity[position]);
-  }
-
-
   /*
  * -------------------------------------------------------
  * 5. ROSTER NEED
@@ -3058,15 +3050,6 @@ replacements:
 
   nextPick:
     draftState.myNextPick,
-
-  positionScarcity: {
-    QB: 0,
-    RB: 0,
-    WR: 0,
-    TE: 0,
-    K: 0,
-    DST: 0
-  },
 
   rosterNeeds:
   calculateDecisionRosterNeeds(),
