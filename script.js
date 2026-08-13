@@ -2187,20 +2187,26 @@ function calculatePositionTierCliff(
 ) {
 
   if (!position || !players || !vorpProfiles) {
+
     return {
       position: position || 'N/A',
       severity: 'NONE',
       cliffScore: 0,
       beforePlayer: null,
       afterPlayer: null,
-      scoreGap: 0
+      scoreGap: 0,
+      rankGap: 0
     };
+
   }
 
+
   /*
-   * Get available players at this position
-   * that already have a VORP profile.
+   * -------------------------------------------------------
+   * GET AVAILABLE PLAYERS AT THIS POSITION
+   * -------------------------------------------------------
    */
+
   var positionProfiles =
     vorpProfiles
       .filter(function(profile) {
@@ -2223,11 +2229,7 @@ function calculatePositionTierCliff(
       });
 
 
-  /*
-   * Need at least two players to identify
-   * a drop-off.
-   */
-  if (positionProfiles.length < 2) {
+  if (positionProfiles.length < 3) {
 
     return {
       position: position,
@@ -2235,19 +2237,19 @@ function calculatePositionTierCliff(
       cliffScore: 0,
       beforePlayer: null,
       afterPlayer: null,
-      scoreGap: 0
+      scoreGap: 0,
+      rankGap: 0
     };
 
   }
 
 
   /*
-   * Compare adjacent players.
-   *
-   * We use VORP because that is already one
-   * of the core value measurements in the
-   * Decision Engine.
+   * -------------------------------------------------------
+   * CALCULATE ALL ADJACENT VORP GAPS
+   * -------------------------------------------------------
    */
+
   var gaps = [];
 
   for (
@@ -2302,8 +2304,31 @@ function calculatePositionTierCliff(
 
 
   /*
-   * Find the largest VORP drop.
+   * -------------------------------------------------------
+   * CALCULATE AVERAGE GAP
+   * -------------------------------------------------------
    */
+
+  var totalGap = 0;
+
+  gaps.forEach(function(gap) {
+
+    totalGap +=
+      gap.vorpGap;
+
+  });
+
+
+  var averageGap =
+    totalGap / gaps.length;
+
+
+  /*
+   * -------------------------------------------------------
+   * FIND LARGEST GAP
+   * -------------------------------------------------------
+   */
+
   gaps.sort(function(a, b) {
 
     return b.vorpGap - a.vorpGap;
@@ -2315,7 +2340,7 @@ function calculatePositionTierCliff(
     gaps[0];
 
 
-  if (!largestGap) {
+  if (!largestGap || averageGap <= 0) {
 
     return {
       position: position,
@@ -2323,24 +2348,53 @@ function calculatePositionTierCliff(
       cliffScore: 0,
       beforePlayer: null,
       afterPlayer: null,
-      scoreGap: 0
+      scoreGap: 0,
+      rankGap: 0
     };
 
   }
 
 
   /*
-   * Convert the VORP gap into a 0-100
-   * cliff score.
+   * -------------------------------------------------------
+   * RELATIVE CLIFF STRENGTH
+   * -------------------------------------------------------
    *
-   * This is intentionally conservative.
+   * How many times larger is the largest gap
+   * than the normal gap for this position?
    */
+
+  var relativeGap =
+    largestGap.vorpGap /
+    averageGap;
+
+
+  /*
+   * -------------------------------------------------------
+   * CONVERT TO 0-100 SCORE
+   * -------------------------------------------------------
+   *
+   * 1.0x average = essentially no cliff
+   * 1.5x average = noticeable
+   * 2.0x average = strong
+   * 2.5x+ average = major cliff
+   */
+
   var cliffScore =
-    Math.min(
-      100,
-      largestGap.vorpGap * 2
+    Math.max(
+      0,
+      Math.min(
+        100,
+        (relativeGap - 1) * 60
+      )
     );
 
+
+  /*
+   * -------------------------------------------------------
+   * SEVERITY
+   * -------------------------------------------------------
+   */
 
   var severity =
     'LOW';
@@ -2350,7 +2404,7 @@ function calculatePositionTierCliff(
 
     severity = 'HIGH';
 
-  } else if (cliffScore >= 40) {
+  } else if (cliffScore >= 35) {
 
     severity = 'MODERATE';
 
@@ -2378,7 +2432,13 @@ function calculatePositionTierCliff(
       largestGap.vorpGap,
 
     rankGap:
-      largestGap.rankGap
+      largestGap.rankGap,
+
+    averageGap:
+      averageGap,
+
+    relativeGap:
+      relativeGap
 
   };
 
