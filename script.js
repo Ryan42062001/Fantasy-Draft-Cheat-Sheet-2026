@@ -862,7 +862,7 @@ function syncRankData(){
         if(posRankLabel){
 
   posRankLabel.textContent =
-    'TEST-' + position + posRank;
+  position + posRank;
 }
       }
 
