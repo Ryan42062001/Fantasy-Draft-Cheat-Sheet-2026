@@ -2989,6 +2989,283 @@ if(context.rosterNeeds &&
   };
 }
 
+function generateDecisionExplanation(result, comparisonResult) {
+
+  if (!result) {
+    return null;
+  }
+
+  var reasons = [];
+  var positives = [];
+  var concerns = [];
+
+  /*
+   * -------------------------------------------------------
+   * 1. TIER
+   * -------------------------------------------------------
+   */
+
+  if (result.tierScore >= 90) {
+
+    positives.push(
+      'Elite tier value'
+    );
+
+  } else if (result.tierScore >= 75) {
+
+    positives.push(
+      'Strong tier value'
+    );
+
+  } else if (result.tierScore < 50) {
+
+    concerns.push(
+      'Lower player tier'
+    );
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 2. OVERALL RANK
+   * -------------------------------------------------------
+   */
+
+  if (result.rank <= 10) {
+
+    positives.push(
+      'Top-10 overall player'
+    );
+
+  } else if (result.rank <= 20) {
+
+    positives.push(
+      'Strong overall ranking'
+    );
+
+  } else if (result.rank >= 40) {
+
+    concerns.push(
+      'Lower overall ranking'
+    );
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 3. VORP
+   * -------------------------------------------------------
+   */
+
+  if (result.vorpScore >= 90) {
+
+    positives.push(
+      'Elite VORP'
+    );
+
+  } else if (result.vorpScore >= 75) {
+
+    positives.push(
+      'Strong VORP'
+    );
+
+  } else if (result.vorpScore < 40) {
+
+    concerns.push(
+      'Limited VORP'
+    );
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 4. SCARCITY
+   * -------------------------------------------------------
+   */
+
+  if (result.scarcityScore >= 90) {
+
+    positives.push(
+      'Position is highly scarce'
+    );
+
+  } else if (result.scarcityScore >= 75) {
+
+    positives.push(
+      'Good positional scarcity'
+    );
+
+  } else if (result.scarcityScore < 40) {
+
+    concerns.push(
+      'Position has relatively low scarcity'
+    );
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 5. ROSTER NEED
+   * -------------------------------------------------------
+   */
+
+  if (result.rosterNeedScore >= 2) {
+
+    positives.push(
+      'Strong roster need'
+    );
+
+  } else if (result.rosterNeedScore >= 1) {
+
+    positives.push(
+      'Fills an open roster need'
+    );
+
+  } else {
+
+    concerns.push(
+      'Does not fill an immediate roster need'
+    );
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 6. TIMING
+   * -------------------------------------------------------
+   */
+
+  if (result.timingScore >= 20) {
+
+    positives.push(
+      'High chance of being gone before the next pick'
+    );
+
+  } else if (result.timingScore >= 10) {
+
+    positives.push(
+      'Moderate draft-timing pressure'
+    );
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 7. COMPARISON
+   * -------------------------------------------------------
+   */
+
+  if (comparisonResult) {
+
+    var scoreDifference =
+      Number(result.finalScore || 0) -
+      Number(comparisonResult.finalScore || 0);
+
+    if (scoreDifference > 5) {
+
+      reasons.push(
+        'Clear advantage over ' +
+        comparisonResult.name
+      );
+
+    } else if (scoreDifference > 2) {
+
+      reasons.push(
+        'Moderate advantage over ' +
+        comparisonResult.name
+      );
+
+    } else if (scoreDifference > 0) {
+
+      reasons.push(
+        'Slight advantage over ' +
+        comparisonResult.name
+      );
+
+    } else {
+
+      reasons.push(
+        'Very close decision'
+      );
+    }
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 8. PRIMARY REASON
+   * -------------------------------------------------------
+   */
+
+  var primaryReason =
+    'Best overall combination of draft value';
+
+  var strongestValue = -1;
+
+  var factors = [
+    {
+      name: 'tier',
+      value: result.tierScore,
+      text: 'elite tier value'
+    },
+    {
+      name: 'rank',
+      value: result.rankScore,
+      text: 'strong overall ranking'
+    },
+    {
+      name: 'VORP',
+      value: result.vorpScore,
+      text: 'excellent value over replacement'
+    },
+    {
+      name: 'scarcity',
+      value: result.scarcityScore,
+      text: 'strong positional scarcity'
+    },
+    {
+      name: 'need',
+      value: result.rosterNeedScore,
+      text: 'roster need'
+    },
+    {
+      name: 'timing',
+      value: result.timingScore,
+      text: 'draft timing'
+    }
+  ];
+
+  factors.forEach(function(factor) {
+
+    if (factor.value > strongestValue) {
+
+      strongestValue =
+        factor.value;
+
+      primaryReason =
+        factor.text;
+    }
+
+  });
+
+
+  return {
+
+    primaryReason:
+      primaryReason,
+
+    reasons:
+      reasons,
+
+    positives:
+      positives,
+
+    concerns:
+      concerns
+
+  };
+}
+
 function calculateDecisionRosterNeeds(){
 
   var counts = {
@@ -3211,6 +3488,28 @@ console.log(
   });
 
 
+  /*
+ * -------------------------------------------------------
+ * GENERATE DECISION EXPLANATIONS
+ * -------------------------------------------------------
+ *
+ * Compare each player against the next-best player.
+ */
+
+scored.forEach(function(player, index){
+
+  var nextPlayer =
+    scored[index + 1] || null;
+
+  player.explanation =
+    generateDecisionExplanation(
+      player,
+      nextPlayer
+    );
+
+});
+
+
   var panel =
     document.getElementById(
       'draft-decision-debug-panel'
@@ -3321,9 +3620,32 @@ console.log(
         player.rosterNeedScore.toFixed(1) +
 
         ' · Timing: ' +
-        player.timingScore.toFixed(1) +
+player.timingScore.toFixed(1) +
 
-        '</div>';
+'<br><br>' +
+
+'<strong>Why:</strong> ' +
+player.explanation.primaryReason +
+
+'<br>' +
+
+(player.explanation.reasons.length
+  ? player.explanation.reasons.join(' · ')
+  : '') +
+
+(player.explanation.positives.length
+  ? '<br><span style="color:#7CFF7C;">✓ ' +
+    player.explanation.positives.join(' · ') +
+    '</span>'
+  : '') +
+
+(player.explanation.concerns.length
+  ? '<br><span style="color:#FFB86C;">⚠ ' +
+    player.explanation.concerns.join(' · ') +
+    '</span>'
+  : '') +
+
+'</div>';
 
     });
 
