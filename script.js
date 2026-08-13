@@ -4442,6 +4442,15 @@ console.log(
   tierCliffs
 );
 
+  console.log(
+  'TIER CLIFF DETAILS:',
+  JSON.stringify(
+    tierCliffs,
+    null,
+    2
+  )
+);
+
   var draftState = getDraftAssistantState();
 
   var draftRuns =
