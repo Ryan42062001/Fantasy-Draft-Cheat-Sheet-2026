@@ -2225,6 +2225,19 @@ function calculatePositionScarcity(
   var gap =
     replacement.rank - player.rank;
 
+  console.log(
+  'SCARCITY CALC:',
+  player.name,
+  'replacement.rank =',
+  replacement.rank,
+  'player.rank =',
+  player.rank,
+  'gap =',
+  gap,
+  'result =',
+  Math.min(100, Math.max(0, gap * 2))
+);
+
   /*
    * Larger gap = greater scarcity/value.
    */
