@@ -2625,3 +2625,395 @@ if (flexReplacement) {
     html;
 }
 
+/* =========================================================
+   DRAFT DECISION ENGINE — STAGE 1
+   Calculates a contextual score for each available player.
+   Does NOT change the recommendation widget yet.
+   ========================================================= */
+
+function getPlayerTierValue(player){
+  var row = player.row || player;
+  var tierId = '';
+
+  if(row){
+    var tbody = row.closest('tbody.tier-group');
+
+    if(tbody){
+      tierId = tbody.id.replace('tbody-', '');
+    }
+  }
+
+  var tierValues = {
+    'tier-Sp': 100,
+    'tier-S': 92,
+    'tier-A': 78,
+    'tier-B': 62,
+    'tier-C': 45,
+    'tier-D': 30,
+    'tier-E': 15,
+    'tier-F': 5
+  };
+
+  return {
+    id: tierId,
+    score: tierValues[tierId] || 5
+  };
+}
+
+
+function calculateDraftDecisionScore(player, context){
+
+  if(!player) return null;
+
+  context = context || {};
+
+  var position =
+    player.position ||
+    player.pos ||
+    'N/A';
+
+  var rank =
+    Number(player.rank || player.rk || 9999);
+
+  var vorp =
+    Number(player.vorp || 0);
+
+  /*
+   * -------------------------------------------------------
+   * 1. CUSTOM RANK VALUE
+   * -------------------------------------------------------
+   *
+   * Earlier overall rankings receive more value.
+   */
+
+  var rankScore =
+    Math.max(0, 100 - ((rank - 1) * 1.5));
+
+  rankScore =
+    Math.min(100, rankScore);
+
+
+  /*
+   * -------------------------------------------------------
+   * 2. TIER VALUE
+   * -------------------------------------------------------
+   */
+
+  var tier =
+    getPlayerTierValue(player);
+
+  var tierScore =
+    tier.score;
+
+
+  /*
+   * -------------------------------------------------------
+   * 3. VORP VALUE
+   * -------------------------------------------------------
+   */
+
+  var vorpScore =
+    Math.max(0, Math.min(100, vorp));
+
+
+  /*
+   * -------------------------------------------------------
+   * 4. POSITIONAL SCARCITY
+   * -------------------------------------------------------
+   */
+
+  var scarcityScore = 0;
+
+  if(context.positionScarcity &&
+     context.positionScarcity[position] !== undefined){
+
+    scarcityScore =
+      Number(context.positionScarcity[position]);
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 5. ROSTER NEED
+   * -------------------------------------------------------
+   */
+
+  var rosterNeedScore = 0;
+
+  if(context.rosterNeeds &&
+     context.rosterNeeds[position] !== undefined){
+
+    rosterNeedScore =
+      Number(context.rosterNeeds[position]);
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 6. DRAFT TIMING
+   * -------------------------------------------------------
+   */
+
+  var timingScore = 0;
+
+  if(context.currentPick &&
+     context.nextPick){
+
+    var picksUntilNext =
+      Math.max(
+        1,
+        context.nextPick - context.currentPick
+      );
+
+    /*
+     * Players that are likely to disappear
+     * before our next pick receive more value.
+     */
+
+    if(rank <= context.nextPick){
+      timingScore += 15;
+    }
+
+    if(rank <= context.nextPick + 5){
+      timingScore += 8;
+    }
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 7. FINAL WEIGHTED SCORE
+   * -------------------------------------------------------
+   *
+   * Tier and custom ranking are deliberately strong.
+   *
+   * This prevents a late-round QB/TE from jumping
+   * an elite WR/RB simply because of positional scarcity.
+   */
+
+  var finalScore =
+      (tierScore * 0.35) +
+      (rankScore * 0.25) +
+      (vorpScore * 0.20) +
+      (scarcityScore * 0.10) +
+      (rosterNeedScore * 0.05) +
+      (timingScore * 0.05);
+
+
+  return {
+
+    name:
+      player.name || 'Unknown',
+
+    position:
+      position,
+
+    rank:
+      rank,
+
+    tier:
+      tier.id,
+
+    tierScore:
+      tierScore,
+
+    rankScore:
+      rankScore,
+
+    vorpScore:
+      vorpScore,
+
+    scarcityScore:
+      scarcityScore,
+
+    rosterNeedScore:
+      rosterNeedScore,
+
+    timingScore:
+      timingScore,
+
+    finalScore:
+      finalScore
+
+  };
+}
+
+function debugDecisionEngine(){
+
+  var players =
+    getDraftAssistantPlayers();
+
+  var available =
+    players.filter(function(player){
+      return player.available;
+    });
+
+  var context = {
+
+    currentPick:
+      getCurrentDraftPick
+        ? getCurrentDraftPick()
+        : 1,
+
+    nextPick:
+      getMyNextPick
+        ? getMyNextPick()
+        : 1,
+
+    positionScarcity: {
+      QB: 0,
+      RB: 0,
+      WR: 0,
+      TE: 0,
+      K: 0,
+      DST: 0
+    },
+
+    rosterNeeds: {
+      QB: 0,
+      RB: 0,
+      WR: 0,
+      TE: 0,
+      K: 0,
+      DST: 0
+    }
+
+  };
+
+
+  var scored =
+    available.map(function(player){
+
+      return calculateDraftDecisionScore(
+        player,
+        context
+      );
+
+    });
+
+
+  scored.sort(function(a,b){
+    return b.finalScore - a.finalScore;
+  });
+
+
+  var panel =
+    document.getElementById(
+      'draft-decision-debug-panel'
+    );
+
+
+  if(!panel){
+
+    panel =
+      document.createElement('div');
+
+    panel.id =
+      'draft-decision-debug-panel';
+
+    panel.style.cssText =
+      'position:fixed;' +
+      'left:10px;' +
+      'right:10px;' +
+      'bottom:10px;' +
+      'z-index:100001;' +
+      'background:#111;' +
+      'color:#fff;' +
+      'padding:16px;' +
+      'border-radius:12px;' +
+      'font-family:Arial,sans-serif;' +
+      'font-size:14px;' +
+      'line-height:1.5;' +
+      'box-shadow:0 4px 20px rgba(0,0,0,.4);' +
+      'max-height:80vh;' +
+      'overflow:auto;';
+
+    document.body.appendChild(panel);
+  }
+
+
+  var html =
+    '<div style="display:flex;' +
+    'justify-content:space-between;' +
+    'align-items:center;">' +
+
+      '<strong style="font-size:18px;">' +
+      '🧠 Decision Engine' +
+      '</strong>' +
+
+      '<button onclick="' +
+      "document.getElementById('draft-decision-debug-panel').remove()" +
+      '" style="background:none;border:0;' +
+      'color:white;font-size:24px;">' +
+      '&times;' +
+      '</button>' +
+
+    '</div>' +
+
+    '<hr>' +
+
+    '<strong>Top Decision Scores</strong><br><br>';
+
+
+  scored
+    .slice(0,10)
+    .forEach(function(player,index){
+
+      html +=
+
+        '<div style="' +
+        'padding:8px;' +
+        'margin-bottom:6px;' +
+        'background:rgba(255,255,255,.04);' +
+        'border-radius:8px;">' +
+
+        '<strong>' +
+        (index + 1) +
+        '. ' +
+        player.name +
+        '</strong>' +
+
+        '<br>' +
+
+        player.position +
+        ' #' +
+        player.rank +
+        ' · ' +
+        player.tier +
+
+        '<br>' +
+
+        '<strong>Decision Score: ' +
+        player.finalScore.toFixed(1) +
+        '</strong>' +
+
+        '<br>' +
+
+        'Tier: ' +
+        player.tierScore.toFixed(1) +
+
+        ' · Rank: ' +
+        player.rankScore.toFixed(1) +
+
+        ' · VORP: ' +
+        player.vorpScore.toFixed(1) +
+
+        '<br>' +
+
+        'Scarcity: ' +
+        player.scarcityScore.toFixed(1) +
+
+        ' · Need: ' +
+        player.rosterNeedScore.toFixed(1) +
+
+        ' · Timing: ' +
+        player.timingScore.toFixed(1) +
+
+        '</div>';
+
+    });
+
+
+  panel.innerHTML =
+    html;
+}
