@@ -2302,6 +2302,122 @@ function calculateLateAvailability(
   return 0;
 }
 
+function detectDraftRuns(){
+
+  var rows =
+    Array.from(
+      document.querySelectorAll(
+        'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
+      )
+    );
+
+  /*
+   * Only examine the most recent picks.
+   */
+  var recentCount = 8;
+
+  var recentRows =
+    rows.slice(-recentCount);
+
+  var counts = {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0,
+    K: 0,
+    DST: 0
+  };
+
+  recentRows.forEach(function(row){
+
+    var position =
+      row.getAttribute('data-pos');
+
+    if(
+      position &&
+      counts[position] !== undefined
+    ){
+      counts[position]++;
+    }
+
+  });
+
+
+  /*
+   * Find the position with the most
+   * selections during the recent window.
+   */
+
+  var positions =
+    Object.keys(counts);
+
+  positions.sort(function(a,b){
+    return counts[b] - counts[a];
+  });
+
+
+  var topPosition =
+    positions[0];
+
+  var topCount =
+    counts[topPosition];
+
+
+  /*
+   * A run requires at least 3 players
+   * at the position during the window.
+   */
+
+  var isRun =
+    topCount >= 3;
+
+
+  /*
+   * Determine strength of the run.
+   */
+
+  var runStrength =
+    'NONE';
+
+  if(topCount >= 5){
+
+    runStrength = 'STRONG';
+
+  } else if(topCount >= 4){
+
+    runStrength = 'MODERATE';
+
+  } else if(topCount >= 3){
+
+    runStrength = 'LIGHT';
+
+  }
+
+
+  return {
+
+    isRun:
+      isRun,
+
+    position:
+      isRun ? topPosition : null,
+
+    count:
+      isRun ? topCount : 0,
+
+    strength:
+      runStrength,
+
+    recentCount:
+      recentRows.length,
+
+    counts:
+      counts
+
+  };
+
+}
+
 
 /*
  * Calculate a complete Stage 2 profile for a player.
@@ -3878,6 +3994,14 @@ function debugDecisionEngine(){
   calculateAllFantasyVorp(players);
 
   var draftState = getDraftAssistantState();
+
+  var draftRuns =
+  detectDraftRuns();
+
+console.log(
+  'DRAFT RUN DEBUG:',
+  draftRuns
+);
 
   var draftStrategy =
   calculateDraftStrategy();
