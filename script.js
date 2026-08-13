@@ -1050,14 +1050,15 @@ syncEditControls();
 }
 
 function resetRanks(){
-  
+
   if(!confirm(
-  'Reset all custom player rankings?\n\n' +
-  'This will undo all of your manual rank and tier adjustments.'
-)){
-  return;
-}
-  
+    'Reset all custom player rankings?\n\n' +
+    'This will undo ALL of your manual rank and tier adjustments.\n\n' +
+    'Your player draft/taken status will not be affected.'
+  )){
+    return;
+  }
+
   if(!window.ORIGINAL_ORDER || !window.ORIGINAL_ORDER.length){
     flashSaveIndicator('Nothing to reset', '#e08a8a');
     return;
