@@ -2337,11 +2337,25 @@ function calculateVorpProfile(
       replacements
     );
 
+  console.log(
+  'VORP SCARCITY HANDOFF:',
+  player.name,
+  'calculated scarcity =',
+  scarcity
+);
+
   var lateAvailability =
     calculateLateAvailability(
       player,
       players
     );
+
+  console.log(
+  'VORP SCARCITY RETURN:',
+  player.name,
+  'scarcity =',
+  scarcity
+);
 
   return {
 
