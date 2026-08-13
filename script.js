@@ -2982,6 +2982,17 @@ if(context.strategy &&
  */
 finalScore += strategyScore;
 
+  console.log(
+  'STRATEGY SCORE DEBUG:',
+  player.name,
+  'position =', position,
+  'targetPosition =',
+  context.strategy &&
+  context.strategy.targetPosition,
+  'strategyScore =',
+  strategyScore
+);
+
   return {
 
     name:
