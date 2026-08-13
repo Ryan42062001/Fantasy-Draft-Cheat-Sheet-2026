@@ -2707,6 +2707,76 @@ function calculateDraftNeed(player, context) {
   return needScore;
 }
 
+function calculateDraftScarcity(player, context) {
+
+  if(!player || !context){
+    return 0;
+  }
+
+  var pos =
+    player.position || player.pos;
+
+  if(!pos){
+    return 0;
+  }
+
+  var profiles =
+    context.vorpProfiles || [];
+
+  var positionPlayers =
+    profiles.filter(function(profile){
+
+      var p = profile.player;
+
+      if(!p){
+        return false;
+      }
+
+      var pPos =
+        p.position || p.pos;
+
+      return pPos === pos &&
+             p.available !== false;
+
+    });
+
+  if(positionPlayers.length <= 1){
+    return 100;
+  }
+
+  /*
+   * Count how many players remain who are
+   * reasonably close to this player's VORP.
+   */
+  var playerVorp =
+    Number(player.vorp) || 0;
+
+  var comparableCount =
+    positionPlayers.filter(function(profile){
+
+      var v =
+        Number(profile.vorp) || 0;
+
+      return v >= playerVorp * 0.70;
+
+    }).length;
+
+  /*
+   * Fewer comparable players = greater scarcity.
+   */
+  var scarcity =
+    100 -
+    ((comparableCount - 1) * 15);
+
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      scarcity
+    )
+  );
+}
+
 function calculateDraftDecisionScore(player, context){
 
   if(!player) return null;
@@ -2777,7 +2847,11 @@ var vorpScore =
    * -------------------------------------------------------
    */
 
-  var scarcityScore = 0;
+  var scarcityScore =
+  calculateDraftScarcity(
+    player,
+    context
+  );
 
   if(context.positionScarcity &&
      context.positionScarcity[position] !== undefined){
@@ -2989,6 +3063,9 @@ var vorpMax = Math.max.apply(
 );
 
 context.vorpMax = vorpMax;
+
+  context.vorpProfiles =
+  vorpResult.profiles;
   
   var scored =
   vorpResult.profiles
