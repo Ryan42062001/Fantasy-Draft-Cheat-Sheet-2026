@@ -3105,17 +3105,17 @@ function debugDecisionEngine(){
 
 var context = {
 
-  context.teams =
-  Number(
-    document.getElementById('pcTeams')?.value
-  ) || 10;
+  teams:
+    Number(
+      document.getElementById('pcTeams')?.value
+    ) || 10,
 
-context.rosterSettings = {
-  QB: Number(ROSTER_SLOTS.QB) || 1,
-  RB: Number(ROSTER_SLOTS.RB) || 2,
-  WR: Number(ROSTER_SLOTS.WR) || 2,
-  TE: Number(ROSTER_SLOTS.TE) || 1
-};
+  rosterSettings: {
+    QB: Number(ROSTER_SLOTS.QB) || 1,
+    RB: Number(ROSTER_SLOTS.RB) || 2,
+    WR: Number(ROSTER_SLOTS.WR) || 2,
+    TE: Number(ROSTER_SLOTS.TE) || 1
+  },
 
   currentPick:
     draftState.currentPick,
