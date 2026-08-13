@@ -2187,7 +2187,6 @@ function calculatePositionTierCliff(
 ) {
 
   if (!position || !players || !vorpProfiles) {
-
     return {
       position: position || 'N/A',
       severity: 'NONE',
@@ -2197,7 +2196,6 @@ function calculatePositionTierCliff(
       scoreGap: 0,
       rankGap: 0
     };
-
   }
 
 
@@ -2229,6 +2227,24 @@ function calculatePositionTierCliff(
       });
 
 
+  /*
+   * Only examine the top available players.
+   *
+   * This prevents a huge drop far down the
+   * player pool from being treated as the
+   * most important cliff right now.
+   */
+
+  var LOOKAHEAD =
+    12;
+
+  positionProfiles =
+    positionProfiles.slice(
+      0,
+      LOOKAHEAD
+    );
+
+
   if (positionProfiles.length < 3) {
 
     return {
@@ -2246,7 +2262,7 @@ function calculatePositionTierCliff(
 
   /*
    * -------------------------------------------------------
-   * CALCULATE ALL ADJACENT VORP GAPS
+   * CALCULATE ADJACENT VORP GAPS
    * -------------------------------------------------------
    */
 
@@ -2281,6 +2297,9 @@ function calculatePositionTierCliff(
 
     gaps.push({
 
+      index:
+        i,
+
       beforePlayer:
         current.player,
 
@@ -2305,8 +2324,11 @@ function calculatePositionTierCliff(
 
   /*
    * -------------------------------------------------------
-   * CALCULATE AVERAGE GAP
+   * CALCULATE NORMAL GAP
    * -------------------------------------------------------
+   *
+   * Use the average of the observed gaps
+   * as our baseline.
    */
 
   var totalGap = 0;
@@ -2323,24 +2345,7 @@ function calculatePositionTierCliff(
     totalGap / gaps.length;
 
 
-  /*
-   * -------------------------------------------------------
-   * FIND LARGEST GAP
-   * -------------------------------------------------------
-   */
-
-  gaps.sort(function(a, b) {
-
-    return b.vorpGap - a.vorpGap;
-
-  });
-
-
-  var largestGap =
-    gaps[0];
-
-
-  if (!largestGap || averageGap <= 0) {
+  if (averageGap <= 0) {
 
     return {
       position: position,
@@ -2349,7 +2354,8 @@ function calculatePositionTierCliff(
       beforePlayer: null,
       afterPlayer: null,
       scoreGap: 0,
-      rankGap: 0
+      rankGap: 0,
+      averageGap: averageGap
     };
 
   }
@@ -2357,35 +2363,91 @@ function calculatePositionTierCliff(
 
   /*
    * -------------------------------------------------------
-   * RELATIVE CLIFF STRENGTH
+   * FIND THE FIRST MEANINGFUL CLIFF
    * -------------------------------------------------------
    *
-   * How many times larger is the largest gap
-   * than the normal gap for this position?
+   * We intentionally scan from the top of the
+   * available player pool.
+   *
+   * This means the first meaningful cliff is
+   * more important than a massive drop much
+   * farther down the board.
    */
 
-  var relativeGap =
-    largestGap.vorpGap /
-    averageGap;
+  var selectedCliff =
+    null;
+
+
+  for (
+    var j = 0;
+    j < gaps.length;
+    j++
+  ) {
+
+    var gap =
+      gaps[j];
+
+
+    var relativeGap =
+      gap.vorpGap /
+      averageGap;
+
+
+    /*
+     * Require the gap to be at least
+     * 1.5x the normal gap.
+     */
+
+    if (relativeGap >= 1.5) {
+
+      selectedCliff =
+        gap;
+
+      break;
+
+    }
+
+  }
+
+
+  /*
+   * If no meaningful cliff exists,
+   * return NONE.
+   */
+
+  if (!selectedCliff) {
+
+    return {
+      position: position,
+      severity: 'NONE',
+      cliffScore: 0,
+      beforePlayer: null,
+      afterPlayer: null,
+      scoreGap: 0,
+      rankGap: 0,
+      averageGap: averageGap
+    };
+
+  }
 
 
   /*
    * -------------------------------------------------------
-   * CONVERT TO 0-100 SCORE
+   * CLIFF STRENGTH
    * -------------------------------------------------------
-   *
-   * 1.0x average = essentially no cliff
-   * 1.5x average = noticeable
-   * 2.0x average = strong
-   * 2.5x+ average = major cliff
    */
+
+  var selectedRelativeGap =
+    selectedCliff.vorpGap /
+    averageGap;
+
 
   var cliffScore =
     Math.max(
       0,
       Math.min(
         100,
-        (relativeGap - 1) * 60
+        (selectedRelativeGap - 1) * 60
       )
     );
 
@@ -2423,22 +2485,22 @@ function calculatePositionTierCliff(
       cliffScore,
 
     beforePlayer:
-      largestGap.beforePlayer,
+      selectedCliff.beforePlayer,
 
     afterPlayer:
-      largestGap.afterPlayer,
+      selectedCliff.afterPlayer,
 
     scoreGap:
-      largestGap.vorpGap,
+      selectedCliff.vorpGap,
 
     rankGap:
-      largestGap.rankGap,
+      selectedCliff.rankGap,
 
     averageGap:
       averageGap,
 
     relativeGap:
-      relativeGap
+      selectedRelativeGap
 
   };
 
