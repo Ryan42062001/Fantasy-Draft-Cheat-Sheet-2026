@@ -3054,6 +3054,15 @@ context.vorpMax = vorpMax;
     }
   );
 
+console.log(
+  'SCARCITY DEBUG:',
+  player.name,
+  'profile.scarcity =',
+  profile.scarcity,
+  'player.scarcity =',
+  player.scarcity
+);
+
       return calculateDraftDecisionScore(
         player,
         context
