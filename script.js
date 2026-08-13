@@ -2409,6 +2409,16 @@ function calculateAllFantasyVorp(players) {
       );
     });
 
+  console.log(
+  'VORP PROFILE TEST:',
+  profiles.slice(0, 5).map(function(p){
+    return {
+      name: p.player.name,
+      scarcity: p.scarcity
+    };
+  })
+);
+
   return {
 
     settings:
