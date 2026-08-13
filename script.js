@@ -2983,12 +2983,6 @@ function debugDecisionEngine(){
   var vorpResult =
   calculateAllFantasyVorp(players);
 
-  context.availablePlayers =
-  available;
-
-context.replacements =
-  vorpResult.replacements;
-
   var draftState = getDraftAssistantState();
 
 var context = {
