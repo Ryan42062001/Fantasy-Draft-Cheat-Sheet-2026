@@ -3157,12 +3157,27 @@ if(context.strategy &&
 
 }
 
+  var runOpportunityScore =
+  calculateDraftRunOpportunity(
+    player,
+    context
+  );
+
+console.log(
+  'RUN OPPORTUNITY SCORE:',
+  player.name,
+  'position =', position,
+  'runOpportunityScore =',
+  runOpportunityScore
+);
+
 
 /*
  * Add the strategy adjustment after the normal
  * weighted score is calculated.
  */
 finalScore += strategyScore;
+finalScore += runOpportunityScore;
 
   console.log(
   'STRATEGY SCORE DEBUG:',
@@ -3210,8 +3225,11 @@ finalScore += strategyScore;
     strategyScore:
   strategyScore,
 
-    finalScore:
-      finalScore
+runOpportunityScore:
+  runOpportunityScore,
+
+finalScore:
+  finalScore
 
   };
 }
@@ -4329,6 +4347,9 @@ scored.forEach(function(player, index){
 
         ' · Timing: ' +
 player.timingScore.toFixed(1) +
+
+' · Run Opportunity: ' +
+player.runOpportunityScore.toFixed(1) +
 
 '<br><br>' +
 
