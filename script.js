@@ -3143,6 +3143,23 @@ if(context.rosterNeeds &&
 
 var strategyScore = 0;
 
+  var runOpportunityScore =
+  calculateDraftRunOpportunity(
+    player,
+    context
+  );
+
+console.log(
+  'RUN OPPORTUNITY SCORE:',
+  player.name,
+  'position =', position,
+  'runOpportunityScore =',
+  runOpportunityScore
+);
+
+  finalScore += strategyScore;
+finalScore += runOpportunityScore;
+
 if(context.strategy &&
    context.strategy.targetPosition){
 
