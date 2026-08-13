@@ -2990,6 +2990,9 @@ function calculateDecisionRosterNeeds(){
 
   var needs = {};
 
+  /*
+   * Dedicated starting-position needs
+   */
   ['QB','RB','WR','TE','K','DST']
     .forEach(function(pos){
 
@@ -3006,6 +3009,63 @@ function calculateDecisionRosterNeeds(){
         );
 
     });
+
+
+  /*
+   * FLEX need.
+   *
+   * FLEX can be filled by RB / WR / TE.
+   *
+   * First determine how many RB/WR/TE players
+   * are already being used to satisfy dedicated
+   * starting positions.
+   */
+  var dedicatedFlexEligible =
+    Math.min(
+      counts.RB,
+      Number(ROSTER_SLOTS.RB) || 0
+    ) +
+    Math.min(
+      counts.WR,
+      Number(ROSTER_SLOTS.WR) || 0
+    ) +
+    Math.min(
+      counts.TE,
+      Number(ROSTER_SLOTS.TE) || 0
+    );
+
+
+  /*
+   * Total RB/WR/TE players currently on roster.
+   */
+  var totalFlexEligible =
+    counts.RB +
+    counts.WR +
+    counts.TE;
+
+
+  /*
+   * Players already available to fill FLEX
+   * beyond the dedicated requirements.
+   */
+  var flexFilled =
+    Math.max(
+      0,
+      totalFlexEligible -
+      dedicatedFlexEligible
+    );
+
+
+  var flexSlots =
+    Number(ROSTER_SLOTS.FLEX) || 0;
+
+
+  needs.FLEX =
+    Math.max(
+      0,
+      flexSlots - flexFilled
+    );
+
 
   return needs;
 }
