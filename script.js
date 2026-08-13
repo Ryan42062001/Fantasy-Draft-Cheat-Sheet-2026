@@ -2186,15 +2186,19 @@ function calculatePositionTierCliff(
   vorpProfiles
 ) {
 
-  if (!position || !players || !vorpProfiles) {
+  if (!position || !players) {
     return {
       position: position || 'N/A',
       severity: 'NONE',
       cliffScore: 0,
       beforePlayer: null,
       afterPlayer: null,
-      scoreGap: 0,
-      rankGap: 0
+      fromTier: null,
+      toTier: null,
+      tierGap: 0,
+      rankGap: 0,
+      playersBeforeCliff: 0,
+      playersAfterCliff: 0
     };
   }
 
@@ -2205,23 +2209,23 @@ function calculatePositionTierCliff(
    * -------------------------------------------------------
    */
 
-  var positionProfiles =
-    vorpProfiles
-      .filter(function(profile) {
+  var positionPlayers =
+    players
+      .filter(function(player) {
 
-        return profile &&
-          profile.player &&
-          profile.player.available &&
-          profile.player.position === position;
+        return player &&
+          player.available &&
+          player.position === position &&
+          player.rank;
 
       })
       .sort(function(a, b) {
 
         return (
-          Number(a.player.rank) || 9999
+          Number(a.rank) || 9999
         ) -
         (
-          Number(b.player.rank) || 9999
+          Number(b.rank) || 9999
         );
 
       });
@@ -2230,22 +2234,20 @@ function calculatePositionTierCliff(
   /*
    * Only examine the top available players.
    *
-   * This prevents a huge drop far down the
-   * player pool from being treated as the
-   * most important cliff right now.
+   * This keeps distant late-round tier changes
+   * from becoming the most important cliff.
    */
 
-  var LOOKAHEAD =
-    12;
+  var LOOKAHEAD = 12;
 
-  positionProfiles =
-    positionProfiles.slice(
+  positionPlayers =
+    positionPlayers.slice(
       0,
       LOOKAHEAD
     );
 
 
-  if (positionProfiles.length < 3) {
+  if (positionPlayers.length < 2) {
 
     return {
       position: position,
@@ -2253,8 +2255,12 @@ function calculatePositionTierCliff(
       cliffScore: 0,
       beforePlayer: null,
       afterPlayer: null,
-      scoreGap: 0,
-      rankGap: 0
+      fromTier: null,
+      toTier: null,
+      tierGap: 0,
+      rankGap: 0,
+      playersBeforeCliff: 0,
+      playersAfterCliff: 0
     };
 
   }
@@ -2262,60 +2268,188 @@ function calculatePositionTierCliff(
 
   /*
    * -------------------------------------------------------
-   * CALCULATE ADJACENT VORP GAPS
+   * GET TIER VALUE
    * -------------------------------------------------------
+   *
+   * Use the same tier system already used by
+   * the Decision Engine.
    */
 
-  var gaps = [];
+  var tierRank = {
+
+    'Sp': 0,
+    'S': 1,
+    'A': 2,
+    'B': 3,
+    'C': 4,
+    'D': 5,
+    'F': 6
+
+  };
+
+
+  function getTierId(player) {
+
+    try {
+
+      var tier =
+        getPlayerTierValue(
+          player
+        );
+
+      if (tier && tier.id) {
+
+        return tier.id;
+
+      }
+
+    } catch (e) {}
+
+    return (
+      player.tier ||
+      null
+    );
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * FIND TIER TRANSITIONS
+   * -------------------------------------------------------
+   *
+   * A tier cliff only exists when the actual
+   * player tier changes.
+   */
+
+  var cliffs = [];
+
 
   for (
     var i = 0;
-    i < positionProfiles.length - 1;
+    i < positionPlayers.length - 1;
     i++
   ) {
 
-    var current =
-      positionProfiles[i];
+    var beforePlayer =
+      positionPlayers[i];
 
-    var next =
-      positionProfiles[i + 1];
-
-
-    var currentVorp =
-      Number(current.vorp) || 0;
-
-    var nextVorp =
-      Number(next.vorp) || 0;
+    var afterPlayer =
+      positionPlayers[i + 1];
 
 
-    var vorpGap =
-      Math.max(
-        0,
-        currentVorp - nextVorp
+    var fromTier =
+      getTierId(
+        beforePlayer
+      );
+
+    var toTier =
+      getTierId(
+        afterPlayer
       );
 
 
-    gaps.push({
+    /*
+     * If we cannot determine either tier,
+     * don't guess.
+     */
 
-      index:
-        i,
+    if (
+      !fromTier ||
+      !toTier
+    ) {
+
+      continue;
+
+    }
+
+
+    /*
+     * Same tier = no cliff.
+     */
+
+    if (
+      fromTier === toTier
+    ) {
+
+      continue;
+
+    }
+
+
+    var fromValue =
+      tierRank[fromTier];
+
+    var toValue =
+      tierRank[toTier];
+
+
+    /*
+     * Ignore unknown tier IDs.
+     */
+
+    if (
+      fromValue === undefined ||
+      toValue === undefined
+    ) {
+
+      continue;
+
+    }
+
+
+    /*
+     * We only care about a DROP in quality.
+     *
+     * Example:
+     *
+     * A → B = real cliff
+     *
+     * B → A = not a cliff
+     */
+
+    var tierGap =
+      toValue - fromValue;
+
+
+    if (tierGap <= 0) {
+
+      continue;
+
+    }
+
+
+    var rankGap =
+      (
+        Number(afterPlayer.rank) || 0
+      ) -
+      (
+        Number(beforePlayer.rank) || 0
+      );
+
+
+    cliffs.push({
 
       beforePlayer:
-        current.player,
+        beforePlayer,
 
       afterPlayer:
-        next.player,
+        afterPlayer,
 
-      vorpGap:
-        vorpGap,
+      fromTier:
+        fromTier,
+
+      toTier:
+        toTier,
+
+      tierGap:
+        tierGap,
 
       rankGap:
-        (
-          Number(next.player.rank) || 0
-        ) -
-        (
-          Number(current.player.rank) || 0
-        )
+        rankGap,
+
+      index:
+        i
 
     });
 
@@ -2324,132 +2458,124 @@ function calculatePositionTierCliff(
 
   /*
    * -------------------------------------------------------
-   * CALCULATE NORMAL GAP
+   * NO TIER CLIFF
    * -------------------------------------------------------
-   *
-   * Use the average of the observed gaps
-   * as our baseline.
    */
 
-  var totalGap = 0;
+  if (!cliffs.length) {
 
-  gaps.forEach(function(gap) {
+    return {
+      position: position,
+      severity: 'NONE',
+      cliffScore: 0,
+      beforePlayer: null,
+      afterPlayer: null,
+      fromTier: null,
+      toTier: null,
+      tierGap: 0,
+      rankGap: 0,
+      playersBeforeCliff: 0,
+      playersAfterCliff: 0
+    };
 
-    totalGap +=
-      gap.vorpGap;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * SCORE EACH TIER CLIFF
+   * -------------------------------------------------------
+   *
+   * We care about three things:
+   *
+   * 1. How many tiers did we fall?
+   * 2. How large is the rank gap?
+   * 3. How early is the cliff?
+   *
+   * The earlier cliff gets additional importance.
+   */
+
+  cliffs.forEach(function(cliff) {
+
+    var tierScore =
+      Math.min(
+        60,
+        cliff.tierGap * 30
+      );
+
+
+    var rankScore =
+      Math.min(
+        25,
+        Math.max(
+          0,
+          cliff.rankGap * 2
+        )
+      );
+
+
+    /*
+     * Earlier cliffs matter more.
+     *
+     * The first available transition gets
+     * the strongest opportunity multiplier.
+     */
+
+    var positionMultiplier =
+      Math.max(
+        0.5,
+        1 -
+        (
+          cliff.index * 0.08
+        )
+      );
+
+
+    cliff.cliffScore =
+      Math.min(
+        100,
+        (
+          tierScore +
+          rankScore
+        ) *
+        positionMultiplier
+      );
 
   });
 
 
-  var averageGap =
-    totalGap / gaps.length;
-
-
-  if (averageGap <= 0) {
-
-    return {
-      position: position,
-      severity: 'NONE',
-      cliffScore: 0,
-      beforePlayer: null,
-      afterPlayer: null,
-      scoreGap: 0,
-      rankGap: 0,
-      averageGap: averageGap
-    };
-
-  }
-
-
   /*
    * -------------------------------------------------------
-   * FIND THE FIRST MEANINGFUL CLIFF
+   * SELECT THE MOST IMPORTANT CLIFF
    * -------------------------------------------------------
-   *
-   * We intentionally scan from the top of the
-   * available player pool.
-   *
-   * This means the first meaningful cliff is
-   * more important than a massive drop much
-   * farther down the board.
    */
+
+  cliffs.sort(function(a, b) {
+
+    return (
+      b.cliffScore -
+      a.cliffScore
+    );
+
+  });
+
 
   var selectedCliff =
-    null;
-
-
-  for (
-    var j = 0;
-    j < gaps.length;
-    j++
-  ) {
-
-    var gap =
-      gaps[j];
-
-
-    var relativeGap =
-      gap.vorpGap /
-      averageGap;
-
-
-    /*
-     * Require the gap to be at least
-     * 1.5x the normal gap.
-     */
-
-    if (relativeGap >= 1.5) {
-
-      selectedCliff =
-        gap;
-
-      break;
-
-    }
-
-  }
-
-
-  /*
-   * If no meaningful cliff exists,
-   * return NONE.
-   */
-
-  if (!selectedCliff) {
-
-    return {
-      position: position,
-      severity: 'NONE',
-      cliffScore: 0,
-      beforePlayer: null,
-      afterPlayer: null,
-      scoreGap: 0,
-      rankGap: 0,
-      averageGap: averageGap
-    };
-
-  }
+    cliffs[0];
 
 
   /*
    * -------------------------------------------------------
-   * CLIFF STRENGTH
+   * COUNT PLAYERS AROUND CLIFF
    * -------------------------------------------------------
    */
 
-  var selectedRelativeGap =
-    selectedCliff.vorpGap /
-    averageGap;
+  var playersBeforeCliff =
+    selectedCliff.index + 1;
 
-
-  var cliffScore =
-    Math.max(
-      0,
-      Math.min(
-        100,
-        (selectedRelativeGap - 1) * 60
-      )
-    );
+  var playersAfterCliff =
+    positionPlayers.length -
+    playersBeforeCliff;
 
 
   /*
@@ -2462,15 +2588,49 @@ function calculatePositionTierCliff(
     'LOW';
 
 
-  if (cliffScore >= 70) {
+  if (
+    selectedCliff.cliffScore >= 70
+  ) {
 
-    severity = 'HIGH';
+    severity =
+      'HIGH';
 
-  } else if (cliffScore >= 35) {
+  } else if (
+    selectedCliff.cliffScore >= 40
+  ) {
 
-    severity = 'MODERATE';
+    severity =
+      'MODERATE';
 
   }
+
+
+  /*
+   * -------------------------------------------------------
+   * DEBUG
+   * -------------------------------------------------------
+   */
+
+  console.log(
+    'POSITION TIER CLIFF:',
+    position,
+    'before =',
+    selectedCliff.beforePlayer.name,
+    'tier =',
+    selectedCliff.fromTier,
+    'after =',
+    selectedCliff.afterPlayer.name,
+    'tier =',
+    selectedCliff.toTier,
+    'tierGap =',
+    selectedCliff.tierGap,
+    'rankGap =',
+    selectedCliff.rankGap,
+    'score =',
+    selectedCliff.cliffScore,
+    'severity =',
+    severity
+  );
 
 
   return {
@@ -2482,7 +2642,7 @@ function calculatePositionTierCliff(
       severity,
 
     cliffScore:
-      cliffScore,
+      selectedCliff.cliffScore,
 
     beforePlayer:
       selectedCliff.beforePlayer,
@@ -2490,17 +2650,23 @@ function calculatePositionTierCliff(
     afterPlayer:
       selectedCliff.afterPlayer,
 
-    scoreGap:
-      selectedCliff.vorpGap,
+    fromTier:
+      selectedCliff.fromTier,
+
+    toTier:
+      selectedCliff.toTier,
+
+    tierGap:
+      selectedCliff.tierGap,
 
     rankGap:
       selectedCliff.rankGap,
 
-    averageGap:
-      averageGap,
+    playersBeforeCliff:
+      playersBeforeCliff,
 
-    relativeGap:
-      selectedRelativeGap
+    playersAfterCliff:
+      playersAfterCliff
 
   };
 
