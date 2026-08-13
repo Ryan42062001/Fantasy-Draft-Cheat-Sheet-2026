@@ -2867,8 +2867,35 @@ var rosterNeedScore =
 if(context.rosterNeeds &&
    context.rosterNeeds[position] !== undefined){
 
-  rosterNeedScore =
-    Number(context.rosterNeeds[position]);
+  var dedicatedNeed =
+    Number(context.rosterNeeds[position]) || 0;
+
+  var flexNeed =
+    Number(context.rosterNeeds.FLEX) || 0;
+
+  /*
+   * RB / WR / TE can fill either their
+   * dedicated position or FLEX.
+   *
+   * Do not add the two together because
+   * one player can only fill one roster spot.
+   */
+  if(position === 'RB' ||
+     position === 'WR' ||
+     position === 'TE'){
+
+    rosterNeedScore =
+      Math.max(
+        dedicatedNeed,
+        flexNeed
+      );
+
+  } else {
+
+    rosterNeedScore =
+      dedicatedNeed;
+
+  }
 }
 
 
@@ -3105,11 +3132,12 @@ var context = {
     ) || 10,
 
   rosterSettings: {
-    QB: Number(ROSTER_SLOTS.QB) || 1,
-    RB: Number(ROSTER_SLOTS.RB) || 2,
-    WR: Number(ROSTER_SLOTS.WR) || 2,
-    TE: Number(ROSTER_SLOTS.TE) || 1
-  },
+  QB: Number(ROSTER_SLOTS.QB) || 1,
+  RB: Number(ROSTER_SLOTS.RB) || 2,
+  WR: Number(ROSTER_SLOTS.WR) || 2,
+  TE: Number(ROSTER_SLOTS.TE) || 1,
+  FLEX: Number(ROSTER_SLOTS.FLEX) || 1
+},
 
   availablePlayers:
   available,
