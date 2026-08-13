@@ -2017,6 +2017,69 @@ function getEffectiveReplacement(
   return null;
 }
 
+function calculateTierCliffOpportunity(player, context){
+
+  if(!player || !context || !context.tierCliffs){
+    return 0;
+  }
+
+  var position =
+    player.position ||
+    player.pos ||
+    'N/A';
+
+  var cliff =
+    context.tierCliffs[position];
+
+  /*
+   * No meaningful cliff at this position.
+   */
+  if(!cliff ||
+     !cliff.beforePlayer ||
+     !cliff.afterPlayer){
+
+    return 0;
+  }
+
+  /*
+   * Only meaningful cliffs should create
+   * draft urgency.
+   */
+  if(cliff.severity !== 'HIGH' &&
+     cliff.severity !== 'MODERATE'){
+
+    return 0;
+  }
+
+  /*
+   * Only reward the player who is actually
+   * sitting immediately above the cliff.
+   */
+  var cliffPlayer =
+    cliff.beforePlayer;
+
+  if(!cliffPlayer ||
+     player.name !== cliffPlayer.name){
+
+    return 0;
+  }
+
+  /*
+   * Stronger cliffs receive a larger bonus.
+   *
+   * HIGH     = +5
+   * MODERATE = +3
+   */
+  if(cliff.severity === 'HIGH'){
+    return 5;
+  }
+
+  if(cliff.severity === 'MODERATE'){
+    return 3;
+  }
+
+  return 0;
+}
 
 /*
  * Calculate positional VORP.
@@ -3679,6 +3742,21 @@ console.log(
   runOpportunityScore
 );
 
+  var tierCliffOpportunityScore =
+  calculateTierCliffOpportunity(
+    player,
+    context
+  );
+
+console.log(
+  'TIER CLIFF OPPORTUNITY:',
+  player.name,
+  'position =',
+  position,
+  'tierCliffOpportunityScore =',
+  tierCliffOpportunityScore
+);
+
 
 /*
  * Add the strategy adjustment after the normal
@@ -3735,6 +3813,9 @@ finalScore += runOpportunityScore;
 
 runOpportunityScore:
   runOpportunityScore,
+
+    tierCliffOpportunityScore:
+  tierCliffOpportunityScore,
 
 finalScore:
   finalScore
@@ -4607,7 +4688,7 @@ console.log(
   'TIER CLIFF DEBUG:',
   tierCliffs
 );
-
+  
   console.log(
   'TIER CLIFF DETAILS:',
   JSON.stringify(
@@ -4670,6 +4751,9 @@ replacements:
 
   draftRuns:
     draftRuns,
+
+  tierCliffs:
+    tierCliffs,
 
   strategyExplanation:
     strategyExplanation
