@@ -2709,23 +2709,19 @@ function calculateDraftNeed(player, context) {
 
 function calculateDraftScarcity(player, context){
 
-  if(!player || !context){
+  if(!player){
     return 0;
   }
 
-  var players =
-    context.availablePlayers || [];
-
-  var replacements =
-    context.replacements || {};
-
+  /*
+   * The VORP engine already calculates
+   * positional scarcity for each player.
+   * Reuse that value instead of calculating
+   * it a second time.
+   */
   return Number(
-    calculatePositionScarcity(
-      player,
-      players,
-      replacements
-    )
-  ) || 0;
+    player.scarcity || 0
+  );
 }
 
 function calculateDraftDecisionScore(player, context){
@@ -3046,14 +3042,17 @@ context.vorpMax = vorpMax;
     .map(function(profile){
 
       var player =
-        Object.assign(
-          {},
-          profile.player,
-          {
-            vorp:
-              profile.vorp
-          }
-        );
+  Object.assign(
+    {},
+    profile.player,
+    {
+      vorp:
+        profile.vorp,
+
+      scarcity:
+        profile.scarcity
+    }
+  );
 
       return calculateDraftDecisionScore(
         player,
