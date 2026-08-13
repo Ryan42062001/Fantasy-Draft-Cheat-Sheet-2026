@@ -2669,6 +2669,43 @@ function getPlayerTierValue(player){
   };
 }
 
+function calculateDraftNeed(player, context) {
+
+  if(!player || !context){
+    return 0;
+  }
+
+  var pos = player.position || player.pos;
+
+  if(!pos){
+    return 0;
+  }
+
+  var rosterNeeds =
+    context.rosterNeeds || {};
+
+  /*
+   * Number of starting spots still needed
+   * at this position.
+   */
+  var startersNeeded =
+    Number(rosterNeeds[pos]) || 0;
+
+  /*
+   * Normalize need to a 0-100 scale.
+   *
+   * More unfilled starting spots = higher need.
+   * This is intentionally capped so roster need
+   * never overwhelms elite player value.
+   */
+  var needScore =
+    Math.min(
+      100,
+      startersNeeded * 25
+    );
+
+  return needScore;
+}
 
 function calculateDraftDecisionScore(player, context){
 
@@ -2756,7 +2793,10 @@ var vorpScore =
    * -------------------------------------------------------
    */
 
-  var rosterNeedScore = 0;
+  var needScore = calculateDraftNeed(
+  player,
+  context
+);
 
   if(context.rosterNeeds &&
      context.rosterNeeds[position] !== undefined){
@@ -2856,6 +2896,54 @@ var vorpScore =
   };
 }
 
+function calculateDecisionRosterNeeds(){
+
+  var counts = {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0,
+    K: 0,
+    DST: 0
+  };
+
+  document
+    .querySelectorAll(
+      'tr.draftrow.drafted-mine'
+    )
+    .forEach(function(row){
+
+      var pos =
+        row.getAttribute('data-pos');
+
+      if(pos && counts[pos] !== undefined){
+        counts[pos]++;
+      }
+
+    });
+
+  var needs = {};
+
+  ['QB','RB','WR','TE','K','DST']
+    .forEach(function(pos){
+
+      var starters =
+        Number(ROSTER_SLOTS[pos]) || 0;
+
+      var filled =
+        counts[pos] || 0;
+
+      needs[pos] =
+        Math.max(
+          0,
+          starters - filled
+        );
+
+    });
+
+  return needs;
+}
+
 function debugDecisionEngine(){
 
   var players =
@@ -2888,14 +2976,8 @@ var context = {
     DST: 0
   },
 
-  rosterNeeds: {
-    QB: 0,
-    RB: 0,
-    WR: 0,
-    TE: 0,
-    K: 0,
-    DST: 0
-  }
+  rosterNeeds:
+  calculateDecisionRosterNeeds(),
 
 };
 
