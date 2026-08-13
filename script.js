@@ -2537,12 +2537,11 @@ function calculateDraftRunOpportunity(player, context){
 
   return opportunityScore;
 }
-```
-
 
 /*
  * Calculate a complete Stage 2 profile for a player.
  */
+ 
 function calculateVorpProfile(
   player,
   players,
