@@ -861,9 +861,15 @@ function syncRankData(){
 
         if(posRankLabel){
 
-          posRankLabel.textContent =
-            position + posRank;
-        }
+  posRankLabel.textContent =
+    position + posRank;
+
+  console.log(
+    'Updated position rank:',
+    row.getAttribute('data-name'),
+    position + posRank
+  );
+}
       }
 
       overallRank++;
