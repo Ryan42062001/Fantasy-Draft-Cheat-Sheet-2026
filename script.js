@@ -2721,8 +2721,17 @@ function calculateDraftDecisionScore(player, context){
    * -------------------------------------------------------
    */
 
-  var vorpScore =
-    Math.max(0, Math.min(100, vorp));
+  var vorpMax =
+  Number(context.vorpMax || 1);
+
+var vorpScore =
+  Math.max(
+    0,
+    Math.min(
+      100,
+      (vorp / vorpMax) * 100
+    )
+  );
 
 
   /*
@@ -2890,7 +2899,15 @@ var context = {
 
 };
 
+var vorpMax = Math.max.apply(
+  null,
+  vorpResult.profiles.map(function(profile){
+    return Number(profile.vorp) || 0;
+  })
+);
 
+context.vorpMax = vorpMax;
+  
   var scored =
   vorpResult.profiles
     .filter(function(profile){
