@@ -2850,15 +2850,9 @@ function debugDecisionEngine(){
 
   var context = {
 
-    currentPick:
-      getCurrentDraftPick
-        ? getCurrentDraftPick()
-        : 1,
+    currentPick: 1,
 
-    nextPick:
-      getMyNextPick
-        ? getMyNextPick()
-        : 1,
+    nextPick: 11,
 
     positionScarcity: {
       QB: 0,
