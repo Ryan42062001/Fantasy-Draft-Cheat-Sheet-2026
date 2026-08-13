@@ -2707,66 +2707,135 @@ function calculateDraftNeed(player, context) {
   return needScore;
 }
 
-function calculateDraftScarcity(player, context) {
+function calculateDraftScarcity(player, context){
 
   if(!player || !context){
     return 0;
   }
 
-  var pos =
-    player.position || player.pos;
+  var position =
+    player.position ||
+    player.pos;
 
-  if(!pos){
+  if(!position){
     return 0;
   }
 
   var profiles =
     context.vorpProfiles || [];
 
-  var positionPlayers =
+  var positionProfiles =
     profiles.filter(function(profile){
 
-      var p = profile.player;
-
-      if(!p){
+      if(!profile || !profile.player){
         return false;
       }
 
+      var p =
+        profile.player;
+
       var pPos =
-        p.position || p.pos;
+        p.position ||
+        p.pos;
 
-      return pPos === pos &&
+      return pPos === position &&
              p.available !== false;
-
     });
 
-  if(positionPlayers.length <= 1){
-    return 100;
+  if(positionProfiles.length === 0){
+    return 0;
   }
 
   /*
-   * Count how many players remain who are
-   * reasonably close to this player's VORP.
+   * Find this player's position among the
+   * available players at his position.
    */
+
   var playerVorp =
     Number(player.vorp) || 0;
 
-  var comparableCount =
-    positionPlayers.filter(function(profile){
+  var betterPlayers =
+    positionProfiles.filter(function(profile){
 
-      var v =
-        Number(profile.vorp) || 0;
-
-      return v >= playerVorp * 0.70;
+      return Number(profile.vorp || 0) >
+             playerVorp;
 
     }).length;
 
   /*
-   * Fewer comparable players = greater scarcity.
+   * Determine how many players at this position
+   * are needed before replacement level.
    */
+
+  var starterDemand = 0;
+
+  if(context.rosterSettings &&
+     context.rosterSettings[position]){
+
+    starterDemand =
+      Number(
+        context.rosterSettings[position]
+      ) || 0;
+
+  } else if(context.rosterNeeds &&
+            context.rosterNeeds[position] !== undefined){
+
+    starterDemand =
+      Number(
+        context.rosterNeeds[position]
+      ) || 0;
+
+  }
+
+  /*
+   * Use league demand if available.
+   */
+
+  var teams =
+    Number(context.teams) || 10;
+
+  /*
+   * Estimate the number of players that matter
+   * at this position.
+   *
+   * RB/WR receive additional demand because of
+   * multiple starters and FLEX usage.
+   */
+
+  var positionalDemand =
+    teams * Math.max(1, starterDemand);
+
+  if(position === 'RB' ||
+     position === 'WR'){
+
+    positionalDemand += teams;
+
+  }
+
+  /*
+   * Compare the player's position in the
+   * positional player pool against demand.
+   */
+
+  var remainingAbove =
+    Math.max(
+      0,
+      positionProfiles.length -
+      betterPlayers -
+      1
+    );
+
+  /*
+   * If very few comparable players remain,
+   * scarcity is high.
+   */
+
   var scarcity =
     100 -
-    ((comparableCount - 1) * 15);
+    (
+      remainingAbove /
+      Math.max(1, positionalDemand)
+    ) * 100;
 
   return Math.max(
     0,
@@ -2862,22 +2931,23 @@ var vorpScore =
 
 
   /*
-   * -------------------------------------------------------
-   * 5. ROSTER NEED
-   * -------------------------------------------------------
-   */
+ * -------------------------------------------------------
+ * 5. ROSTER NEED
+ * -------------------------------------------------------
+ */
 
-  var needScore = calculateDraftNeed(
-  player,
-  context
-);
+var rosterNeedScore =
+  calculateDraftNeed(
+    player,
+    context
+  );
 
-  if(context.rosterNeeds &&
-     context.rosterNeeds[position] !== undefined){
+if(context.rosterNeeds &&
+   context.rosterNeeds[position] !== undefined){
 
-    rosterNeedScore =
-      Number(context.rosterNeeds[position]);
-  }
+  rosterNeedScore =
+    Number(context.rosterNeeds[position]);
+}
 
 
   /*
@@ -3034,6 +3104,18 @@ function debugDecisionEngine(){
   var draftState = getDraftAssistantState();
 
 var context = {
+
+  context.teams =
+  Number(
+    document.getElementById('pcTeams')?.value
+  ) || 10;
+
+context.rosterSettings = {
+  QB: Number(ROSTER_SLOTS.QB) || 1,
+  RB: Number(ROSTER_SLOTS.RB) || 2,
+  WR: Number(ROSTER_SLOTS.WR) || 2,
+  TE: Number(ROSTER_SLOTS.TE) || 1
+};
 
   currentPick:
     draftState.currentPick,
