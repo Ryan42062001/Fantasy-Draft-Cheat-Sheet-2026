@@ -3668,6 +3668,157 @@ function calculateDraftStrategy() {
 
 }
 
+function generateDraftStrategyExplanation(strategy) {
+
+  if(!strategy){
+    return null;
+  }
+
+  var counts =
+    strategy.counts || {};
+
+  var needs =
+    strategy.needs || {};
+
+  var target =
+    strategy.targetPosition;
+
+  var explanation = '';
+
+  var priority = [];
+
+  /*
+   * -------------------------------------------------------
+   * ROSTER STATUS
+   * -------------------------------------------------------
+   */
+
+  if(needs.QB > 0){
+
+    priority.push(
+      'QB'
+    );
+
+  }
+
+  if(needs.RB > 0){
+
+    priority.push(
+      'RB'
+    );
+
+  }
+
+  if(needs.WR > 0){
+
+    priority.push(
+      'WR'
+    );
+
+  }
+
+  if(needs.TE > 0){
+
+    priority.push(
+      'TE'
+    );
+
+  }
+
+  if(needs.FLEX > 0){
+
+    priority.push(
+      'FLEX'
+    );
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * STRATEGY EXPLANATION
+   * -------------------------------------------------------
+   */
+
+  if(strategy.strategy === 'FILL NEED'){
+
+    explanation =
+      'Your roster has an open starting spot at ' +
+      target +
+      '. Prioritize this position unless a significantly better value falls.';
+
+  } else if(strategy.strategy === 'LEAN QB'){
+
+    explanation =
+      'Your RB/WR/TE starting spots are covered. ' +
+      'QB is your only immediate starting-position need, ' +
+      'so lean QB without forcing the pick.';
+
+  } else if(
+    strategy.strategy.indexOf('LEAN ') === 0
+  ){
+
+    explanation =
+      'Your roster is mostly balanced. ' +
+      'Lean toward ' +
+      target +
+      ', but continue taking the best value available.';
+
+  } else {
+
+    explanation =
+      'Your starting roster is balanced. ' +
+      'Prioritize the best player value rather than forcing a position.';
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * FLEX
+   * -------------------------------------------------------
+   */
+
+  if(needs.FLEX > 0){
+
+    explanation +=
+      ' You still need another RB/WR/TE for FLEX coverage.';
+
+  } else {
+
+    explanation +=
+      ' Your FLEX is already covered.';
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * PRIORITY POSITIONS
+   * -------------------------------------------------------
+   */
+
+  var priorityText =
+    priority.length
+      ? priority.join(', ')
+      : 'None';
+
+
+  return {
+
+    text:
+      explanation,
+
+    priority:
+      priority,
+
+    priorityText:
+      priorityText
+
+  };
+
+}
+
 function debugDecisionEngine(){
 
   var players =
@@ -3682,6 +3833,14 @@ function debugDecisionEngine(){
   calculateAllFantasyVorp(players);
 
   var draftState = getDraftAssistantState();
+
+  var draftStrategy =
+  calculateDraftStrategy();
+
+var strategyExplanation =
+  generateDraftStrategyExplanation(
+    draftStrategy
+  );
 
 var context = {
 
@@ -3714,7 +3873,10 @@ replacements:
   calculateDecisionRosterNeeds(),
 
   strategy:
-  calculateDraftStrategy(),
+    draftStrategy,
+
+  strategyExplanation:
+    strategyExplanation
 
 };
 
@@ -3758,6 +3920,11 @@ console.log(
   profile.scarcity,
   'player.scarcity =',
   player.scarcity
+);
+
+      console.log(
+  'STRATEGY EXPLANATION:',
+  context.strategyExplanation
 );
 
       return calculateDraftDecisionScore(
