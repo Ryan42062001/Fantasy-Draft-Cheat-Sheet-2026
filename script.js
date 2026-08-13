@@ -3074,10 +3074,10 @@ function calculateDecisionRosterNeeds(){
   needs.FLEX =
     Math.max(
       0,
-      flexSlots -
-      flexFilled
+      flexSlots - flexFilled
     );
 
+  console.log("ROSTER NEEDS:", needs);
 
   return needs;
 }
