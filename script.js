@@ -2418,7 +2418,6 @@ function detectDraftRuns(){
 
 }
 
-'''javascript 
 function calculateDraftRunOpportunity(player, context){
 
   if(!player || !context || !context.draftRuns){
