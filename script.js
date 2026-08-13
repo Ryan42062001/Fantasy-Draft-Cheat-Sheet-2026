@@ -2430,48 +2430,23 @@ function calculateDraftRunOpportunity(player, context){
     player.pos ||
     'N/A';
 
-  var run =
-    context.draftRuns;
+  var run = context.draftRuns;
 
-  /*
-   * No active run.
-   */
   if(!run.isRun){
     return 0;
   }
 
-  var runPosition =
-    run.position;
+  var runPosition = run.position;
+  var strength = run.strength;
 
-  var strength =
-    run.strength;
-
-  /*
-   * Only use meaningful runs.
-   */
   if(strength !== 'STRONG' &&
      strength !== 'MODERATE'){
     return 0;
   }
 
-  /*
-   * If the player is part of the run,
-   * this is NOT an opportunity bonus.
-   *
-   * The run may still matter later,
-   * but we don't reward simply following
-   * the crowd.
-   */
   if(position === runPosition){
     return 0;
   }
-
-  /*
-   * -------------------------------------------------------
-   * Determine whether this position is useful
-   * to our roster.
-   * -------------------------------------------------------
-   */
 
   var need = 0;
 
@@ -2479,47 +2454,23 @@ function calculateDraftRunOpportunity(player, context){
      context.rosterNeeds[position] !== undefined){
 
     need =
-      Number(
-        context.rosterNeeds[position]
-      ) || 0;
+      Number(context.rosterNeeds[position]) || 0;
   }
 
-  /*
-   * RB / WR / TE can also satisfy FLEX.
-   */
   if(position === 'RB' ||
      position === 'WR' ||
      position === 'TE'){
 
     var flexNeed =
       Number(
-        context.rosterNeeds &&
         context.rosterNeeds.FLEX
       ) || 0;
 
-    need =
-      Math.max(
-        need,
-        flexNeed
-      );
+    need = Math.max(
+      need,
+      flexNeed
+    );
   }
-
-  /*
-   * -------------------------------------------------------
-   * Opportunity bonus.
-   * -------------------------------------------------------
-   *
-   * Strong run:
-   *   +3 if the player fills a need
-   *   +2 if the player is simply outside the run
-   *
-   * Moderate run:
-   *   +2 if the player fills a need
-   *   +1 otherwise
-   *
-   * This deliberately stays small so the run
-   * cannot overpower player value.
-   */
 
   var opportunityScore = 0;
 
@@ -2528,7 +2479,7 @@ function calculateDraftRunOpportunity(player, context){
     opportunityScore =
       need > 0 ? 3 : 2;
 
-  } else if(strength === 'MODERATE'){
+  } else {
 
     opportunityScore =
       need > 0 ? 2 : 1;
@@ -2537,10 +2488,6 @@ function calculateDraftRunOpportunity(player, context){
 
   return opportunityScore;
 }
-
-/*
- * Calculate a complete Stage 2 profile for a player.
- */
  
 function calculateVorpProfile(
   player,
