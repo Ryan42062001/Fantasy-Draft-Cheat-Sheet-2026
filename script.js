@@ -7541,40 +7541,7 @@ return calculateDraftDecisionScore(
     return b.finalScore - a.finalScore;
   });
 
-  var testAlternatives =
-  calculateNextPickAlternatives(
-    scored[0],
-    scored,
-    context
-  );
-
-console.log(
-  'TEST NEXT PICK ALTERNATIVES:',
-  testAlternatives.map(function(candidate) {
-
-    return {
-      name: candidate.name,
-      position: candidate.position,
-      rank: candidate.rank,
-      finalScore:
-        Number(candidate.finalScore) || 0,
-      timingScore:
-        Number(candidate.timingScore) || 0,
-      tier:
-        candidate.tier,
-      tierScore:
-        Number(candidate.tierScore) || 0,
-      vorpScore:
-        Number(candidate.vorpScore) || 0,
-      survival:
-  calculateNextPickSurvival(
-    candidate,
-    context
-  )
-    };
-
-  })
-);
+  
 
   /*
  * If a specific player was requested,
@@ -7614,6 +7581,43 @@ console.log(
   selectedPlayer
     ? selectedPlayer.name
     : null
+);
+
+  var testAlternatives =
+  selectedPlayer
+    ? calculateNextPickAlternatives(
+        selectedPlayer,
+        scored,
+        context
+      )
+    : [];
+
+console.log(
+  'TEST NEXT PICK ALTERNATIVES:',
+  testAlternatives.map(function(candidate) {
+
+    return {
+      name: candidate.name,
+      position: candidate.position,
+      rank: candidate.rank,
+      finalScore:
+        Number(candidate.finalScore) || 0,
+      timingScore:
+        Number(candidate.timingScore) || 0,
+      tier:
+        candidate.tier,
+      tierScore:
+        Number(candidate.tierScore) || 0,
+      vorpScore:
+        Number(candidate.vorpScore) || 0,
+      survival:
+        calculateNextPickSurvival(
+          candidate,
+          context
+        )
+    };
+
+  })
 );
 
   var recommendation =
