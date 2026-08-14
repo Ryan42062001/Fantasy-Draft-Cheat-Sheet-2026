@@ -5800,18 +5800,22 @@ if (confidenceScore >= 80) {
 
 
   /*
-   * Recommendation strength.
-   */
+ * -------------------------------------------------------
+ * RECOMMENDATION DECISION
+ * -------------------------------------------------------
+ */
 
-  var recommendation =
-    'TAKE';
+var decision =
+  calculateRecommendationDecision(
+    player,
+    nextPlayer,
+    scoreGap,
+    confidenceScore,
+    context
+  );
 
-  if (confidence === 'LOW') {
-
-    recommendation =
-      'LEAN TAKE';
-
-  }
+var recommendation =
+  decision.recommendation;
 
 
   /*
@@ -5835,42 +5839,45 @@ if (confidenceScore >= 80) {
 
   return {
 
-    player:
-      player.name,
+  player:
+    player.name,
 
-    position:
-      player.position,
+  position:
+    player.position,
 
-    score:
-      score,
+  score:
+    score,
 
-    nextBest:
-      nextPlayer
-        ? nextPlayer.name
-        : null,
+  nextBest:
+    nextPlayer
+      ? nextPlayer.name
+      : null,
 
-    nextBestScore:
-      nextScore,
+  nextBestScore:
+    nextScore,
 
-    scoreGap:
-      scoreGap,
+  scoreGap:
+    scoreGap,
 
-    confidence:
-      confidence,
+  confidence:
+    confidence,
 
-    recommendation:
-      recommendation,
+  recommendation:
+    recommendation,
 
-    confidenceScore:
-      confidenceScore,
+  confidenceScore:
+    confidenceScore,
 
-    reasons:
-      reasons,
+  decision:
+    decision,
 
-    closeAlternative:
-      closeAlternative
+  reasons:
+    reasons,
 
-  };
+  closeAlternative:
+    closeAlternative
+
+};
 
 }
 
