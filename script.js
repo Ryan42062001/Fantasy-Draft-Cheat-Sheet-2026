@@ -4004,6 +4004,308 @@ function calculateAllFantasyVorp(players) {
   };
 }
 
+function calculateDraftAwareVorpOpportunity(player, context){
+
+  if(!player || !context){
+    return 0;
+  }
+
+  /*
+   * -------------------------------------------------------
+   * PURPOSE
+   * -------------------------------------------------------
+   *
+   * Measures how much positional value could disappear
+   * between the current pick and the user's next pick.
+   *
+   * This is NOT the player's normal VORP.
+   *
+   * Normal VORP:
+   *   "How much better is this player than replacement?"
+   *
+   * Draft-aware VORP:
+   *   "How dangerous is it to wait until my next pick?"
+   */
+
+
+  var position =
+    player.position ||
+    player.pos ||
+    'N/A';
+
+
+  /*
+   * We need draft-aware replacement levels.
+   */
+  if(!context.replacements){
+    return 0;
+  }
+
+
+  var currentReplacement =
+    context.replacements[position] || null;
+
+
+  /*
+   * No replacement information means we cannot
+   * calculate a meaningful opportunity cost.
+   */
+  if(!currentReplacement ||
+     !currentReplacement.rank){
+
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * NEXT-PICK REPLACEMENT
+   * -------------------------------------------------------
+   *
+   * Calculate what the replacement level could look like
+   * after the upcoming picks before our next selection.
+   *
+   * We use the existing player pool from context.
+   */
+
+  var players =
+    context.players ||
+    context.availablePlayers ||
+    [];
+
+
+  if(!players.length){
+    return 0;
+  }
+
+
+  var draftState =
+    getDraftAssistantState();
+
+
+  var picksUntilNext =
+    Number(
+      draftState.picksUntilMyTurn
+    ) || 0;
+
+
+  /*
+   * If we're already on the clock, there is no waiting
+   * period to penalize.
+   */
+  if(picksUntilNext <= 0){
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * POSITIONAL POOL
+   * -------------------------------------------------------
+   */
+
+  var positionPool =
+    players
+      .filter(function(candidate){
+
+        return candidate &&
+          candidate.available &&
+          (candidate.position ||
+           candidate.pos) === position &&
+          candidate.rank;
+
+      })
+      .sort(function(a,b){
+
+        return Number(a.rank) -
+               Number(b.rank);
+
+      });
+
+
+  if(!positionPool.length){
+    return 0;
+  }
+
+
+  /*
+   * Find the current replacement player inside
+   * the available positional pool.
+   */
+  var replacementIndex =
+    positionPool.findIndex(function(candidate){
+
+      return (
+        candidate.name ===
+        currentReplacement.name
+      );
+
+    });
+
+
+  if(replacementIndex < 0){
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * ESTIMATE DRAFT PRESSURE
+   * -------------------------------------------------------
+   *
+   * We don't assume every pick before our turn is
+   * this position.
+   *
+   * Instead, estimate how many players at this
+   * position are likely to disappear.
+   *
+   * The player's current rank helps determine how
+   * exposed the position is.
+   */
+
+  var comparableCount =
+    positionPool.filter(function(candidate){
+
+      return Number(candidate.rank) <=
+             Number(currentReplacement.rank);
+
+    }).length;
+
+
+  /*
+   * If there are fewer positional players than the
+   * number of picks before our turn, the position is
+   * highly exposed.
+   */
+  var expectedLoss =
+    Math.min(
+      picksUntilNext,
+      comparableCount
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * FUTURE REPLACEMENT
+   * -------------------------------------------------------
+   *
+   * Move replacement level down by the estimated
+   * number of players likely to disappear.
+   */
+
+  var futureReplacementIndex =
+    Math.min(
+      replacementIndex + expectedLoss,
+      positionPool.length - 1
+    );
+
+
+  var futureReplacement =
+    positionPool[
+      futureReplacementIndex
+    ];
+
+
+  if(!futureReplacement ||
+     !futureReplacement.rank){
+
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * VALUE DROP
+   * -------------------------------------------------------
+   *
+   * Convert the replacement movement into a
+   * draft-aware opportunity score.
+   */
+
+  var currentRank =
+    Number(currentReplacement.rank);
+
+  var futureRank =
+    Number(futureReplacement.rank);
+
+
+  var rankDrop =
+    futureRank - currentRank;
+
+
+  if(rankDrop <= 0){
+    return 0;
+  }
+
+
+  /*
+   * Scale the opportunity.
+   *
+   * 0-10 rank drop  = small opportunity
+   * 11-20           = moderate
+   * 21+             = strong
+   */
+
+  var opportunityScore = 0;
+
+
+  if(rankDrop >= 21){
+
+    opportunityScore = 5;
+
+  } else if(rankDrop >= 11){
+
+    opportunityScore = 3;
+
+  } else if(rankDrop >= 6){
+
+    opportunityScore = 2;
+
+  } else {
+
+    opportunityScore = 1;
+  }
+
+
+  /*
+   * Don't give the bonus to players who are themselves
+   * below the current replacement level.
+   *
+   * The opportunity is specifically about protecting
+   * valuable positional inventory.
+   */
+  if(
+    Number(player.rank) >
+    currentRank
+  ){
+
+    return 0;
+  }
+
+
+  console.log(
+    'DRAFT-AWARE VORP:',
+    player.name,
+    'position =',
+    position,
+    'currentReplacement =',
+    currentReplacement.name,
+    currentRank,
+    'futureReplacement =',
+    futureReplacement.name,
+    futureRank,
+    'rankDrop =',
+    rankDrop,
+    'picksUntilNext =',
+    picksUntilNext,
+    'opportunityScore =',
+    opportunityScore
+  );
+
+
+  return opportunityScore;
+}
+
 
 /* =========================================================
    STAGE 2 DEBUG
@@ -4565,6 +4867,27 @@ var tierCliffOpportunityScore =
     context
   );
 
+/*
+ * -------------------------------------------------------
+ * DRAFT-AWARE VORP OPPORTUNITY
+ * -------------------------------------------------------
+ */
+
+var draftAwareVorpOpportunityScore =
+  calculateDraftAwareVorpOpportunity(
+    player,
+    context
+  );
+
+console.log(
+  'DRAFT-AWARE VORP OPPORTUNITY:',
+  player.name,
+  'score =',
+  draftAwareVorpOpportunityScore
+);
+
+
+
 console.log(
   'TIER CLIFF OPPORTUNITY:',
   player.name,
@@ -4599,6 +4922,7 @@ var finalScore =
 finalScore += strategyScore;
 finalScore += tierCliffOpportunityScore;
 finalScore += runOpportunityScore;
+finalScore += draftAwareVorpOpportunityScore;
 
   console.log(
   'STRATEGY SCORE DEBUG:',
@@ -4649,11 +4973,11 @@ finalScore += runOpportunityScore;
 runOpportunityScore:
   runOpportunityScore,
 
-    tierCliffOpportunityScore:
+tierCliffOpportunityScore:
   tierCliffOpportunityScore,
 
-    tierCliffOpportunityScore:
-  tierCliffOpportunityScore,
+draftAwareVorpOpportunityScore:
+  draftAwareVorpOpportunityScore,
 
 finalScore:
   finalScore
@@ -6182,6 +6506,9 @@ player.runOpportunityScore.toFixed(1) +
 
 ' · Tier Cliff: ' +
 player.tierCliffOpportunityScore.toFixed(1) +
+
+' · Draft VORP: ' +
+player.draftAwareVorpOpportunityScore.toFixed(1) +
 
 '<br><br>' +
 
