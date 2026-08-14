@@ -3906,29 +3906,13 @@ if(context.rosterNeeds &&
    * -------------------------------------------------------
    */
 
-  /*
- * -------------------------------------------------------
- * 6. TIMING / LATE AVAILABILITY
- * -------------------------------------------------------
- *
- * Use the late-availability model to determine how
- * valuable it is to take this player before our next pick.
- *
- * lateAvailability is a 0-100 risk score:
- *
- * 0   = very likely to remain available
- * 100 = very likely to disappear before our next pick
- */
-
-var timingScore = 0;
-
 var draftState =
   getDraftAssistantState();
 
 var lateAvailability =
   calculateLateAvailability(
     player,
-    players,
+    context.players || [],
     {
       currentPick:
         draftState.currentPick,
@@ -3938,7 +3922,7 @@ var lateAvailability =
     }
   );
 
-timingScore =
+var timingScore =
   lateAvailability;
 
 console.log(
@@ -5000,6 +4984,9 @@ var strategyExplanation =
   );
 
 var context = {
+
+  players:
+    players,
 
   teams:
     Number(
