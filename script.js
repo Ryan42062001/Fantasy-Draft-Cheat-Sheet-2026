@@ -5444,7 +5444,7 @@ function calculateRecommendationDecision(
 
   /*
  * -------------------------------------------------------
- * 4. RECOMMENDATION
+ * 
  * -------------------------------------------------------
  */
 
@@ -5453,11 +5453,14 @@ var recommendation =
 
 
 /*
+ * -------------------------------------------------------
  * PASS
+ * -------------------------------------------------------
  *
- * If another available player is substantially
- * better, do not allow positive player attributes
- * to override the overall decision.
+ * A large negative score gap means the selected player
+ * is clearly worse than the best available alternative.
+ *
+ * This takes priority over all positive player traits.
  */
 
 if (
@@ -5466,6 +5469,11 @@ if (
 
   recommendation =
     'PASS';
+
+
+/*
+ * Moderate negative gap.
+ */
 
 } else if (
   gap <= -4 &&
@@ -5477,7 +5485,9 @@ if (
 
 
 /*
- * CLEAR DRAFT
+ * -------------------------------------------------------
+ * DRAFT
+ * -------------------------------------------------------
  */
 
 } else if (
@@ -5489,10 +5499,6 @@ if (
     'DRAFT';
 
 
-/*
- * STRONG DRAFT
- */
-
 } else if (
   gap >= 5 &&
   confidence >= 60
@@ -5503,7 +5509,9 @@ if (
 
 
 /*
+ * -------------------------------------------------------
  * LEAN DRAFT
+ * -------------------------------------------------------
  */
 
 } else if (
@@ -5515,10 +5523,6 @@ if (
     'LEAN DRAFT';
 
 
-/*
- * URGENT LEAN
- */
-
 } else if (
   gap >= 2 &&
   confidence >= 40 &&
@@ -5528,10 +5532,6 @@ if (
   recommendation =
     'LEAN DRAFT';
 
-
-/*
- * ELITE VALUE OVERRIDE
- */
 
 } else if (
   gap >= 2 &&
@@ -5544,7 +5544,9 @@ if (
 
 
 /*
+ * -------------------------------------------------------
  * CLOSE DECISION
+ * -------------------------------------------------------
  */
 
 } else {
