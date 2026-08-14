@@ -6992,7 +6992,7 @@ function generateDraftStrategyExplanation(strategy) {
 
 }
 
-function debugDecisionEngine(){
+function debugDecisionEngine(playerName){
 
   var players =
     getDraftAssistantPlayers();
@@ -7179,10 +7179,45 @@ return calculateDraftDecisionScore(
     return b.finalScore - a.finalScore;
   });
 
+  /*
+ * If a specific player was requested,
+ * use that player for recommendation testing.
+ * Otherwise use the top-scoring player.
+ */
+
+var selectedPlayer = null;
+
+if (playerName) {
+
+  selectedPlayer =
+    scored.find(function(player){
+
+      return player.name &&
+        player.name.toLowerCase() ===
+        playerName.toLowerCase();
+
+    }) || null;
+
+} else {
+
+  selectedPlayer =
+    scored.length
+      ? scored[0]
+      : null;
+
+}
+
+console.log(
+  'SELECTED DECISION PLAYER:',
+  selectedPlayer
+    ? selectedPlayer.name
+    : null
+);
+
   var recommendation =
-  scored.length
+  selectedPlayer
     ? calculateDraftRecommendation(
-        scored[0],
+        selectedPlayer,
         scored,
         context
       )
@@ -7199,17 +7234,19 @@ console.log(
  * -------------------------------------------------------
  */
 
-var topPlayer =
-  scored.length
-    ? scored[0]
+var draftRecommendation =
+  selectedPlayer
+    ? calculateDraftRecommendation(
+        selectedPlayer,
+        scored,
+        context
+      )
     : null;
 
-var draftRecommendation =
-  calculateDraftRecommendation(
-    topPlayer,
-    scored,
-    context
-  );
+console.log(
+  'DRAFT RECOMMENDATION:',
+  draftRecommendation
+);
 
 console.log(
   'DRAFT RECOMMENDATION:',
