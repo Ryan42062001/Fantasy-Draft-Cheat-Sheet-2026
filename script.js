@@ -5835,6 +5835,101 @@ alternatives.forEach(function(candidate) {
   return alternatives;
 }
 
+function calculateNextPickSurvival(
+  candidate,
+  context
+) {
+
+  if (!candidate) {
+    return 0;
+  }
+
+  context =
+    context || {};
+
+  var picksUntilNext =
+    Number(context.picksUntilMyTurn) || 0;
+
+  var rank =
+    Number(candidate.rank) || 999;
+
+  var timing =
+    Number(candidate.timingScore) || 0;
+
+  /*
+   * Start with a neutral survival estimate.
+   */
+
+  var survival =
+    100;
+
+  /*
+   * Each pick between now and our next
+   * selection creates some chance the player
+   * disappears.
+   */
+
+  survival -=
+    picksUntilNext * 5;
+
+  /*
+   * Higher timing pressure means the player
+   * is more likely to disappear.
+   */
+
+  survival -=
+    timing * 0.35;
+
+  /*
+   * Players ranked very close to the current
+   * player are naturally more vulnerable.
+   */
+
+  var rankDistance =
+    rank -
+    (Number(context.currentRank) || 0);
+
+  if (rankDistance <= 2) {
+
+    survival -= 15;
+
+  } else if (rankDistance <= 4) {
+
+    survival -= 8;
+
+  } else if (rankDistance <= 6) {
+
+    survival -= 3;
+
+  }
+
+  /*
+   * Keep result between 0 and 100.
+   */
+
+  survival =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        survival
+      )
+    );
+
+  console.log(
+    'NEXT PICK SURVIVAL:',
+    candidate.name,
+    {
+      rank: rank,
+      timing: timing,
+      picksUntilNext: picksUntilNext,
+      survival: survival
+    }
+  );
+
+  return survival;
+}
+
 function calculateDraftRecommendation(
   player,
   scoredPlayers,
@@ -7470,7 +7565,19 @@ console.log(
       tierScore:
         Number(candidate.tierScore) || 0,
       vorpScore:
-        Number(candidate.vorpScore) || 0
+        Number(candidate.vorpScore) || 0,
+      survival:
+  calculateNextPickSurvival(
+    candidate,
+    Object.assign(
+      {},
+      context,
+      {
+        currentRank:
+          Number(scored[0].rank) || 999
+      }
+    )
+  )
     };
 
   })
