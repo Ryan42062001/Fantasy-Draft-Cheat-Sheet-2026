@@ -4231,23 +4231,30 @@ function generateDecisionExplanation(result, comparisonResult) {
 
 
   /*
-   * -------------------------------------------------------
-   * 6. TIMING
-   * -------------------------------------------------------
-   */
+ * -------------------------------------------------------
+ * 6. TIMING
+ * -------------------------------------------------------
+ */
 
-  if (result.timingScore >= 20) {
+if (result.timingScore >= 70) {
 
-    positives.push(
-      'High chance of being gone before the next pick'
-    );
+  positives.push(
+    'Very high chance of being gone before the next pick'
+  );
 
-  } else if (result.timingScore >= 10) {
+} else if (result.timingScore >= 50) {
 
-    positives.push(
-      'Moderate draft-timing pressure'
-    );
-  }
+  positives.push(
+    'High chance of being gone before the next pick'
+  );
+
+} else if (result.timingScore >= 30) {
+
+  positives.push(
+    'Moderate draft-timing pressure'
+  );
+
+}
 
 
   /*
