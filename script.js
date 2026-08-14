@@ -4989,6 +4989,241 @@ function calculateDraftRecommendation(
   player,
   scoredPlayers,
   context
+) {
+
+  if (!player) {
+    return null;
+  }
+
+  scoredPlayers =
+    Array.isArray(scoredPlayers)
+      ? scoredPlayers
+      : [];
+
+  context =
+    context || {};
+
+  var nextPlayer =
+    scoredPlayers.length > 1
+      ? scoredPlayers[1]
+      : null;
+
+  var score =
+    Number(player.finalScore) || 0;
+
+  var nextScore =
+    nextPlayer
+      ? Number(nextPlayer.finalScore) || 0
+      : 0;
+
+  var scoreGap =
+    Math.max(
+      0,
+      score - nextScore
+    );
+
+  var confidence =
+    'LOW';
+
+  if (scoreGap >= 8) {
+
+    confidence = 'VERY HIGH';
+
+  } else if (scoreGap >= 5) {
+
+    confidence = 'HIGH';
+
+  } else if (scoreGap >= 2) {
+
+    confidence = 'MODERATE';
+
+  }
+
+
+  /*
+   * Determine the primary reason
+   * this player is recommended.
+   */
+
+  var reasons = [];
+
+  if (
+    Number(player.tierScore) >= 90
+  ) {
+
+    reasons.push(
+      'elite tier value'
+    );
+
+  } else if (
+    Number(player.tierScore) >= 75
+  ) {
+
+    reasons.push(
+      'strong tier value'
+    );
+  }
+
+
+  if (
+    Number(player.vorpScore) >= 80
+  ) {
+
+    reasons.push(
+      'elite VORP'
+    );
+
+  } else if (
+    Number(player.vorpScore) >= 60
+  ) {
+
+    reasons.push(
+      'strong VORP'
+    );
+  }
+
+
+  if (
+    Number(player.timingScore) >= 70
+  ) {
+
+    reasons.push(
+      'high draft-timing pressure'
+    );
+  }
+
+
+  if (
+    Number(player.tierCliffOpportunityScore) >= 5
+  ) {
+
+    reasons.push(
+      'major tier cliff'
+    );
+
+  } else if (
+    Number(player.tierCliffOpportunityScore) >= 3
+  ) {
+
+    reasons.push(
+      'meaningful tier cliff'
+    );
+  }
+
+
+  if (
+    Number(player.runOpportunityScore) >= 3
+  ) {
+
+    reasons.push(
+      'draft-run opportunity'
+    );
+  }
+
+
+  if (
+    Number(player.rosterNeedScore) >= 2
+  ) {
+
+    reasons.push(
+      'strong roster need'
+    );
+
+  } else if (
+    Number(player.rosterNeedScore) >= 1
+  ) {
+
+    reasons.push(
+      'fills an open roster need'
+    );
+  }
+
+
+  if (!reasons.length) {
+
+    reasons.push(
+      'highest overall decision score'
+    );
+
+  }
+
+
+  /*
+   * Recommendation strength.
+   */
+
+  var recommendation =
+    'TAKE';
+
+  if (confidence === 'LOW') {
+
+    recommendation =
+      'LEAN TAKE';
+
+  }
+
+
+  /*
+   * Check whether another player is
+   * extremely close in score.
+   */
+
+  var closeAlternative =
+    null;
+
+  if (
+    nextPlayer &&
+    scoreGap < 2
+  ) {
+
+    closeAlternative =
+      nextPlayer.name;
+
+  }
+
+
+  return {
+
+    player:
+      player.name,
+
+    position:
+      player.position,
+
+    score:
+      score,
+
+    nextBest:
+      nextPlayer
+        ? nextPlayer.name
+        : null,
+
+    nextBestScore:
+      nextScore,
+
+    scoreGap:
+      scoreGap,
+
+    confidence:
+      confidence,
+
+    recommendation:
+      recommendation,
+
+    reasons:
+      reasons,
+
+    closeAlternative:
+      closeAlternative
+
+  };
+
+}
+
+function calculateDraftRecommendation(
+  player,
+  scoredPlayers,
+  context
 ){
 
   if(!player){
@@ -6342,6 +6577,20 @@ return calculateDraftDecisionScore(
   scored.sort(function(a,b){
     return b.finalScore - a.finalScore;
   });
+
+  var recommendation =
+  scored.length
+    ? calculateDraftRecommendation(
+        scored[0],
+        scored,
+        context
+      )
+    : null;
+
+console.log(
+  'DRAFT RECOMMENDATION:',
+  recommendation
+);
 
   /*
  * -------------------------------------------------------
