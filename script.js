@@ -2954,33 +2954,45 @@ function calculateLateAvailability(
 
   if (playerRank <= 12) {
 
-    risk += 55;
+  risk += 55;
 
-  } else if (playerRank <= 24) {
+} else if (playerRank <= 18) {
 
-    risk += 45;
+  risk += 50;
 
-  } else if (playerRank <= 40) {
+} else if (playerRank <= 24) {
 
-    risk += 35;
+  risk += 45;
 
-  } else if (playerRank <= 60) {
+} else if (playerRank <= 32) {
 
-    risk += 22;
+  risk += 38;
 
-  } else if (playerRank <= 80) {
+} else if (playerRank <= 40) {
 
-    risk += 12;
+  risk += 32;
 
-  } else if (playerRank <= 110) {
+} else if (playerRank <= 50) {
 
-    risk += 5;
+  risk += 25;
 
-  } else {
+} else if (playerRank <= 65) {
 
-    risk += 0;
+  risk += 18;
 
-  }
+} else if (playerRank <= 80) {
+
+  risk += 12;
+
+} else if (playerRank <= 110) {
+
+  risk += 5;
+
+} else {
+
+  risk += 0;
+
+}
 
 
   /*
