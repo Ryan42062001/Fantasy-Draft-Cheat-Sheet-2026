@@ -3018,7 +3018,31 @@ function calculateLateAvailability(
 
   }
 
+  console.log(
+    'AVAILABILITY RISK:',
+    player.name,
+    'position =',
+    player.position,
+    'rank =',
+    player.rank,
+    'picksUntilNext =',
+    picksUntilNext,
+    'higherRanked =',
+    higherRanked,
+    'comparable =',
+    comparable,
+    'risk =',
+    risk
+  );
 
+
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      risk
+    )
+  );
   /*
    * -------------------------------------------------------
    * CLAMP
@@ -3259,16 +3283,19 @@ function calculateVorpProfile(
   scarcity
 );
 
-  var lateAvailability =
+  var draftState =
+  getDraftAssistantState();
+
+var lateAvailability =
   calculateLateAvailability(
     player,
     players,
     {
       currentPick:
-        getDraftAssistantState().currentPick,
+        draftState.currentPick,
 
       nextPick:
-        getDraftAssistantState().myNextPick
+        draftState.myNextPick
     }
   );
 
