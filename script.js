@@ -5851,14 +5851,10 @@ function calculateDraftRecommendation(
   player,
   scoredPlayers,
   context
-){
+) {
 
-  if(!player){
-    return {
-      recommendation: 'PASS',
-      confidence: 0,
-      reason: 'No player provided.'
-    };
+  if (!player) {
+    return null;
   }
 
   scoredPlayers =
@@ -5869,13 +5865,14 @@ function calculateDraftRecommendation(
   context =
     context || {};
 
+
   /*
    * -------------------------------------------------------
    * 1. CURRENT PLAYER
    * -------------------------------------------------------
    */
 
-  var currentScore =
+  var score =
     Number(player.finalScore) || 0;
 
 
@@ -5884,157 +5881,112 @@ function calculateDraftRecommendation(
    * 2. NEXT BEST PLAYER
    * -------------------------------------------------------
    *
-   * Find the best alternative that is not
-   * the player being evaluated.
+   * scoredPlayers should already be sorted with
+   * the highest-scoring player first.
    */
 
-  var alternatives =
-    scoredPlayers
-      .filter(function(candidate){
+  var nextPlayer = null;
 
-        return candidate &&
-          candidate.name !== player.name;
+  for (var i = 0; i < scoredPlayers.length; i++) {
 
-      })
-      .sort(function(a,b){
+    var candidate =
+      scoredPlayers[i];
 
-        return (
-          Number(b.finalScore || 0) -
-          Number(a.finalScore || 0)
-        );
+    if (
+      candidate &&
+      candidate.name !== player.name
+    ) {
 
-      });
+      nextPlayer =
+        candidate;
 
-
-  var alternative =
-    alternatives.length
-      ? alternatives[0]
-      : null;
+      break;
+    }
+  }
 
 
   /*
    * -------------------------------------------------------
-   * 3. SCORE GAP
+   * 3. NEXT BEST SCORE
    * -------------------------------------------------------
    */
 
-  var alternativeScore =
-    alternative
-      ? Number(alternative.finalScore) || 0
+  var nextScore =
+    nextPlayer
+      ? Number(nextPlayer.finalScore) || 0
       : 0;
 
+
+  /*
+   * -------------------------------------------------------
+   * 4. SCORE GAP
+   * -------------------------------------------------------
+   */
+
   var scoreGap =
-    currentScore -
-    alternativeScore;
+    score -
+    nextScore;
 
 
-    /*
+  /*
    * -------------------------------------------------------
-   * 5. CONFIDENCE
+   * 5. CONFIDENCE SCORE
    * -------------------------------------------------------
-   *
-   * Use the full recommendation-confidence model.
-   * This combines score gap, tier difference, VORP,
-   * timing, tier cliffs, draft-aware VORP, need,
-   * and positional scarcity.
    */
 
   var confidenceScore =
     calculateRecommendationConfidence(
       player,
-      alternative,
+      nextPlayer,
       context
     );
 
-  var decision =
-  calculateRecommendationDecision(
-    player,
-    nextPlayer,
-    scoreGap,
-    confidenceScore,
-    context
-  );
 
-var recommendation =
-  decision.recommendation;
+  /*
+   * -------------------------------------------------------
+   * 6. CONFIDENCE LEVEL
+   * -------------------------------------------------------
+   */
 
   var confidence =
     'LOW';
 
-  if(confidenceScore >= 80){
+  if (confidenceScore >= 80) {
 
     confidence =
       'VERY HIGH';
 
-  } else if(confidenceScore >= 65){
+  } else if (confidenceScore >= 65) {
 
     confidence =
       'HIGH';
 
-  } else if(confidenceScore >= 45){
+  } else if (confidenceScore >= 45) {
 
     confidence =
       'MODERATE';
-
   }
 
 
   /*
    * -------------------------------------------------------
-   * 6. CONTEXTUAL URGENCY
+   * 7. DECISION LAYER
    * -------------------------------------------------------
-   *
-   * Timing, tier cliffs, and draft runs can
-   * strengthen a recommendation.
    */
 
-  var urgencyBonus = 0;
+  var decision =
+    calculateRecommendationDecision(
+      player,
+      nextPlayer,
+      scoreGap,
+      confidenceScore,
+      context
+    );
 
-  var timing =
-    Number(player.timingScore) || 0;
-
-  var tierCliff =
-    Number(
-      player.tierCliffOpportunityScore
-    ) || 0;
-
-  var runOpportunity =
-    Number(
-      player.runOpportunityScore
-    ) || 0;
-
-
-  if(timing >= 70){
-
-    urgencyBonus += 2;
-
-  } else if(timing >= 50){
-
-    urgencyBonus += 1;
-
-  }
-
-
-  if(tierCliff >= 5){
-
-    urgencyBonus += 2;
-
-  } else if(tierCliff >= 3){
-
-    urgencyBonus += 1;
-
-  }
-
-
-  if(runOpportunity >= 3){
-
-    urgencyBonus += 1;
-
-  }
 
   /*
    * -------------------------------------------------------
-   * 7. PRIMARY REASON
+   * 8. PRIMARY REASON
    * -------------------------------------------------------
    */
 
@@ -6042,109 +5994,165 @@ var recommendation =
     'Best overall draft value';
 
 
-  if(
-    player.tierScore >= 90 &&
-    player.vorpScore >= 80
-  ){
+  if (
+    Number(player.tierScore) >= 90 &&
+    Number(player.vorpScore) >= 80
+  ) {
 
     reason =
       'Elite tier and VORP value';
 
-  } else if(
-    player.vorpScore >= 80
-  ){
+  } else if (
+    Number(player.vorpScore) >= 80
+  ) {
 
     reason =
       'Elite value over replacement';
 
-  } else if(
-    player.tierScore >= 90
-  ){
+  } else if (
+    Number(player.tierScore) >= 90
+  ) {
 
     reason =
       'Elite player tier';
 
-  } else if(
-    tierCliff >= 5
-  ){
+  } else if (
+    Number(player.tierCliffOpportunityScore) >= 5
+  ) {
 
     reason =
       'Major tier cliff opportunity';
 
-  } else if(
-    timing >= 70
-  ){
+  } else if (
+    Number(player.timingScore) >= 70
+  ) {
 
     reason =
       'High availability risk';
 
-  } else if(
-    player.scarcityScore >= 90
-  ){
+  } else if (
+    Number(player.scarcityScore) >= 90
+  ) {
 
     reason =
       'Strong positional scarcity';
 
-  } else if(
-    player.rosterNeedScore >= 50
-  ){
+  } else if (
+    Number(player.rosterNeedScore) >= 2
+  ) {
 
     reason =
       'Fills an important roster need';
-
   }
 
 
   /*
    * -------------------------------------------------------
-   * 8. BUILD HUMAN-READABLE SUMMARY
+   * 9. CLOSE ALTERNATIVE
    * -------------------------------------------------------
    */
 
-  var summary =
-    recommendation +
-    ' ' +
-    player.name;
+  var closeAlternative =
+    null;
 
-  if(alternative){
+  if (
+    nextPlayer &&
+    Math.abs(scoreGap) < 2
+  ) {
 
-    summary +=
-      ' by ' +
-      Math.abs(scoreGap).toFixed(1) +
-      ' points over ' +
-      alternative.name;
-
+    closeAlternative =
+      nextPlayer.name;
   }
 
 
+  /*
+   * -------------------------------------------------------
+   * 10. DEBUG
+   * -------------------------------------------------------
+   */
+
+  console.log(
+    'DRAFT DECISION:',
+    player.name,
+    {
+      score:
+        score,
+
+      nextPlayer:
+        nextPlayer
+          ? nextPlayer.name
+          : null,
+
+      nextScore:
+        nextScore,
+
+      scoreGap:
+        scoreGap,
+
+      confidenceScore:
+        confidenceScore,
+
+      confidence:
+        confidence,
+
+      recommendation:
+        decision.recommendation,
+
+      reason:
+        reason
+    }
+  );
+
+
+  /*
+   * -------------------------------------------------------
+   * 11. RETURN
+   * -------------------------------------------------------
+   */
+
   return {
 
-    recommendation:
-      recommendation,
+    player:
+      player.name,
 
-    confidence:
-  confidence,
+    position:
+      player.position,
 
-confidenceScore:
-  confidenceScore,
+    score:
+      score,
+
+    nextBest:
+      nextPlayer
+        ? nextPlayer.name
+        : null,
+
+    nextBestScore:
+      nextScore,
 
     scoreGap:
       scoreGap,
 
-    alternative:
-      alternative,
+    confidence:
+      confidence,
+
+    confidenceScore:
+      confidenceScore,
+
+    recommendation:
+      decision.recommendation,
 
     reason:
       reason,
 
     urgencyBonus:
-      urgencyBonus,
+      decision.urgencyBonus || 0,
 
     summary:
-      summary
+      decision.summary,
 
+    closeAlternative:
+      closeAlternative
   };
-
 }
 
 function generateDecisionExplanation(result, comparisonResult) {
