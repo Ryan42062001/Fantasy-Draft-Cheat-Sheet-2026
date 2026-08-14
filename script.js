@@ -6281,7 +6281,16 @@ function calculateDraftRecommendation(
 
 var nextPlayer =
   nextPickAlternatives.length
-    ? nextPickAlternatives[0]
+    ? nextPickAlternatives
+        .slice()
+        .sort(function(a, b) {
+
+          return (
+            Number(b.survivalAdjustedScore || 0) -
+            Number(a.survivalAdjustedScore || 0)
+          );
+
+        })[0]
     : null;
 
 var score =
