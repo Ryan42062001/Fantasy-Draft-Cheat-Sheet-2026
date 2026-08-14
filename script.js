@@ -5948,22 +5948,85 @@ function calculateDraftRecommendation(
   context =
     context || {};
 
-  var nextPlayer =
-  scoredPlayers
-    .filter(function(candidate){
 
-      return candidate &&
-        candidate.name !== player.name;
+  /*
+   * -------------------------------------------------------
+   * NEXT-PICK ALTERNATIVES
+   * -------------------------------------------------------
+   *
+   * Find players who are realistically available at our
+   * next pick rather than simply choosing the highest
+   * scoring player in the entire pool.
+   */
 
-    })
-    .sort(function(a, b){
+  var nextPickAlternatives =
+    calculateNextPickAlternatives(
+      player,
+      scoredPlayers,
+      context
+    );
 
-      return (
-        Number(b.finalScore || 0) -
-        Number(a.finalScore || 0)
+
+  /*
+   * -------------------------------------------------------
+   * SURVIVAL-ADJUSTED VALUE
+   * -------------------------------------------------------
+   *
+   * A player who scores highly but is unlikely to survive
+   * until our next pick should not be treated the same as
+   * a slightly lower-scoring player who is very likely to
+   * still be available.
+   */
+
+  nextPickAlternatives.forEach(function(candidate) {
+
+    candidate.nextPickSurvivalScore =
+      calculateNextPickSurvival(
+        candidate,
+        context
       );
 
-    })[0] || null;
+    candidate.survivalAdjustedScore =
+      (
+        Number(candidate.finalScore) || 0
+      ) *
+      (
+        Number(candidate.nextPickSurvivalScore) || 0
+      ) / 100;
+
+  });
+
+
+  /*
+   * -------------------------------------------------------
+   * BEST REALISTIC NEXT-PICK OPPORTUNITY
+   * -------------------------------------------------------
+   */
+
+  var nextPlayer =
+    nextPickAlternatives.length
+      ? nextPickAlternatives
+          .slice()
+          .sort(function(a, b) {
+
+            return (
+              Number(
+                b.survivalAdjustedScore || 0
+              ) -
+              Number(
+                a.survivalAdjustedScore || 0
+              )
+            );
+
+          })[0]
+      : null;
+
+
+  /*
+   * -------------------------------------------------------
+   * SCORE COMPARISON
+   * -------------------------------------------------------
+   */
 
   var score =
     Number(player.finalScore) || 0;
@@ -5973,11 +6036,22 @@ function calculateDraftRecommendation(
       ? Number(nextPlayer.finalScore) || 0
       : 0;
 
+  /*
+   * Keep the gap signed.
+   *
+   * Positive = current player is better.
+   * Negative = next-pick opportunity is better.
+   */
+
   var scoreGap =
-    Math.max(
-      0,
-      score - nextScore
-    );
+    score - nextScore;
+
+
+  /*
+   * -------------------------------------------------------
+   * CONFIDENCE
+   * -------------------------------------------------------
+   */
 
   var confidenceScore =
     calculateRecommendationConfidence(
@@ -5985,6 +6059,13 @@ function calculateDraftRecommendation(
       nextPlayer,
       context
     );
+
+
+  /*
+   * -------------------------------------------------------
+   * DECISION
+   * -------------------------------------------------------
+   */
 
   var decision =
     calculateRecommendationDecision(
@@ -5998,30 +6079,42 @@ function calculateDraftRecommendation(
   var recommendation =
     decision.recommendation;
 
-var confidence =
-  'LOW';
 
-if (confidenceScore >= 80) {
+  /*
+   * -------------------------------------------------------
+   * CONFIDENCE LABEL
+   * -------------------------------------------------------
+   */
 
-  confidence = 'VERY HIGH';
+  var confidence =
+    'LOW';
 
-} else if (confidenceScore >= 65) {
+  if (confidenceScore >= 80) {
 
-  confidence = 'HIGH';
+    confidence =
+      'VERY HIGH';
 
-} else if (confidenceScore >= 45) {
+  } else if (confidenceScore >= 65) {
 
-  confidence = 'MODERATE';
+    confidence =
+      'HIGH';
 
-}
+  } else if (confidenceScore >= 45) {
+
+    confidence =
+      'MODERATE';
+
+  }
 
 
   /*
-   * Determine the primary reason
-   * this player is recommended.
+   * -------------------------------------------------------
+   * PRIMARY REASONS
+   * -------------------------------------------------------
    */
 
   var reasons = [];
+
 
   if (
     Number(player.tierScore) >= 90
@@ -6038,6 +6131,7 @@ if (confidenceScore >= 80) {
     reasons.push(
       'strong tier value'
     );
+
   }
 
 
@@ -6056,6 +6150,7 @@ if (confidenceScore >= 80) {
     reasons.push(
       'strong VORP'
     );
+
   }
 
 
@@ -6066,6 +6161,7 @@ if (confidenceScore >= 80) {
     reasons.push(
       'high draft-timing pressure'
     );
+
   }
 
 
@@ -6084,6 +6180,7 @@ if (confidenceScore >= 80) {
     reasons.push(
       'meaningful tier cliff'
     );
+
   }
 
 
@@ -6094,6 +6191,7 @@ if (confidenceScore >= 80) {
     reasons.push(
       'draft-run opportunity'
     );
+
   }
 
 
@@ -6112,6 +6210,7 @@ if (confidenceScore >= 80) {
     reasons.push(
       'fills an open roster need'
     );
+
   }
 
 
@@ -6125,16 +6224,9 @@ if (confidenceScore >= 80) {
 
 
   /*
- * -------------------------------------------------------
- * RECOMMENDATION DECISION
- * -------------------------------------------------------
- */
-
-
-
-  /*
-   * Check whether another player is
-   * extremely close in score.
+   * -------------------------------------------------------
+   * CLOSE ALTERNATIVE
+   * -------------------------------------------------------
    */
 
   var closeAlternative =
@@ -6142,7 +6234,7 @@ if (confidenceScore >= 80) {
 
   if (
     nextPlayer &&
-    scoreGap < 2
+    Math.abs(scoreGap) < 2
   ) {
 
     closeAlternative =
@@ -6151,47 +6243,108 @@ if (confidenceScore >= 80) {
   }
 
 
+  /*
+   * -------------------------------------------------------
+   * DEBUG
+   * -------------------------------------------------------
+   */
+
+  console.log(
+    'DRAFT OPPORTUNITY COMPARISON:',
+    player.name,
+    {
+      playerScore:
+        score,
+
+      nextPlayer:
+        nextPlayer
+          ? nextPlayer.name
+          : null,
+
+      nextPlayerRawScore:
+        nextScore,
+
+      nextPlayerSurvival:
+        nextPlayer
+          ? Number(
+              nextPlayer.nextPickSurvivalScore
+            ) || 0
+          : 0,
+
+      nextPlayerAdjustedScore:
+        nextPlayer
+          ? Number(
+              nextPlayer.survivalAdjustedScore
+            ) || 0
+          : 0,
+
+      scoreGap:
+        scoreGap,
+
+      confidence:
+        confidenceScore,
+
+      recommendation:
+        recommendation
+    }
+  );
+
+
   return {
 
-  player:
-    player.name,
+    player:
+      player.name,
 
-  position:
-    player.position,
+    position:
+      player.position,
 
-  score:
-    score,
+    score:
+      score,
 
-  nextBest:
-    nextPlayer
-      ? nextPlayer.name
-      : null,
+    nextBest:
+      nextPlayer
+        ? nextPlayer.name
+        : null,
 
-  nextBestScore:
-    nextScore,
+    nextBestScore:
+      nextScore,
 
-  scoreGap:
-    scoreGap,
+    nextBestSurvival:
+      nextPlayer
+        ? Number(
+            nextPlayer.nextPickSurvivalScore
+          ) || 0
+        : 0,
 
-  confidence:
-    confidence,
+    nextBestSurvivalAdjustedScore:
+      nextPlayer
+        ? Number(
+            nextPlayer.survivalAdjustedScore
+          ) || 0
+        : 0,
 
-  recommendation:
-    recommendation,
+    scoreGap:
+      scoreGap,
 
-  confidenceScore:
-    confidenceScore,
+    confidence:
+      confidence,
 
-  decision:
-    decision,
+    recommendation:
+      recommendation,
 
-  reasons:
-    reasons,
+    confidenceScore:
+      confidenceScore,
 
-  closeAlternative:
-    closeAlternative
+    decision:
+      decision,
 
-};
+    reasons:
+      reasons,
+
+    closeAlternative:
+      closeAlternative
+
+  };
 
 }
 
