@@ -3055,13 +3055,33 @@ function calculateLateAvailability(
 
   if (comparable <= 1) {
 
+  if (picksUntilNext >= 12) {
+
     risk += 10;
 
-  } else if (comparable === 2) {
+  } else if (picksUntilNext >= 8) {
 
-    risk += 5;
+    risk += 6;
+
+  } else if (picksUntilNext >= 5) {
+
+    risk += 2;
 
   }
+
+} else if (comparable === 2) {
+
+  if (picksUntilNext >= 8) {
+
+    risk += 4;
+
+  } else if (picksUntilNext >= 5) {
+
+    risk += 2;
+
+  }
+
+}
 
     console.log(
     'AVAILABILITY RISK:',
