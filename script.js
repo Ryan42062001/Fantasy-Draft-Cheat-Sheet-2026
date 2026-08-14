@@ -5628,11 +5628,23 @@ function calculateDraftRecommendation(
     );
 
   var confidenceScore =
-  calculateRecommendationConfidence(
-    player,
-    nextPlayer,
-    context
-  );
+    calculateRecommendationConfidence(
+      player,
+      nextPlayer,
+      context
+    );
+
+  var decision =
+    calculateRecommendationDecision(
+      player,
+      nextPlayer,
+      scoreGap,
+      confidenceScore,
+      context
+    );
+
+  var recommendation =
+    decision.recommendation;
 
 var confidence =
   'LOW';
