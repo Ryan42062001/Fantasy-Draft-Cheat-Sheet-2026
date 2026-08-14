@@ -3121,107 +3121,361 @@ function detectDraftRuns(){
     );
 
   /*
-   * Only examine the most recent picks.
+   * -------------------------------------------------------
+   * 1. RECENT PICK WINDOW
+   * -------------------------------------------------------
+   *
+   * We examine the most recent 8 picks.
+   *
+   * This keeps the detector responsive without allowing
+   * old draft activity to distort the current state.
    */
+
   var recentCount = 8;
 
   var recentRows =
     rows.slice(-recentCount);
 
-  var counts = {
-    QB: 0,
-    RB: 0,
-    WR: 0,
-    TE: 0,
-    K: 0,
-    DST: 0
-  };
 
-  recentRows.forEach(function(row){
+  /*
+   * -------------------------------------------------------
+   * 2. POSITION DATA
+   * -------------------------------------------------------
+   */
+
+  var positions = [
+    'QB',
+    'RB',
+    'WR',
+    'TE'
+  ];
+
+  var runs = {};
+
+  positions.forEach(function(position){
+
+    runs[position] = {
+
+      count: 0,
+
+      strength: 'NONE',
+
+      averageRank: null,
+
+      qualityScore: 0,
+
+      recencyScore: 0,
+
+      runScore: 0
+
+    };
+
+  });
+
+
+  /*
+   * -------------------------------------------------------
+   * 3. ANALYZE RECENT PICKS
+   * -------------------------------------------------------
+   */
+
+  recentRows.forEach(function(row,index){
 
     var position =
       row.getAttribute('data-pos');
 
     if(
-      position &&
-      counts[position] !== undefined
+      !position ||
+      !runs[position]
     ){
-      counts[position]++;
+      return;
     }
+
+
+    runs[position].count++;
+
+
+    /*
+     * Try to identify the player's overall rank.
+     *
+     * We intentionally support several possible
+     * attributes because draft-board markup can vary.
+     */
+
+    var rank =
+      Number(
+        row.getAttribute('data-rank') ||
+        row.getAttribute('data-overall') ||
+        row.getAttribute('data-rk') ||
+        999
+      );
+
+
+    /*
+     * Store rank information temporarily.
+     */
+
+    if(!runs[position].ranks){
+
+      runs[position].ranks = [];
+
+    }
+
+    if(rank < 999){
+
+      runs[position].ranks.push(rank);
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * RECENCY
+     * -------------------------------------------------------
+     *
+     * Newer picks receive more weight.
+     *
+     * index 0 = oldest pick in the window
+     * higher index = more recent
+     */
+
+    var recencyWeight =
+      (index + 1) /
+      recentRows.length;
+
+    runs[position].recencyScore +=
+      recencyWeight;
 
   });
 
 
   /*
-   * Find the position with the most
-   * selections during the recent window.
+   * -------------------------------------------------------
+   * 4. CALCULATE RUN STRENGTH
+   * -------------------------------------------------------
    */
 
-  var positions =
-    Object.keys(counts);
+  positions.forEach(function(position){
 
-  positions.sort(function(a,b){
-    return counts[b] - counts[a];
+    var run =
+      runs[position];
+
+
+    if(run.count >= 5){
+
+      run.strength =
+        'STRONG';
+
+    } else if(run.count >= 4){
+
+      run.strength =
+        'MODERATE';
+
+    } else if(run.count >= 3){
+
+      run.strength =
+        'LIGHT';
+
+    } else {
+
+      run.strength =
+        'NONE';
+
+    }
+
+
+    /*
+     * Average player rank involved in the run.
+     */
+
+    if(
+      run.ranks &&
+      run.ranks.length
+    ){
+
+      var rankTotal =
+        run.ranks.reduce(
+          function(total,rank){
+            return total + rank;
+          },
+          0
+        );
+
+      run.averageRank =
+        rankTotal /
+        run.ranks.length;
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * 5. QUALITY SCORE
+     * -------------------------------------------------------
+     *
+     * A run involving highly-ranked players is more
+     * meaningful than a run involving late-round players.
+     *
+     * Lower average rank = stronger quality.
+     */
+
+    if(run.averageRank !== null){
+
+      run.qualityScore =
+        Math.max(
+          0,
+          Math.min(
+            100,
+            100 -
+            ((run.averageRank - 1) * 1.5)
+          )
+        );
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * 6. RUN SCORE
+     * -------------------------------------------------------
+     *
+     * Frequency is the primary signal.
+     * Quality and recency provide secondary context.
+     */
+
+    var frequencyScore =
+      Math.min(
+        100,
+        (run.count / recentRows.length) * 100
+      );
+
+
+    run.runScore =
+      (
+        frequencyScore * 0.60
+      ) +
+      (
+        run.qualityScore * 0.25
+      ) +
+      (
+        (
+          recentRows.length > 0
+            ? (run.recencyScore /
+               recentRows.length) * 100
+            : 0
+        ) * 0.15
+      );
+
+
+    /*
+     * Remove temporary rank array from the public
+     * result to keep the object clean.
+     */
+
+    delete run.ranks;
+
   });
+
+
+  /*
+   * -------------------------------------------------------
+   * 7. FIND PRIMARY RUN
+   * -------------------------------------------------------
+   *
+   * Preserve the old behavior:
+   * one primary run is returned for the existing
+   * calculateDraftRunOpportunity() function.
+   */
+
+  var rankedPositions =
+    positions
+      .slice()
+      .sort(function(a,b){
+
+        return (
+          runs[b].runScore -
+          runs[a].runScore
+        );
+
+      });
 
 
   var topPosition =
-    positions[0];
+    rankedPositions[0];
 
-  var topCount =
-    counts[topPosition];
+  var topRun =
+    runs[topPosition];
 
-
-  /*
-   * A run requires at least 3 players
-   * at the position during the window.
-   */
 
   var isRun =
-    topCount >= 3;
+    topRun &&
+    topRun.count >= 3;
 
 
   /*
-   * Determine strength of the run.
+   * -------------------------------------------------------
+   * 8. RETURN
+   * -------------------------------------------------------
    */
 
-  var runStrength =
-    'NONE';
-
-  if(topCount >= 5){
-
-    runStrength = 'STRONG';
-
-  } else if(topCount >= 4){
-
-    runStrength = 'MODERATE';
-
-  } else if(topCount >= 3){
-
-    runStrength = 'LIGHT';
-
-  }
-
-
   return {
+
+    /*
+     * Existing compatibility fields.
+     */
 
     isRun:
       isRun,
 
     position:
-      isRun ? topPosition : null,
+      isRun
+        ? topPosition
+        : null,
 
     count:
-      isRun ? topCount : 0,
+      isRun
+        ? topRun.count
+        : 0,
 
     strength:
-      runStrength,
+      isRun
+        ? topRun.strength
+        : 'NONE',
+
+
+    /*
+     * New detailed run information.
+     */
+
+    runs:
+      runs,
 
     recentCount:
       recentRows.length,
 
+    /*
+     * Helpful debugging information.
+     */
+
     counts:
-      counts
+      positions.reduce(
+        function(result,position){
+
+          result[position] =
+            runs[position].count;
+
+          return result;
+
+        },
+        {
+          QB: 0,
+          RB: 0,
+          WR: 0,
+          TE: 0,
+          K: 0,
+          DST: 0
+        }
+      )
 
   };
 
