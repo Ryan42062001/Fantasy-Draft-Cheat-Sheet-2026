@@ -4985,6 +4985,380 @@ finalScore:
   };
 }
 
+function calculateRecommendationConfidence(
+  player,
+  alternative,
+  context
+) {
+
+  if (!player) {
+    return 0;
+  }
+
+  context = context || {};
+
+  alternative =
+    alternative || null;
+
+
+  /*
+   * -------------------------------------------------------
+   * 1. SCORE GAP
+   * -------------------------------------------------------
+   *
+   * How far ahead is the recommended player?
+   */
+
+  var playerScore =
+    Number(player.finalScore) || 0;
+
+  var alternativeScore =
+    alternative
+      ? Number(alternative.finalScore) || 0
+      : 0;
+
+  var scoreGap =
+    Math.max(
+      0,
+      playerScore - alternativeScore
+    );
+
+
+  /*
+   * Convert score gap into confidence.
+   */
+
+  var gapConfidence = 0;
+
+  if (scoreGap >= 10) {
+
+    gapConfidence = 40;
+
+  } else if (scoreGap >= 7) {
+
+    gapConfidence = 32;
+
+  } else if (scoreGap >= 5) {
+
+    gapConfidence = 25;
+
+  } else if (scoreGap >= 3) {
+
+    gapConfidence = 18;
+
+  } else if (scoreGap >= 1.5) {
+
+    gapConfidence = 10;
+
+  } else {
+
+    gapConfidence = 4;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 2. TIER ADVANTAGE
+   * -------------------------------------------------------
+   */
+
+  var tierDifference =
+    (
+      Number(player.tierScore) || 0
+    ) -
+    (
+      alternative
+        ? Number(alternative.tierScore) || 0
+        : 0
+    );
+
+  var tierConfidence = 0;
+
+  if (tierDifference >= 15) {
+
+    tierConfidence = 20;
+
+  } else if (tierDifference >= 8) {
+
+    tierConfidence = 14;
+
+  } else if (tierDifference >= 4) {
+
+    tierConfidence = 8;
+
+  } else if (tierDifference > 0) {
+
+    tierConfidence = 4;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 3. VORP ADVANTAGE
+   * -------------------------------------------------------
+   */
+
+  var vorpDifference =
+    (
+      Number(player.vorpScore) || 0
+    ) -
+    (
+      alternative
+        ? Number(alternative.vorpScore) || 0
+        : 0
+    );
+
+  var vorpConfidence = 0;
+
+  if (vorpDifference >= 25) {
+
+    vorpConfidence = 15;
+
+  } else if (vorpDifference >= 15) {
+
+    vorpConfidence = 11;
+
+  } else if (vorpDifference >= 8) {
+
+    vorpConfidence = 7;
+
+  } else if (vorpDifference > 0) {
+
+    vorpConfidence = 3;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 4. TIMING ADVANTAGE
+   * -------------------------------------------------------
+   *
+   * If the player is much more likely to disappear
+   * before the next pick, confidence increases.
+   */
+
+  var timingDifference =
+    (
+      Number(player.timingScore) || 0
+    ) -
+    (
+      alternative
+        ? Number(alternative.timingScore) || 0
+        : 0
+    );
+
+  var timingConfidence = 0;
+
+  if (timingDifference >= 20) {
+
+    timingConfidence = 10;
+
+  } else if (timingDifference >= 10) {
+
+    timingConfidence = 7;
+
+  } else if (timingDifference >= 5) {
+
+    timingConfidence = 4;
+
+  } else if (timingDifference > 0) {
+
+    timingConfidence = 2;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 5. TIER CLIFF
+   * -------------------------------------------------------
+   */
+
+  var cliffScore =
+    Number(
+      player.tierCliffOpportunityScore
+    ) || 0;
+
+  var cliffConfidence = 0;
+
+  if (cliffScore >= 5) {
+
+    cliffConfidence = 8;
+
+  } else if (cliffScore >= 3) {
+
+    cliffConfidence = 5;
+
+  } else if (cliffScore > 0) {
+
+    cliffConfidence = 2;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 6. DRAFT-AWARE VORP OPPORTUNITY
+   * -------------------------------------------------------
+   */
+
+  var draftAwareVorp =
+    Number(
+      player.draftAwareVorpOpportunityScore
+    ) || 0;
+
+  var draftAwareConfidence = 0;
+
+  if (draftAwareVorp >= 5) {
+
+    draftAwareConfidence = 7;
+
+  } else if (draftAwareVorp >= 3) {
+
+    draftAwareConfidence = 5;
+
+  } else if (draftAwareVorp >= 2) {
+
+    draftAwareConfidence = 3;
+
+  } else if (draftAwareVorp > 0) {
+
+    draftAwareConfidence = 1;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 7. ROSTER NEED
+   * -------------------------------------------------------
+   */
+
+  var needScore =
+    Number(
+      player.rosterNeedScore
+    ) || 0;
+
+  var needConfidence = 0;
+
+  if (needScore >= 2) {
+
+    needConfidence = 5;
+
+  } else if (needScore >= 1) {
+
+    needConfidence = 3;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 8. SCARCITY
+   * -------------------------------------------------------
+   */
+
+  var scarcityScore =
+    Number(
+      player.scarcityScore
+    ) || 0;
+
+  var scarcityConfidence = 0;
+
+  if (scarcityScore >= 90) {
+
+    scarcityConfidence = 5;
+
+  } else if (scarcityScore >= 75) {
+
+    scarcityConfidence = 3;
+
+  } else if (scarcityScore >= 60) {
+
+    scarcityConfidence = 1;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 9. TOTAL CONFIDENCE
+   * -------------------------------------------------------
+   */
+
+  var confidence =
+    gapConfidence +
+    tierConfidence +
+    vorpConfidence +
+    timingConfidence +
+    cliffConfidence +
+    draftAwareConfidence +
+    needConfidence +
+    scarcityConfidence;
+
+
+  /*
+   * Cap the result.
+   */
+
+  confidence =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        confidence
+      )
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * DEBUG
+   * -------------------------------------------------------
+   */
+
+  console.log(
+    'RECOMMENDATION CONFIDENCE:',
+    player.name,
+    {
+      scoreGap: scoreGap,
+      gapConfidence: gapConfidence,
+
+      tierDifference: tierDifference,
+      tierConfidence: tierConfidence,
+
+      vorpDifference: vorpDifference,
+      vorpConfidence: vorpConfidence,
+
+      timingDifference: timingDifference,
+      timingConfidence: timingConfidence,
+
+      cliffConfidence: cliffConfidence,
+
+      draftAwareVorp:
+        draftAwareVorp,
+
+      draftAwareConfidence:
+        draftAwareConfidence,
+
+      needConfidence:
+        needConfidence,
+
+      scarcityConfidence:
+        scarcityConfidence,
+
+      confidence:
+        confidence
+    }
+  );
+
+
+  return confidence;
+}
+
 function calculateDraftRecommendation(
   player,
   scoredPlayers,
@@ -5022,22 +5396,29 @@ function calculateDraftRecommendation(
       score - nextScore
     );
 
-  var confidence =
-    'LOW';
+  var confidenceScore =
+  calculateRecommendationConfidence(
+    player,
+    nextPlayer,
+    context
+  );
 
-  if (scoreGap >= 8) {
+var confidence =
+  'LOW';
 
-    confidence = 'VERY HIGH';
+if (confidenceScore >= 80) {
 
-  } else if (scoreGap >= 5) {
+  confidence = 'VERY HIGH';
 
-    confidence = 'HIGH';
+} else if (confidenceScore >= 65) {
 
-  } else if (scoreGap >= 2) {
+  confidence = 'HIGH';
 
-    confidence = 'MODERATE';
+} else if (confidenceScore >= 45) {
 
-  }
+  confidence = 'MODERATE';
+
+}
 
 
   /*
@@ -5209,6 +5590,9 @@ function calculateDraftRecommendation(
 
     recommendation:
       recommendation,
+
+    confidenceScore:
+      confidenceScore,
 
     reasons:
       reasons,
