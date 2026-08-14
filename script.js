@@ -2035,8 +2035,6 @@ function getEffectiveReplacement(
 
   return null;
 }
-```
-
 
 function calculateTierCliffOpportunity(player, context){
 
