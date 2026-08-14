@@ -5001,12 +5001,12 @@ function calculateRecommendationConfidence(
     alternative || null;
 
 
-  /*
+    /*
    * -------------------------------------------------------
    * 1. SCORE GAP
    * -------------------------------------------------------
    *
-   * How far ahead is the recommended player?
+   * Score separation is the strongest confidence signal.
    */
 
   var playerScore =
@@ -5024,35 +5024,31 @@ function calculateRecommendationConfidence(
     );
 
 
-  /*
-   * Convert score gap into confidence.
-   */
-
   var gapConfidence = 0;
 
   if (scoreGap >= 10) {
 
-    gapConfidence = 40;
+    gapConfidence = 45;
 
   } else if (scoreGap >= 7) {
 
-    gapConfidence = 32;
+    gapConfidence = 38;
 
   } else if (scoreGap >= 5) {
 
-    gapConfidence = 25;
+    gapConfidence = 31;
 
   } else if (scoreGap >= 3) {
 
-    gapConfidence = 18;
+    gapConfidence = 24;
 
   } else if (scoreGap >= 1.5) {
 
-    gapConfidence = 10;
+    gapConfidence = 14;
 
   } else {
 
-    gapConfidence = 4;
+    gapConfidence = 5;
 
   }
 
@@ -5077,19 +5073,19 @@ function calculateRecommendationConfidence(
 
   if (tierDifference >= 15) {
 
-    tierConfidence = 20;
+    tierConfidence = 15;
 
   } else if (tierDifference >= 8) {
 
-    tierConfidence = 14;
+    tierConfidence = 10;
 
   } else if (tierDifference >= 4) {
 
-    tierConfidence = 8;
+    tierConfidence = 6;
 
   } else if (tierDifference > 0) {
 
-    tierConfidence = 4;
+    tierConfidence = 3;
 
   }
 
@@ -5118,15 +5114,15 @@ function calculateRecommendationConfidence(
 
   } else if (vorpDifference >= 15) {
 
-    vorpConfidence = 11;
+    vorpConfidence = 12;
 
   } else if (vorpDifference >= 8) {
 
-    vorpConfidence = 7;
+    vorpConfidence = 8;
 
   } else if (vorpDifference > 0) {
 
-    vorpConfidence = 3;
+    vorpConfidence = 4;
 
   }
 
@@ -5135,9 +5131,6 @@ function calculateRecommendationConfidence(
    * -------------------------------------------------------
    * 4. TIMING ADVANTAGE
    * -------------------------------------------------------
-   *
-   * If the player is much more likely to disappear
-   * before the next pick, confidence increases.
    */
 
   var timingDifference =
@@ -5154,19 +5147,19 @@ function calculateRecommendationConfidence(
 
   if (timingDifference >= 20) {
 
-    timingConfidence = 10;
+    timingConfidence = 8;
 
   } else if (timingDifference >= 10) {
 
-    timingConfidence = 7;
+    timingConfidence = 6;
 
   } else if (timingDifference >= 5) {
 
-    timingConfidence = 4;
+    timingConfidence = 3;
 
   } else if (timingDifference > 0) {
 
-    timingConfidence = 2;
+    timingConfidence = 1;
 
   }
 
@@ -5186,11 +5179,11 @@ function calculateRecommendationConfidence(
 
   if (cliffScore >= 5) {
 
-    cliffConfidence = 8;
+    cliffConfidence = 6;
 
   } else if (cliffScore >= 3) {
 
-    cliffConfidence = 5;
+    cliffConfidence = 4;
 
   } else if (cliffScore > 0) {
 
@@ -5201,7 +5194,7 @@ function calculateRecommendationConfidence(
 
   /*
    * -------------------------------------------------------
-   * 6. DRAFT-AWARE VORP OPPORTUNITY
+   * 6. DRAFT-AWARE VORP
    * -------------------------------------------------------
    */
 
@@ -5214,15 +5207,15 @@ function calculateRecommendationConfidence(
 
   if (draftAwareVorp >= 5) {
 
-    draftAwareConfidence = 7;
+    draftAwareConfidence = 6;
 
   } else if (draftAwareVorp >= 3) {
 
-    draftAwareConfidence = 5;
+    draftAwareConfidence = 4;
 
   } else if (draftAwareVorp >= 2) {
 
-    draftAwareConfidence = 3;
+    draftAwareConfidence = 2;
 
   } else if (draftAwareVorp > 0) {
 
@@ -5246,11 +5239,11 @@ function calculateRecommendationConfidence(
 
   if (needScore >= 2) {
 
-    needConfidence = 5;
+    needConfidence = 4;
 
   } else if (needScore >= 1) {
 
-    needConfidence = 3;
+    needConfidence = 2;
 
   }
 
@@ -5270,11 +5263,11 @@ function calculateRecommendationConfidence(
 
   if (scarcityScore >= 90) {
 
-    scarcityConfidence = 5;
+    scarcityConfidence = 4;
 
   } else if (scarcityScore >= 75) {
 
-    scarcityConfidence = 3;
+    scarcityConfidence = 2;
 
   } else if (scarcityScore >= 60) {
 
@@ -5287,6 +5280,15 @@ function calculateRecommendationConfidence(
    * -------------------------------------------------------
    * 9. TOTAL CONFIDENCE
    * -------------------------------------------------------
+   *
+   * Primary evidence:
+   *   score gap + VORP
+   *
+   * Supporting evidence:
+   *   tier + timing + draft-aware VORP
+   *
+   * Context:
+   *   cliff + need + scarcity
    */
 
   var confidence =
@@ -5299,10 +5301,6 @@ function calculateRecommendationConfidence(
     needConfidence +
     scarcityConfidence;
 
-
-  /*
-   * Cap the result.
-   */
 
   confidence =
     Math.max(
