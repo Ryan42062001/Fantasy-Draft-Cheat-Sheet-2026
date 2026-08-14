@@ -3906,86 +3906,63 @@ if(context.rosterNeeds &&
    * -------------------------------------------------------
    */
 
-  var timingScore = 0;
-
-  if(context.currentPick &&
-     context.nextPick){
-
-    var picksUntilNext =
-      Math.max(
-        1,
-        context.nextPick - context.currentPick
-      );
-
-    /*
-     * Players that are likely to disappear
-     * before our next pick receive more value.
-     */
-
-    if(rank <= context.nextPick){
-      timingScore += 15;
-    }
-
-    if(rank <= context.nextPick + 5){
-      timingScore += 8;
-    }
-  }
-
- 
   /*
-   * -------------------------------------------------------
-   * 7. FINAL WEIGHTED SCORE
-   * -------------------------------------------------------
-   *
-   * Tier and custom ranking are deliberately strong.
-   *
-   * This prevents a late-round QB/TE from jumping
-   * an elite WR/RB simply because of positional scarcity.
-   */
+ * -------------------------------------------------------
+ * 6. TIMING / LATE AVAILABILITY
+ * -------------------------------------------------------
+ *
+ * Use the late-availability model to determine how
+ * valuable it is to take this player before our next pick.
+ *
+ * lateAvailability is a 0-100 risk score:
+ *
+ * 0   = very likely to remain available
+ * 100 = very likely to disappear before our next pick
+ */
 
-  var finalScore =
-      (tierScore * 0.35) +
-      (rankScore * 0.25) +
-      (vorpScore * 0.20) +
-      (scarcityScore * 0.10) +
-      (rosterNeedScore * 0.05) +
-      (timingScore * 0.05);
+var timingScore = 0;
 
-  /*
+var draftState =
+  getDraftAssistantState();
+
+var lateAvailability =
+  calculateLateAvailability(
+    player,
+    players,
+    {
+      currentPick:
+        draftState.currentPick,
+
+      nextPick:
+        draftState.myNextPick
+    }
+  );
+
+/*
+ * Convert availability risk into the existing
+ * 0-100 timing score.
+ */
+timingScore =
+  lateAvailability;
+
+
+/*
  * -------------------------------------------------------
  * 6.5. STRATEGY ADJUSTMENT
  * -------------------------------------------------------
- *
- * Strategy should influence close decisions without
- * overpowering tier, rank, or VORP.
  */
 
 var strategyScore = 0;
 
-  var runOpportunityScore =
-  calculateDraftRunOpportunity(
-    player,
-    context
-  );
-
-console.log(
-  'RUN OPPORTUNITY SCORE:',
-  player.name,
-  'position =', position,
-  'runOpportunityScore =',
-  runOpportunityScore
-);
-
-  finalScore += strategyScore;
-finalScore += runOpportunityScore;
-
-if(context.strategy &&
-   context.strategy.targetPosition){
+if (
+  context.strategy &&
+  context.strategy.targetPosition
+) {
 
   var targetPosition =
     context.strategy.targetPosition;
 
-  if(position === targetPosition){
+  if (position === targetPosition) {
 
     strategyScore = 4;
 
@@ -3993,7 +3970,14 @@ if(context.strategy &&
 
 }
 
-  var runOpportunityScore =
+
+/*
+ * -------------------------------------------------------
+ * RUN OPPORTUNITY
+ * -------------------------------------------------------
+ */
+
+var runOpportunityScore =
   calculateDraftRunOpportunity(
     player,
     context
@@ -4002,12 +3986,20 @@ if(context.strategy &&
 console.log(
   'RUN OPPORTUNITY SCORE:',
   player.name,
-  'position =', position,
+  'position =',
+  position,
   'runOpportunityScore =',
   runOpportunityScore
 );
 
-  var tierCliffOpportunityScore =
+
+/*
+ * -------------------------------------------------------
+ * TIER CLIFF OPPORTUNITY
+ * -------------------------------------------------------
+ */
+
+var tierCliffOpportunityScore =
   calculateTierCliffOpportunity(
     player,
     context
@@ -4024,9 +4016,26 @@ console.log(
 
 
 /*
- * Add the strategy adjustment after the normal
- * weighted score is calculated.
+ * -------------------------------------------------------
+ * 7. FINAL WEIGHTED SCORE
+ * -------------------------------------------------------
  */
+
+var finalScore =
+    (tierScore * 0.35) +
+    (rankScore * 0.25) +
+    (vorpScore * 0.20) +
+    (scarcityScore * 0.10) +
+    (rosterNeedScore * 0.05) +
+    (timingScore * 0.05);
+
+
+/*
+ * -------------------------------------------------------
+ * STRATEGY ADJUSTMENTS
+ * -------------------------------------------------------
+ */
+
 finalScore += strategyScore;
 finalScore += tierCliffOpportunityScore;
 finalScore += runOpportunityScore;
