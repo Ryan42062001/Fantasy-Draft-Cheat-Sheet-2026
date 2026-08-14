@@ -3305,23 +3305,6 @@ var lateAvailability =
   'scarcity =',
   scarcity
 );
-
-console.log(
-  'AVAILABILITY RISK:',
-  player.name,
-  'position =',
-  player.position,
-  'rank =',
-  player.rank,
-  'picksUntilNext =',
-  picksUntilNext,
-  'higherRanked =',
-  higherRanked,
-  'comparable =',
-  comparable,
-  'risk =',
-  risk
-);
   
   return {
 
