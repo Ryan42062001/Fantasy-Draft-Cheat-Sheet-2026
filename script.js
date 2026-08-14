@@ -5626,11 +5626,6 @@ function calculateNextPickAlternatives(
     context || {};
 
   var availablePlayers =
-    scoredPlayers.filter(function(candidate) {
-
-      return candidate &&
-        candidate.name !== player.name &&
-        var availablePlayers =
   scoredPlayers.filter(function(candidate) {
 
     return candidate &&
@@ -5638,8 +5633,6 @@ function calculateNextPickAlternatives(
       candidate.available !== false;
 
   });
-
-    });
 
   /*
    * Number of picks until our next turn.
