@@ -5357,6 +5357,239 @@ function calculateRecommendationConfidence(
   return confidence;
 }
 
+function calculateRecommendationDecision(
+  player,
+  alternative,
+  scoreGap,
+  confidenceScore,
+  context
+) {
+
+  if (!player) {
+    return {
+      recommendation: 'PASS',
+      reason: 'No player provided.'
+    };
+  }
+
+  context =
+    context || {};
+
+  var gap =
+    Number(scoreGap) || 0;
+
+  var confidence =
+    Number(confidenceScore) || 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * 1. PLAYER STRENGTH
+   * -------------------------------------------------------
+   *
+   * Strong underlying player metrics can justify
+   * a recommendation even when the score gap is modest.
+   */
+
+  var vorp =
+    Number(player.vorpScore) || 0;
+
+  var tier =
+    Number(player.tierScore) || 0;
+
+  var timing =
+    Number(player.timingScore) || 0;
+
+  var cliff =
+    Number(
+      player.tierCliffOpportunityScore
+    ) || 0;
+
+  var run =
+    Number(
+      player.runOpportunityScore
+    ) || 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * 2. DETERMINE WHETHER THIS IS A STRONG VALUE
+   * -------------------------------------------------------
+   */
+
+  var strongValue =
+    (
+      vorp >= 80 ||
+      tier >= 90
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * 3. DETERMINE WHETHER THERE IS URGENCY
+   * -------------------------------------------------------
+   */
+
+  var urgent =
+    (
+      timing >= 70 ||
+      cliff >= 5 ||
+      run >= 3
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * 4. RECOMMENDATION
+   * -------------------------------------------------------
+   */
+
+  var recommendation =
+    'CONSIDER';
+
+
+  /*
+   * CLEAR DRAFT
+   *
+   * Large score advantage plus strong confidence.
+   */
+
+  if (
+    gap >= 8 &&
+    confidence >= 70
+  ) {
+
+    recommendation =
+      'DRAFT';
+
+
+  /*
+   * STRONG DRAFT
+   *
+   * Moderate gap but strong confidence and/or
+   * strong underlying player value.
+   */
+
+  } else if (
+    gap >= 5 &&
+    confidence >= 60
+  ) {
+
+    recommendation =
+      'DRAFT';
+
+
+  /*
+   * LEAN DRAFT
+   *
+   * Player has a meaningful advantage but the
+   * evidence is not overwhelming.
+   */
+
+  } else if (
+    gap >= 3 &&
+    confidence >= 45
+  ) {
+
+    recommendation =
+      'LEAN DRAFT';
+
+
+  /*
+   * URGENT LEAN
+   *
+   * A player may deserve action despite a modest
+   * score gap when timing/cliff/run pressure exists.
+   */
+
+  } else if (
+    gap >= 2 &&
+    confidence >= 40 &&
+    urgent
+  ) {
+
+    recommendation =
+      'LEAN DRAFT';
+
+
+  /*
+   * ELITE VALUE OVERRIDE
+   *
+   * Protect elite players from being treated as
+   * ordinary "consider" options when the gap is
+   * relatively small.
+   */
+
+  } else if (
+    gap >= 2 &&
+    strongValue &&
+    confidence >= 40
+  ) {
+
+    recommendation =
+      'LEAN DRAFT';
+
+
+  /*
+   * CLOSE DECISION
+   *
+   * If the scores are very close, don't pretend
+   * the model has a decisive answer.
+   */
+
+  } else if (
+    gap < 2
+  ) {
+
+    recommendation =
+      'CONSIDER';
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 5. PASS LOGIC
+   * -------------------------------------------------------
+   *
+   * Only use PASS when the alternative clearly
+   * outperforms the player.
+   *
+   * scoreGap currently uses Math.max(0,...), so
+   * this section is mainly defensive for future use.
+   */
+
+  if (
+    Number(scoreGap) < -4 &&
+    confidence >= 60
+  ) {
+
+    recommendation =
+      'PASS';
+
+  }
+
+
+  return {
+
+    recommendation:
+      recommendation,
+
+    scoreGap:
+      gap,
+
+    confidenceScore:
+      confidence,
+
+    strongValue:
+      strongValue,
+
+    urgent:
+      urgent
+
+  };
+}
+
 function calculateDraftRecommendation(
   player,
   scoredPlayers,
@@ -5683,33 +5916,6 @@ function calculateDraftRecommendation(
     alternativeScore;
 
 
-  /*
-   * -------------------------------------------------------
-   * 4. RECOMMENDATION LEVEL
-   * -------------------------------------------------------
-   */
-
-  var recommendation =
-    'CONSIDER';
-
-  if(scoreGap >= 8){
-
-    recommendation =
-      'DRAFT';
-
-  } else if(scoreGap >= 4){
-
-    recommendation =
-      'LEAN DRAFT';
-
-  } else if(scoreGap <= -4){
-
-    recommendation =
-      'PASS';
-
-  }
-
-
     /*
    * -------------------------------------------------------
    * 5. CONFIDENCE
@@ -5727,6 +5933,18 @@ function calculateDraftRecommendation(
       alternative,
       context
     );
+
+  var decision =
+  calculateRecommendationDecision(
+    player,
+    nextPlayer,
+    scoreGap,
+    confidenceScore,
+    context
+  );
+
+var recommendation =
+  decision.recommendation;
 
   var confidence =
     'LOW';
