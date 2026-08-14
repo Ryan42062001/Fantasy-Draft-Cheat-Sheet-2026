@@ -5712,49 +5712,41 @@ function calculateDraftRecommendation(
   }
 
 
-  /*
+    /*
    * -------------------------------------------------------
    * 5. CONFIDENCE
    * -------------------------------------------------------
    *
-   * Score separation is the primary confidence
-   * signal.
+   * Use the full recommendation-confidence model.
+   * This combines score gap, tier difference, VORP,
+   * timing, tier cliffs, draft-aware VORP, need,
+   * and positional scarcity.
    */
 
+  var confidenceScore =
+    calculateRecommendationConfidence(
+      player,
+      alternative,
+      context
+    );
+
   var confidence =
-    50;
+    'LOW';
 
-  if(scoreGap >= 10){
+  if(confidenceScore >= 80){
 
-    confidence = 95;
+    confidence =
+      'VERY HIGH';
 
-  } else if(scoreGap >= 8){
+  } else if(confidenceScore >= 65){
 
-    confidence = 90;
+    confidence =
+      'HIGH';
 
-  } else if(scoreGap >= 6){
+  } else if(confidenceScore >= 45){
 
-    confidence = 80;
-
-  } else if(scoreGap >= 4){
-
-    confidence = 70;
-
-  } else if(scoreGap >= 2){
-
-    confidence = 60;
-
-  } else if(scoreGap > -2){
-
-    confidence = 50;
-
-  } else if(scoreGap > -4){
-
-    confidence = 35;
-
-  } else {
-
-    confidence = 20;
+    confidence =
+      'MODERATE';
 
   }
 
@@ -5812,23 +5804,9 @@ function calculateDraftRecommendation(
 
   }
 
-
   /*
    * -------------------------------------------------------
-   * 7. FINAL CONFIDENCE
-   * -------------------------------------------------------
-   */
-
-  confidence =
-    Math.min(
-      99,
-      confidence + urgencyBonus
-    );
-
-
-  /*
-   * -------------------------------------------------------
-   * 8. PRIMARY REASON
+   * 7. PRIMARY REASON
    * -------------------------------------------------------
    */
 
@@ -5891,7 +5869,7 @@ function calculateDraftRecommendation(
 
   /*
    * -------------------------------------------------------
-   * 9. BUILD HUMAN-READABLE SUMMARY
+   * 8. BUILD HUMAN-READABLE SUMMARY
    * -------------------------------------------------------
    */
 
@@ -5917,7 +5895,10 @@ function calculateDraftRecommendation(
       recommendation,
 
     confidence:
-      confidence,
+  confidence,
+
+confidenceScore:
+  confidenceScore,
 
     scoreGap:
       scoreGap,
