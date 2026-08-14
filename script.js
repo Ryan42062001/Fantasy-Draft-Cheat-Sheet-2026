@@ -2906,17 +2906,18 @@ function calculateLateAvailability(
    */
 
   var comparable =
-    samePosition.filter(function(p) {
+  samePosition.filter(function(p) {
 
-      var rank =
-        Number(p.rank) || 9999;
+    var rank =
+      Number(p.rank) || 9999;
 
-      return (
-        rank >= playerRank &&
-        rank <= playerRank + 20
-      );
+    return (
+      p !== player &&
+      rank >= playerRank &&
+      rank <= playerRank + 20
+    );
 
-    }).length;
+  }).length;
 
 
   /*
