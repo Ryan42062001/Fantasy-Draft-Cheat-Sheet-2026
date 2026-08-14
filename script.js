@@ -1849,14 +1849,39 @@ function calculateReplacementLevels(players) {
   var settings =
     getVorpLeagueSettings();
 
-  var replacement = {};
+  var draftState =
+    getDraftAssistantState();
 
   /*
-   * Build a separate ranked pool for each position.
+   * -------------------------------------------------------
+   * DRAFT-AWARE REPLACEMENT LEVELS
+   * -------------------------------------------------------
    *
-   * Player rank is OVERALL rank, so we sort each
-   * position independently by that overall rank.
+   * Instead of using a fixed roster-count replacement
+   * player, estimate who would realistically remain by
+   * the time we pick again.
+   *
+   * Example:
+   *
+   * Current pick = 25
+   * My next pick = 32
+   *
+   * There are 7 picks before I select again.
+   *
+   * We therefore project that the best ~7 currently
+   * available players may disappear before our next pick.
    */
+
+  var picksUntilMyTurn =
+    Number(
+      draftState.picksUntilMyTurn
+    ) || 0;
+
+
+  /*
+   * Build position pools.
+   */
+
   var positionPools = {};
 
   ['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
@@ -1865,83 +1890,167 @@ function calculateReplacementLevels(players) {
       players
         .filter(function(player) {
 
-          return player.available &&
+          return player &&
+            player.available &&
             player.position === position &&
-            player.rank;
+            player.rank !== undefined &&
+            player.rank !== null &&
+            player.rank !== '';
+
         })
+        .slice()
         .sort(function(a, b) {
 
           return Number(a.rank) -
                  Number(b.rank);
+
         });
+
   });
 
 
   /*
-   * Dedicated-position replacement levels.
+   * -------------------------------------------------------
+   * PROJECTED AVAILABLE POOL
+   * -------------------------------------------------------
    *
-   * Example:
+   * We don't know exactly which players opponents will
+   * select, so use overall ranking as the baseline
+   * projection.
    *
-   * 10 teams × 1 QB = 10 starting QBs
-   *
-   * Therefore QB #11 is the first replacement-level
-   * QB available after the dedicated starters.
+   * We remove the highest-ranked currently available
+   * players equal to the number of picks before our next
+   * selection.
    */
+
+  var projectedPlayers =
+    players
+      .filter(function(player) {
+
+        return player &&
+          player.available &&
+          VORP_POSITIONS.includes(
+            player.position
+          ) &&
+          player.rank !== undefined &&
+          player.rank !== null &&
+          player.rank !== '';
+
+      })
+      .slice()
+      .sort(function(a, b) {
+
+        return Number(a.rank) -
+               Number(b.rank);
+
+      });
+
+
+  /*
+   * Do not remove the entire pool.
+   *
+   * This is only a projection of the players most
+   * likely to disappear before our next pick.
+   */
+  var projectedGoneCount =
+    Math.min(
+      picksUntilMyTurn,
+      projectedPlayers.length
+    );
+
+
+  var projectedGone =
+    projectedPlayers.slice(
+      0,
+      projectedGoneCount
+    );
+
+
+  /*
+   * Build a quick lookup of projected players
+   * who are expected to disappear.
+   */
+
+  var projectedGoneNames = {};
+
+  projectedGone.forEach(function(player) {
+
+    projectedGoneNames[
+      String(player.name).toLowerCase()
+    ] = true;
+
+  });
+
+
+  /*
+   * Build replacement pools after the projected
+   * upcoming picks.
+   */
+
+  var projectedPositionPools = {};
+
+  ['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
+
+    projectedPositionPools[position] =
+      positionPools[position]
+        .filter(function(player) {
+
+          return !projectedGoneNames[
+            String(player.name).toLowerCase()
+          ];
+
+        });
+
+  });
+
+
+  /*
+   * -------------------------------------------------------
+   * DEDICATED POSITION REPLACEMENTS
+   * -------------------------------------------------------
+   *
+   * The replacement player is now the best player
+   * projected to remain at that position after our
+   * next selection window.
+   */
+
+  var replacement = {};
+
   ['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
 
     var pool =
-      positionPools[position];
+      projectedPositionPools[position];
 
-    var starterCount =
-      settings[position];
-
-    /*
-     * The player immediately after the dedicated
-     * starter pool is the basic replacement player.
-     */
     replacement[position] =
-      pool[starterCount] || null;
+      pool[0] || null;
 
   });
 
 
   /*
-   * FLEX replacement.
+   * -------------------------------------------------------
+   * FLEX REPLACEMENT
+   * -------------------------------------------------------
    *
-   * First remove the players required to satisfy
-   * dedicated RB / WR / TE starting positions.
+   * FLEX can be RB / WR / TE.
+   *
+   * Combine those positions and select the best
+   * projected remaining player.
    */
-  var remainingFlexPool = [];
 
+  var flexPool = [];
 
   ['RB', 'WR', 'TE'].forEach(function(position) {
 
-    var pool =
-      positionPools[position];
-
-    var dedicatedCount =
-      settings[position];
-
-    /*
-     * Everyone after the dedicated starter pool
-     * is a candidate to fill FLEX.
-     */
-    var remaining =
-      pool.slice(dedicatedCount);
-
-    remainingFlexPool =
-      remainingFlexPool.concat(
-        remaining
+    flexPool =
+      flexPool.concat(
+        projectedPositionPools[position]
       );
 
   });
 
 
-  /*
-   * Sort all remaining RB/WR/TE players together
-   * by overall rank.
-   */
-  remainingFlexPool.sort(function(a, b) {
+  flexPool.sort(function(a, b) {
 
     return Number(a.rank) -
            Number(b.rank);
@@ -1949,24 +2058,213 @@ function calculateReplacementLevels(players) {
   });
 
 
-  /*
-   * The last FLEX starter becomes the FLEX
-   * replacement level.
-   *
-   * Example:
-   *
-   * 10 teams = 10 FLEX spots
-   *
-   * Therefore the 10th player in this pool is
-   * approximately the FLEX replacement player.
-   */
   replacement.FLEX =
-    remainingFlexPool[
-      settings.FLEX - 1
-    ] || null;
+    flexPool[0] || null;
+
+
+  /*
+   * -------------------------------------------------------
+   * DEBUG
+   * -------------------------------------------------------
+   */
+
+  console.log(
+    'DRAFT-AWARE REPLACEMENT LEVELS:',
+    {
+      currentPick:
+        draftState.currentPick,
+
+      nextPick:
+        draftState.myNextPick,
+
+      picksUntilMyTurn:
+        picksUntilMyTurn,
+
+      replacements:
+        {
+          QB:
+            replacement.QB &&
+            replacement.QB.name,
+
+          RB:
+            replacement.RB &&
+            replacement.RB.name,
+
+          WR:
+            replacement.WR &&
+            replacement.WR.name,
+
+          TE:
+            replacement.TE &&
+            replacement.TE.name,
+
+          FLEX:
+            replacement.FLEX &&
+            replacement.FLEX.name
+        }
+    }
+  );
 
 
   return replacement;
+}
+
+/*
+ * =========================================================
+ * REFINED POSITION REPLACEMENT QUALITY
+ * =========================================================
+ *
+ * Prevents extreme replacement gaps from creating
+ * unrealistic VORP values.
+ *
+ * The goal is to identify the next realistic fantasy-
+ * relevant player at the position rather than simply
+ * using the first available player far down the board.
+ */
+
+function calculateRefinedReplacementRank(
+  player,
+  players,
+  context
+){
+
+  if(!player || !Array.isArray(players)){
+    return 999;
+  }
+
+  var position =
+    player.position ||
+    player.pos ||
+    'N/A';
+
+  var playerRank =
+    Number(
+      player.rank ||
+      player.rk ||
+      999
+    );
+
+  /*
+   * -------------------------------------------------------
+   * 1. GET AVAILABLE PLAYERS AT POSITION
+   * -------------------------------------------------------
+   */
+
+  var positionPlayers =
+    players
+      .filter(function(p){
+
+        if(!p) return false;
+
+        var pPosition =
+          p.position ||
+          p.pos ||
+          'N/A';
+
+        if(pPosition !== position){
+          return false;
+        }
+
+        /*
+         * Ignore players already drafted.
+         */
+        if(p.available === false){
+          return false;
+        }
+
+        var rank =
+          Number(
+            p.rank ||
+            p.rk ||
+            999
+          );
+
+        return rank > playerRank;
+
+      })
+      .sort(function(a,b){
+
+        return (
+          Number(a.rank || a.rk || 999) -
+          Number(b.rank || b.rk || 999)
+        );
+
+      });
+
+  if(!positionPlayers.length){
+    return 999;
+  }
+
+  /*
+   * -------------------------------------------------------
+   * 2. POSITION-SPECIFIC REALISTIC WINDOW
+   * -------------------------------------------------------
+   *
+   * We don't want a TE ranked #112 to become the
+   * replacement for a TE ranked #15 simply because
+   * there are no other available TEs nearby.
+   *
+   * Different positions have different replacement
+   * behavior.
+   */
+
+  var maxGap = 40;
+
+  if(position === 'QB'){
+    maxGap = 50;
+  }
+
+  if(position === 'RB'){
+    maxGap = 45;
+  }
+
+  if(position === 'WR'){
+    maxGap = 50;
+  }
+
+  if(position === 'TE'){
+    maxGap = 55;
+  }
+
+  /*
+   * -------------------------------------------------------
+   * 3. FIND REALISTIC REPLACEMENT
+   * -------------------------------------------------------
+   */
+
+  var realisticReplacement =
+    positionPlayers.find(function(p){
+
+      var rank =
+        Number(
+          p.rank ||
+          p.rk ||
+          999
+        );
+
+      return (
+        rank - playerRank <= maxGap
+      );
+
+    });
+
+  /*
+   * If there is no player inside the realistic
+   * window, use a capped fallback rather than
+   * allowing an enormous replacement gap.
+   */
+
+  if(realisticReplacement){
+
+    return Number(
+      realisticReplacement.rank ||
+      realisticReplacement.rk ||
+      999
+    );
+
+  }
+
+  return playerRank + maxGap;
 }
 
 /*
