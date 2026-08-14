@@ -5018,39 +5018,43 @@ function calculateRecommendationConfidence(
       : 0;
 
   var scoreGap =
-    Math.max(
-      0,
-      playerScore - alternativeScore
-    );
+  playerScore - alternativeScore;
+
+var decisionGap =
+  Math.abs(scoreGap);
 
 
   var gapConfidence = 0;
 
-  if (scoreGap >= 10) {
+if (decisionGap >= 15) {
 
-    gapConfidence = 45;
+  gapConfidence = 40;
 
-  } else if (scoreGap >= 7) {
+} else if (decisionGap >= 10) {
 
-    gapConfidence = 38;
+  gapConfidence = 35;
 
-  } else if (scoreGap >= 5) {
+} else if (decisionGap >= 7) {
 
-    gapConfidence = 31;
+  gapConfidence = 30;
 
-  } else if (scoreGap >= 3) {
+} else if (decisionGap >= 5) {
 
-    gapConfidence = 24;
+  gapConfidence = 24;
 
-  } else if (scoreGap >= 1.5) {
+} else if (decisionGap >= 3) {
 
-    gapConfidence = 14;
+  gapConfidence = 18;
 
-  } else {
+} else if (decisionGap >= 1.5) {
 
-    gapConfidence = 5;
+  gapConfidence = 10;
 
-  }
+} else {
+
+  gapConfidence = 5;
+
+}
 
 
   /*
@@ -5609,9 +5613,21 @@ function calculateDraftRecommendation(
     context || {};
 
   var nextPlayer =
-    scoredPlayers.length > 1
-      ? scoredPlayers[1]
-      : null;
+  scoredPlayers
+    .filter(function(candidate){
+
+      return candidate &&
+        candidate.name !== player.name;
+
+    })
+    .sort(function(a, b){
+
+      return (
+        Number(b.finalScore || 0) -
+        Number(a.finalScore || 0)
+      );
+
+    })[0] || null;
 
   var score =
     Number(player.finalScore) || 0;
