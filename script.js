@@ -4344,6 +4344,340 @@ finalScore:
   };
 }
 
+function calculateDraftRecommendation(
+  player,
+  scoredPlayers,
+  context
+){
+
+  if(!player){
+    return {
+      recommendation: 'PASS',
+      confidence: 0,
+      reason: 'No player provided.'
+    };
+  }
+
+  scoredPlayers =
+    Array.isArray(scoredPlayers)
+      ? scoredPlayers
+      : [];
+
+  context =
+    context || {};
+
+  /*
+   * -------------------------------------------------------
+   * 1. CURRENT PLAYER
+   * -------------------------------------------------------
+   */
+
+  var currentScore =
+    Number(player.finalScore) || 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * 2. NEXT BEST PLAYER
+   * -------------------------------------------------------
+   *
+   * Find the best alternative that is not
+   * the player being evaluated.
+   */
+
+  var alternatives =
+    scoredPlayers
+      .filter(function(candidate){
+
+        return candidate &&
+          candidate.name !== player.name;
+
+      })
+      .sort(function(a,b){
+
+        return (
+          Number(b.finalScore || 0) -
+          Number(a.finalScore || 0)
+        );
+
+      });
+
+
+  var alternative =
+    alternatives.length
+      ? alternatives[0]
+      : null;
+
+
+  /*
+   * -------------------------------------------------------
+   * 3. SCORE GAP
+   * -------------------------------------------------------
+   */
+
+  var alternativeScore =
+    alternative
+      ? Number(alternative.finalScore) || 0
+      : 0;
+
+  var scoreGap =
+    currentScore -
+    alternativeScore;
+
+
+  /*
+   * -------------------------------------------------------
+   * 4. RECOMMENDATION LEVEL
+   * -------------------------------------------------------
+   */
+
+  var recommendation =
+    'CONSIDER';
+
+  if(scoreGap >= 8){
+
+    recommendation =
+      'DRAFT';
+
+  } else if(scoreGap >= 4){
+
+    recommendation =
+      'LEAN DRAFT';
+
+  } else if(scoreGap <= -4){
+
+    recommendation =
+      'PASS';
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 5. CONFIDENCE
+   * -------------------------------------------------------
+   *
+   * Score separation is the primary confidence
+   * signal.
+   */
+
+  var confidence =
+    50;
+
+  if(scoreGap >= 10){
+
+    confidence = 95;
+
+  } else if(scoreGap >= 8){
+
+    confidence = 90;
+
+  } else if(scoreGap >= 6){
+
+    confidence = 80;
+
+  } else if(scoreGap >= 4){
+
+    confidence = 70;
+
+  } else if(scoreGap >= 2){
+
+    confidence = 60;
+
+  } else if(scoreGap > -2){
+
+    confidence = 50;
+
+  } else if(scoreGap > -4){
+
+    confidence = 35;
+
+  } else {
+
+    confidence = 20;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 6. CONTEXTUAL URGENCY
+   * -------------------------------------------------------
+   *
+   * Timing, tier cliffs, and draft runs can
+   * strengthen a recommendation.
+   */
+
+  var urgencyBonus = 0;
+
+  var timing =
+    Number(player.timingScore) || 0;
+
+  var tierCliff =
+    Number(
+      player.tierCliffOpportunityScore
+    ) || 0;
+
+  var runOpportunity =
+    Number(
+      player.runOpportunityScore
+    ) || 0;
+
+
+  if(timing >= 70){
+
+    urgencyBonus += 2;
+
+  } else if(timing >= 50){
+
+    urgencyBonus += 1;
+
+  }
+
+
+  if(tierCliff >= 5){
+
+    urgencyBonus += 2;
+
+  } else if(tierCliff >= 3){
+
+    urgencyBonus += 1;
+
+  }
+
+
+  if(runOpportunity >= 3){
+
+    urgencyBonus += 1;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 7. FINAL CONFIDENCE
+   * -------------------------------------------------------
+   */
+
+  confidence =
+    Math.min(
+      99,
+      confidence + urgencyBonus
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * 8. PRIMARY REASON
+   * -------------------------------------------------------
+   */
+
+  var reason =
+    'Best overall draft value';
+
+
+  if(
+    player.tierScore >= 90 &&
+    player.vorpScore >= 80
+  ){
+
+    reason =
+      'Elite tier and VORP value';
+
+  } else if(
+    player.vorpScore >= 80
+  ){
+
+    reason =
+      'Elite value over replacement';
+
+  } else if(
+    player.tierScore >= 90
+  ){
+
+    reason =
+      'Elite player tier';
+
+  } else if(
+    tierCliff >= 5
+  ){
+
+    reason =
+      'Major tier cliff opportunity';
+
+  } else if(
+    timing >= 70
+  ){
+
+    reason =
+      'High availability risk';
+
+  } else if(
+    player.scarcityScore >= 90
+  ){
+
+    reason =
+      'Strong positional scarcity';
+
+  } else if(
+    player.rosterNeedScore >= 50
+  ){
+
+    reason =
+      'Fills an important roster need';
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 9. BUILD HUMAN-READABLE SUMMARY
+   * -------------------------------------------------------
+   */
+
+  var summary =
+    recommendation +
+    ' ' +
+    player.name;
+
+  if(alternative){
+
+    summary +=
+      ' by ' +
+      Math.abs(scoreGap).toFixed(1) +
+      ' points over ' +
+      alternative.name;
+
+  }
+
+
+  return {
+
+    recommendation:
+      recommendation,
+
+    confidence:
+      confidence,
+
+    scoreGap:
+      scoreGap,
+
+    alternative:
+      alternative,
+
+    reason:
+      reason,
+
+    urgencyBonus:
+      urgencyBonus,
+
+    summary:
+      summary
+
+  };
+
+}
+
 function generateDecisionExplanation(result, comparisonResult) {
 
   if (!result) {
@@ -5367,6 +5701,29 @@ return calculateDraftDecisionScore(
   scored.sort(function(a,b){
     return b.finalScore - a.finalScore;
   });
+
+  /*
+ * -------------------------------------------------------
+ * PICK RECOMMENDATION
+ * -------------------------------------------------------
+ */
+
+var topPlayer =
+  scored.length
+    ? scored[0]
+    : null;
+
+var draftRecommendation =
+  calculateDraftRecommendation(
+    topPlayer,
+    scored,
+    context
+  );
+
+console.log(
+  'DRAFT RECOMMENDATION:',
+  draftRecommendation
+);
 
 
   /*
