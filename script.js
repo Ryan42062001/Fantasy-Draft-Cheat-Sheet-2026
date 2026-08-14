@@ -3051,6 +3051,33 @@ function calculateLateAvailability(
 
   }
 
+    console.log(
+    'AVAILABILITY RISK:',
+    player.name,
+    'position =',
+    player.position,
+    'rank =',
+    player.rank,
+    'picksUntilNext =',
+    picksUntilNext,
+    'higherRanked =',
+    higherRanked,
+    'comparable =',
+    comparable,
+    'risk =',
+    risk
+  );
+
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      risk
+    )
+  );
+
+}
+
 function detectDraftRuns(){
 
   var rows =
