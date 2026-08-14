@@ -6130,17 +6130,6 @@ if (confidenceScore >= 80) {
  * -------------------------------------------------------
  */
 
-var decision =
-  calculateRecommendationDecision(
-    player,
-    nextPlayer,
-    scoreGap,
-    confidenceScore,
-    context
-  );
-
-var recommendation =
-  decision.recommendation;
 
 
   /*
@@ -6244,47 +6233,31 @@ function calculateDraftRecommendation(
    * the highest-scoring player first.
    */
 
-  var nextPlayer = null;
+  var nextPickAlternatives =
+  calculateNextPickAlternatives(
+    player,
+    scoredPlayers,
+    context
+  );
 
-  for (var i = 0; i < scoredPlayers.length; i++) {
+var nextPlayer =
+  nextPickAlternatives.length
+    ? nextPickAlternatives[0]
+    : null;
 
-    var candidate =
-      scoredPlayers[i];
+var score =
+  Number(player.finalScore) || 0;
 
-    if (
-      candidate &&
-      candidate.name !== player.name
-    ) {
+var nextScore =
+  nextPlayer
+    ? Number(nextPlayer.finalScore) || 0
+    : 0;
 
-      nextPlayer =
-        candidate;
+var rawScoreGap =
+  score - nextScore;
 
-      break;
-    }
-  }
-
-
-  /*
-   * -------------------------------------------------------
-   * 3. NEXT BEST SCORE
-   * -------------------------------------------------------
-   */
-
-  var nextScore =
-    nextPlayer
-      ? Number(nextPlayer.finalScore) || 0
-      : 0;
-
-
-  /*
-   * -------------------------------------------------------
-   * 4. SCORE GAP
-   * -------------------------------------------------------
-   */
-
-  var scoreGap =
-    score -
-    nextScore;
+var scoreGap =
+  rawScoreGap;
 
 
   /*
