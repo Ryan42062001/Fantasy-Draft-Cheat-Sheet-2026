@@ -7455,7 +7455,25 @@ return calculateDraftDecisionScore(
 
 console.log(
   'TEST NEXT PICK ALTERNATIVES:',
-  testAlternatives
+  testAlternatives.map(function(candidate) {
+
+    return {
+      name: candidate.name,
+      position: candidate.position,
+      rank: candidate.rank,
+      finalScore:
+        Number(candidate.finalScore) || 0,
+      timingScore:
+        Number(candidate.timingScore) || 0,
+      tier:
+        candidate.tier,
+      tierScore:
+        Number(candidate.tierScore) || 0,
+      vorpScore:
+        Number(candidate.vorpScore) || 0
+    };
+
+  })
 );
 
   /*
