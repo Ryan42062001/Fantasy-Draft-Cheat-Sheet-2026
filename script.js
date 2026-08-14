@@ -6240,6 +6240,45 @@ function calculateDraftRecommendation(
     context
   );
 
+  nextPickAlternatives.forEach(function(candidate) {
+
+  candidate.nextPickSurvivalScore =
+    calculateNextPickSurvival(
+      candidate,
+      context
+    );
+
+  candidate.survivalAdjustedScore =
+    (
+      Number(candidate.finalScore) || 0
+    ) *
+    (
+      Number(candidate.nextPickSurvivalScore) || 0
+    ) / 100;
+
+});
+
+  console.log(
+  'NEXT PICK OPPORTUNITY:',
+  player.name,
+  nextPickAlternatives.map(function(candidate) {
+
+    return {
+      name: candidate.name,
+      rank: candidate.rank,
+      finalScore:
+        Number(candidate.finalScore) || 0,
+      survival:
+        Number(candidate.nextPickSurvivalScore) || 0,
+      survivalAdjustedScore:
+        Number(
+          candidate.survivalAdjustedScore
+        ) || 0
+    };
+
+  })
+);
+
 var nextPlayer =
   nextPickAlternatives.length
     ? nextPickAlternatives[0]
