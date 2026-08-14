@@ -5662,6 +5662,8 @@ function calculateNextPickAlternatives(
 
   }
 
+  var myNextPick =
+  Number(context.nextPick) || 0;
 
   /*
    * Determine which players are realistic
@@ -5697,6 +5699,69 @@ function calculateNextPickAlternatives(
         );
 
       });
+
+  /*
+ * -------------------------------------------------------
+ * NEXT PICK SURVIVAL SCORE
+ * -------------------------------------------------------
+ *
+ * Estimate how likely each alternative is to still
+ * be available when we pick again.
+ */
+
+alternatives.forEach(function(candidate) {
+
+  var candidateRank =
+    Number(candidate.rank) || 999;
+
+  var survivalScore =
+    100;
+
+
+  /*
+   * Players ranked ahead of our next pick
+   * have increasing risk of disappearing.
+   */
+
+  if (
+    myNextPick &&
+    candidateRank < myNextPick
+  ) {
+
+    var picksAhead =
+      myNextPick - candidateRank;
+
+    survivalScore -=
+      picksAhead * 12;
+
+  }
+
+
+  /*
+   * Players ranked at or after our next pick
+   * are more likely to survive.
+   */
+
+  if (
+    myNextPick &&
+    candidateRank >= myNextPick
+  ) {
+
+    survivalScore += 20;
+
+  }
+
+
+  candidate.nextPickSurvivalScore =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        survivalScore
+      )
+    );
+
+});
 
 
   /*
@@ -5742,25 +5807,25 @@ function calculateNextPickAlternatives(
         alternatives.map(function(candidate) {
 
           return {
-            name:
-              candidate.name,
+  name: candidate.name,
+  position: candidate.position,
+  rank: candidate.rank,
 
-            position:
-              candidate.position,
+  finalScore:
+    Number(
+      candidate.finalScore || 0
+    ),
 
-            rank:
-              candidate.rank,
+  timingScore:
+    Number(
+      candidate.timingScore || 0
+    ),
 
-            finalScore:
-              Number(
-                candidate.finalScore || 0
-              ),
-
-            timingScore:
-              Number(
-                candidate.timingScore || 0
-              )
-          };
+  nextPickSurvivalScore:
+    Number(
+      candidate.nextPickSurvivalScore || 0
+    )
+};
 
         })
     }
