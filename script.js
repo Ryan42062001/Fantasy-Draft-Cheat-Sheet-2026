@@ -5607,6 +5607,176 @@ if (
   };
 }
 
+function calculateNextPickAlternatives(
+  player,
+  scoredPlayers,
+  context
+) {
+
+  if (!player) {
+    return [];
+  }
+
+  scoredPlayers =
+    Array.isArray(scoredPlayers)
+      ? scoredPlayers
+      : [];
+
+  context =
+    context || {};
+
+  var availablePlayers =
+    scoredPlayers.filter(function(candidate) {
+
+      return candidate &&
+        candidate.name !== player.name &&
+        var availablePlayers =
+  scoredPlayers.filter(function(candidate) {
+
+    return candidate &&
+      candidate.name !== player.name &&
+      candidate.available !== false;
+
+  });
+
+    });
+
+  /*
+   * Number of picks until our next turn.
+   */
+
+  var picksUntilNext =
+    Number(context.picksUntilMyTurn) || 0;
+
+
+  /*
+   * If picksUntilMyTurn is not available,
+   * fall back to the draft-state information.
+   */
+
+  if (
+    !picksUntilNext &&
+    context.currentPick &&
+    context.nextPick
+  ) {
+
+    picksUntilNext =
+      Math.max(
+        0,
+        Number(context.nextPick) -
+        Number(context.currentPick)
+      );
+
+  }
+
+
+  /*
+   * Determine which players are realistic
+   * alternatives at the next pick.
+   *
+   * We allow a reasonable rank window beyond
+   * the next pick because players don't disappear
+   * strictly according to rank.
+   */
+
+  var rankWindow =
+    Math.max(
+      5,
+      picksUntilNext + 3
+    );
+
+
+  var currentRank =
+    Number(player.rank) || 999;
+
+
+  var alternatives =
+    availablePlayers
+      .filter(function(candidate) {
+
+        var candidateRank =
+          Number(candidate.rank) || 999;
+
+        return (
+          candidateRank > currentRank &&
+          candidateRank <=
+            currentRank + rankWindow
+        );
+
+      });
+
+
+  /*
+   * Sort alternatives by decision score.
+   */
+
+  alternatives.sort(function(a, b) {
+
+    return (
+      Number(b.finalScore || 0) -
+      Number(a.finalScore || 0)
+    );
+
+  });
+
+
+  /*
+   * Keep the strongest few alternatives.
+   */
+
+  alternatives =
+    alternatives.slice(0, 8);
+
+
+  /*
+   * Debug.
+   */
+
+  console.log(
+    'NEXT PICK ALTERNATIVES:',
+    player.name,
+    {
+      currentRank:
+        currentRank,
+
+      picksUntilNext:
+        picksUntilNext,
+
+      rankWindow:
+        rankWindow,
+
+      alternatives:
+        alternatives.map(function(candidate) {
+
+          return {
+            name:
+              candidate.name,
+
+            position:
+              candidate.position,
+
+            rank:
+              candidate.rank,
+
+            finalScore:
+              Number(
+                candidate.finalScore || 0
+              ),
+
+            timingScore:
+              Number(
+                candidate.timingScore || 0
+              )
+          };
+
+        })
+    }
+  );
+
+
+  return alternatives;
+}
+
 function calculateDraftRecommendation(
   player,
   scoredPlayers,
@@ -7121,6 +7291,9 @@ replacements:
   nextPick:
     draftState.myNextPick,
 
+  picksUntilMyTurn:
+  draftState.picksUntilMyTurn,
+
   rosterNeeds:
   calculateDecisionRosterNeeds(),
 
@@ -7214,6 +7387,18 @@ return calculateDraftDecisionScore(
   scored.sort(function(a,b){
     return b.finalScore - a.finalScore;
   });
+
+  var testAlternatives =
+  calculateNextPickAlternatives(
+    scored[0],
+    scored,
+    context
+  );
+
+console.log(
+  'TEST NEXT PICK ALTERNATIVES:',
+  testAlternatives
+);
 
   /*
  * If a specific player was requested,
