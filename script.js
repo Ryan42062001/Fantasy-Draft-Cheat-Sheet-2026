@@ -1978,44 +1978,65 @@ function calculateReplacementLevels(players) {
  * 1. Their dedicated position
  * 2. FLEX
  */
+
 function getEffectiveReplacement(
   player,
   replacements
 ) {
 
-  if (player.position === 'QB') {
-    return replacements.QB;
+  if (!player || !replacements) {
+    return null;
   }
 
-  if (player.position === 'RB' ||
-      player.position === 'WR' ||
-      player.position === 'TE') {
+  var position =
+    player.position ||
+    player.pos ||
+    null;
 
-    var dedicated =
-      replacements[player.position];
+  /*
+   * -------------------------------------------------------
+   * POSITION-SPECIFIC REPLACEMENT
+   * -------------------------------------------------------
+   *
+   * VORP and positional scarcity should compare a player
+   * against the replacement level at HIS position.
+   *
+   * FLEX is intentionally NOT used here.
+   *
+   * Example:
+   *
+   * Brock Bowers (TE)
+   *      ↓
+   * TE replacement
+   *
+   * NOT:
+   *
+   * Brock Bowers (TE)
+   *      ↓
+   * Rhamondre Stevenson (RB)
+   *
+   * FLEX value will be handled separately by the
+   * Decision Engine.
+   */
 
-    var flex =
-      replacements.FLEX;
+  if (
+    position === 'QB' ||
+    position === 'RB' ||
+    position === 'WR' ||
+    position === 'TE'
+  ) {
 
-    /*
-     * Use the better of the two replacement
-     * opportunities.
-     */
-    if (!dedicated) {
-      return flex;
-    }
+    return (
+      replacements[position] ||
+      null
+    );
 
-    if (!flex) {
-      return dedicated;
-    }
-
-    return dedicated.rank < flex.rank
-      ? dedicated
-      : flex;
   }
 
   return null;
 }
+```
+
 
 function calculateTierCliffOpportunity(player, context){
 
