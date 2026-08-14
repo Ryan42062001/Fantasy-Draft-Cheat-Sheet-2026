@@ -3351,20 +3351,20 @@ function detectDraftRuns(){
 
 
     run.runScore =
-      (
-        frequencyScore * 0.60
-      ) +
-      (
-        run.qualityScore * 0.25
-      ) +
-      (
-        (
-          recentRows.length > 0
-            ? (run.recencyScore /
-               recentRows.length) * 100
-            : 0
-        ) * 0.15
-      );
+  (
+    frequencyScore * 0.50
+  ) +
+  (
+    run.qualityScore * 0.35
+  ) +
+  (
+    (
+      recentRows.length > 0
+        ? (run.recencyScore /
+           recentRows.length) * 100
+        : 0
+    ) * 0.15
+  );
 
 
     /*
