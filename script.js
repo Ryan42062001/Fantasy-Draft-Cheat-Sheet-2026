@@ -3763,6 +3763,7 @@ console.log(
  * weighted score is calculated.
  */
 finalScore += strategyScore;
+finalScore += tierCliffOpportunityScore;
 finalScore += runOpportunityScore;
 
   console.log(
@@ -3813,6 +3814,9 @@ finalScore += runOpportunityScore;
 
 runOpportunityScore:
   runOpportunityScore,
+
+    tierCliffOpportunityScore:
+  tierCliffOpportunityScore,
 
     tierCliffOpportunityScore:
   tierCliffOpportunityScore,
@@ -4964,16 +4968,19 @@ scored.forEach(function(player, index){
         '<br>' +
 
         'Scarcity: ' +
-        player.scarcityScore.toFixed(1) +
+player.scarcityScore.toFixed(1) +
 
-        ' · Need: ' +
-        player.rosterNeedScore.toFixed(1) +
+' · Need: ' +
+player.rosterNeedScore.toFixed(1) +
 
-        ' · Timing: ' +
+' · Timing: ' +
 player.timingScore.toFixed(1) +
 
 ' · Run Opportunity: ' +
 player.runOpportunityScore.toFixed(1) +
+
+' · Tier Cliff: ' +
+player.tierCliffOpportunityScore.toFixed(1) +
 
 '<br><br>' +
 
