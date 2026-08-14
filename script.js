@@ -2815,45 +2815,224 @@ function calculatePositionScarcity(
  */
 function calculateLateAvailability(
   player,
-  players
+  players,
+  context
 ) {
 
   if (!player || !player.position) {
     return 0;
   }
 
+  /*
+   * -------------------------------------------------------
+   * BASIC VALIDATION
+   * -------------------------------------------------------
+   */
+
+  var playerRank =
+    Number(player.rank) || 9999;
+
+  var nextPick =
+    Number(
+      context &&
+      context.nextPick
+    ) || 0;
+
+  var currentPick =
+    Number(
+      context &&
+      context.currentPick
+    ) || 0;
+
+
+  /*
+   * If we don't know the draft position,
+   * don't make an availability prediction.
+   */
+
+  if (
+    !nextPick ||
+    !currentPick ||
+    nextPick <= currentPick
+  ) {
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * PICKS UNTIL WE PICK AGAIN
+   * -------------------------------------------------------
+   */
+
+  var picksUntilNext =
+    nextPick - currentPick;
+
+
+  /*
+   * -------------------------------------------------------
+   * HIGHER-RANKED PLAYERS AT SAME POSITION
+   * -------------------------------------------------------
+   */
+
   var samePosition =
     players.filter(function(p) {
 
-      return p.available &&
+      return p &&
+        p.available &&
         p.position === player.position &&
         p.rank;
+
     });
 
+
+  var higherRanked =
+    samePosition.filter(function(p) {
+
+      return (
+        Number(p.rank) < playerRank
+      );
+
+    }).length;
+
+
   /*
-   * QB and TE benefit the most from this signal
-   * because they're usually 1-start leagues.
+   * -------------------------------------------------------
+   * COMPARABLE PLAYERS
+   * -------------------------------------------------------
+   *
+   * Players reasonably close to this player's
+   * ranking.
    */
+
   var comparable =
     samePosition.filter(function(p) {
 
-      return p.rank >= player.rank &&
-        p.rank <= player.rank + 20;
+      var rank =
+        Number(p.rank) || 9999;
+
+      return (
+        rank >= playerRank &&
+        rank <= playerRank + 20
+      );
+
     }).length;
 
+
+  /*
+   * -------------------------------------------------------
+   * BASE AVAILABILITY RISK
+   * -------------------------------------------------------
+   *
+   * More picks before our next selection means
+   * greater risk.
+   */
+
+  var risk =
+    0;
+
+
+  if (picksUntilNext >= 12) {
+
+    risk += 25;
+
+  } else if (picksUntilNext >= 8) {
+
+    risk += 18;
+
+  } else if (picksUntilNext >= 5) {
+
+    risk += 10;
+
+  } else if (picksUntilNext >= 3) {
+
+    risk += 5;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * POSITIONAL COMPETITION
+   * -------------------------------------------------------
+   */
+
+  if (higherRanked >= 5) {
+
+    risk += 20;
+
+  } else if (higherRanked >= 3) {
+
+    risk += 15;
+
+  } else if (higherRanked >= 1) {
+
+    risk += 8;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * COMPARABLE PLAYER DEPTH
+   * -------------------------------------------------------
+   *
+   * More comparable players means this specific
+   * player is easier to replace.
+   *
+   * Therefore this REDUCES availability risk.
+   */
+
   if (comparable >= 8) {
-    return -30;
+
+    risk -= 25;
+
+  } else if (comparable >= 5) {
+
+    risk -= 18;
+
+  } else if (comparable >= 3) {
+
+    risk -= 10;
+
   }
 
-  if (comparable >= 5) {
-    return -20;
+
+  /*
+   * -------------------------------------------------------
+   * ELITE PLAYERS ARE HARDER TO REPLACE
+   * -------------------------------------------------------
+   */
+
+  if (playerRank <= 12) {
+
+    risk += 15;
+
+  } else if (playerRank <= 24) {
+
+    risk += 10;
+
+  } else if (playerRank <= 40) {
+
+    risk += 5;
+
   }
 
-  if (comparable >= 3) {
-    return -10;
-  }
 
-  return 0;
+  /*
+   * -------------------------------------------------------
+   * CLAMP
+   * -------------------------------------------------------
+   */
+
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      risk
+    )
+  );
+
 }
 
 function detectDraftRuns(){
@@ -3081,10 +3260,17 @@ function calculateVorpProfile(
 );
 
   var lateAvailability =
-    calculateLateAvailability(
-      player,
-      players
-    );
+  calculateLateAvailability(
+    player,
+    players,
+    {
+      currentPick:
+        getDraftAssistantState().currentPick,
+
+      nextPick:
+        getDraftAssistantState().myNextPick
+    }
+  );
 
   console.log(
   'VORP SCARCITY RETURN:',
@@ -3093,6 +3279,23 @@ function calculateVorpProfile(
   scarcity
 );
 
+console.log(
+  'AVAILABILITY RISK:',
+  player.name,
+  'position =',
+  player.position,
+  'rank =',
+  player.rank,
+  'picksUntilNext =',
+  picksUntilNext,
+  'higherRanked =',
+  higherRanked,
+  'comparable =',
+  comparable,
+  'risk =',
+  risk
+);
+  
   return {
 
     player: player,
