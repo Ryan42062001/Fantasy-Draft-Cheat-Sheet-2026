@@ -2928,46 +2928,82 @@ function calculateLateAvailability(
    * greater risk.
    */
 
+    /*
+   * -------------------------------------------------------
+   * AVAILABILITY RISK
+   * -------------------------------------------------------
+   *
+   * Estimate whether this specific player is likely
+   * to be drafted before our next selection.
+   *
+   * Overall player rank is the primary signal.
+   */
+
   var risk =
     0;
 
 
-  if (picksUntilNext >= 12) {
+  /*
+   * -------------------------------------------------------
+   * BASE RANK RISK
+   * -------------------------------------------------------
+   *
+   * Elite players are naturally much more likely
+   * to disappear before our next pick.
+   */
 
-    risk += 25;
+  if (playerRank <= 12) {
 
-  } else if (picksUntilNext >= 8) {
+    risk += 55;
 
-    risk += 18;
+  } else if (playerRank <= 24) {
 
-  } else if (picksUntilNext >= 5) {
+    risk += 45;
 
-    risk += 10;
+  } else if (playerRank <= 40) {
 
-  } else if (picksUntilNext >= 3) {
+    risk += 35;
+
+  } else if (playerRank <= 60) {
+
+    risk += 22;
+
+  } else if (playerRank <= 80) {
+
+    risk += 12;
+
+  } else if (playerRank <= 110) {
 
     risk += 5;
+
+  } else {
+
+    risk += 0;
 
   }
 
 
   /*
    * -------------------------------------------------------
-   * POSITIONAL COMPETITION
+   * PICKS UNTIL NEXT SELECTION
    * -------------------------------------------------------
    */
 
-  if (higherRanked >= 5) {
+  if (picksUntilNext >= 12) {
 
     risk += 20;
 
-  } else if (higherRanked >= 3) {
+  } else if (picksUntilNext >= 8) {
 
-    risk += 15;
+    risk += 14;
 
-  } else if (higherRanked >= 1) {
+  } else if (picksUntilNext >= 5) {
 
     risk += 8;
+
+  } else if (picksUntilNext >= 3) {
+
+    risk += 4;
 
   }
 
@@ -2977,87 +3013,43 @@ function calculateLateAvailability(
    * COMPARABLE PLAYER DEPTH
    * -------------------------------------------------------
    *
-   * More comparable players means this specific
-   * player is easier to replace.
-   *
-   * Therefore this REDUCES availability risk.
+   * If several similar players remain available,
+   * the specific player is less likely to be selected.
    */
 
   if (comparable >= 8) {
 
-    risk -= 25;
+    risk -= 20;
 
   } else if (comparable >= 5) {
 
-    risk -= 18;
+    risk -= 12;
 
   } else if (comparable >= 3) {
 
-    risk -= 10;
+    risk -= 6;
 
   }
 
 
   /*
    * -------------------------------------------------------
-   * ELITE PLAYERS ARE HARDER TO REPLACE
+   * POSITIONAL PRESSURE
    * -------------------------------------------------------
+   *
+   * A player becomes more vulnerable when there
+   * are few comparable alternatives.
    */
 
-  if (playerRank <= 12) {
-
-    risk += 15;
-
-  } else if (playerRank <= 24) {
+  if (comparable <= 1) {
 
     risk += 10;
 
-  } else if (playerRank <= 40) {
+  } else if (comparable === 2) {
 
     risk += 5;
 
   }
-
-  console.log(
-    'AVAILABILITY RISK:',
-    player.name,
-    'position =',
-    player.position,
-    'rank =',
-    player.rank,
-    'picksUntilNext =',
-    picksUntilNext,
-    'higherRanked =',
-    higherRanked,
-    'comparable =',
-    comparable,
-    'risk =',
-    risk
-  );
-
-
-  return Math.max(
-    0,
-    Math.min(
-      100,
-      risk
-    )
-  );
-  /*
-   * -------------------------------------------------------
-   * CLAMP
-   * -------------------------------------------------------
-   */
-
-  return Math.max(
-    0,
-    Math.min(
-      100,
-      risk
-    )
-  );
-
-}
 
 function detectDraftRuns(){
 
