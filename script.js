@@ -3938,12 +3938,17 @@ var lateAvailability =
     }
   );
 
-/*
- * Convert availability risk into the existing
- * 0-100 timing score.
- */
 timingScore =
   lateAvailability;
+
+console.log(
+  'TIMING SCORE:',
+  player.name,
+  'lateAvailability =',
+  lateAvailability,
+  'timingScore =',
+  timingScore
+);
 
 
 /*
