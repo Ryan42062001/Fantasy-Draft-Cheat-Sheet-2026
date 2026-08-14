@@ -5443,112 +5443,116 @@ function calculateRecommendationDecision(
 
 
   /*
-   * -------------------------------------------------------
-   * 4. RECOMMENDATION
-   * -------------------------------------------------------
-   */
+ * -------------------------------------------------------
+ * 4. RECOMMENDATION
+ * -------------------------------------------------------
+ */
 
-  var recommendation =
+var recommendation =
+  'CONSIDER';
+
+
+/*
+ * PASS
+ *
+ * If another available player is substantially
+ * better, do not allow positive player attributes
+ * to override the overall decision.
+ */
+
+if (
+  gap <= -8
+) {
+
+  recommendation =
+    'PASS';
+
+} else if (
+  gap <= -4 &&
+  confidence >= 40
+) {
+
+  recommendation =
+    'PASS';
+
+
+/*
+ * CLEAR DRAFT
+ */
+
+} else if (
+  gap >= 8 &&
+  confidence >= 70
+) {
+
+  recommendation =
+    'DRAFT';
+
+
+/*
+ * STRONG DRAFT
+ */
+
+} else if (
+  gap >= 5 &&
+  confidence >= 60
+) {
+
+  recommendation =
+    'DRAFT';
+
+
+/*
+ * LEAN DRAFT
+ */
+
+} else if (
+  gap >= 3 &&
+  confidence >= 45
+) {
+
+  recommendation =
+    'LEAN DRAFT';
+
+
+/*
+ * URGENT LEAN
+ */
+
+} else if (
+  gap >= 2 &&
+  confidence >= 40 &&
+  urgent
+) {
+
+  recommendation =
+    'LEAN DRAFT';
+
+
+/*
+ * ELITE VALUE OVERRIDE
+ */
+
+} else if (
+  gap >= 2 &&
+  strongValue &&
+  confidence >= 40
+) {
+
+  recommendation =
+    'LEAN DRAFT';
+
+
+/*
+ * CLOSE DECISION
+ */
+
+} else {
+
+  recommendation =
     'CONSIDER';
 
-
-  /*
-   * CLEAR DRAFT
-   *
-   * Large score advantage plus strong confidence.
-   */
-
-  if (
-    gap >= 8 &&
-    confidence >= 70
-  ) {
-
-    recommendation =
-      'DRAFT';
-
-
-  /*
-   * STRONG DRAFT
-   *
-   * Moderate gap but strong confidence and/or
-   * strong underlying player value.
-   */
-
-  } else if (
-    gap >= 5 &&
-    confidence >= 60
-  ) {
-
-    recommendation =
-      'DRAFT';
-
-
-  /*
-   * LEAN DRAFT
-   *
-   * Player has a meaningful advantage but the
-   * evidence is not overwhelming.
-   */
-
-  } else if (
-    gap >= 3 &&
-    confidence >= 45
-  ) {
-
-    recommendation =
-      'LEAN DRAFT';
-
-
-  /*
-   * URGENT LEAN
-   *
-   * A player may deserve action despite a modest
-   * score gap when timing/cliff/run pressure exists.
-   */
-
-  } else if (
-    gap >= 2 &&
-    confidence >= 40 &&
-    urgent
-  ) {
-
-    recommendation =
-      'LEAN DRAFT';
-
-
-  /*
-   * ELITE VALUE OVERRIDE
-   *
-   * Protect elite players from being treated as
-   * ordinary "consider" options when the gap is
-   * relatively small.
-   */
-
-  } else if (
-    gap >= 2 &&
-    strongValue &&
-    confidence >= 40
-  ) {
-
-    recommendation =
-      'LEAN DRAFT';
-
-
-  /*
-   * CLOSE DECISION
-   *
-   * If the scores are very close, don't pretend
-   * the model has a decisive answer.
-   */
-
-  } else if (
-    gap < 2
-  ) {
-
-    recommendation =
-      'CONSIDER';
-
-  }
+}
 
 
   /*
@@ -5564,14 +5568,21 @@ function calculateRecommendationDecision(
    */
 
   if (
-    Number(scoreGap) < -4 &&
-    confidence >= 60
-  ) {
+  gap <= -8
+) {
 
-    recommendation =
-      'PASS';
+  recommendation =
+    'PASS';
 
-  }
+} else if (
+  gap <= -4 &&
+  confidence >= 40
+) {
+
+  recommendation =
+    'PASS';
+
+}
 
 
   return {
