@@ -7569,14 +7569,7 @@ console.log(
       survival:
   calculateNextPickSurvival(
     candidate,
-    Object.assign(
-      {},
-      context,
-      {
-        currentRank:
-          Number(scored[0].rank) || 999
-      }
-    )
+    context
   )
     };
 
@@ -7610,6 +7603,11 @@ if (playerName) {
       : null;
 
 }
+
+  context.currentRank =
+  selectedPlayer
+    ? Number(selectedPlayer.rank) || 999
+    : 999;
 
 console.log(
   'SELECTED DECISION PLAYER:',
