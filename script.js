@@ -6167,6 +6167,16 @@ var scoreGap =
       nextScore:
         nextScore,
 
+      alternativeSurvival:
+  nextPlayer
+    ? Number(nextPlayer.nextPickSurvivalScore) || 0
+    : 0,
+
+alternativeSurvivalAdjusted:
+  nextPlayer
+    ? Number(nextPlayer.survivalAdjustedScore) || 0
+    : 0,
+
       scoreGap:
         scoreGap,
 
