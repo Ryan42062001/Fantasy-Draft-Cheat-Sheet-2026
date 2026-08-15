@@ -5556,37 +5556,6 @@ if (
 
 }
 
-
-  /*
-   * -------------------------------------------------------
-   * 5. PASS LOGIC
-   * -------------------------------------------------------
-   *
-   * Only use PASS when the alternative clearly
-   * outperforms the player.
-   *
-   * scoreGap currently uses Math.max(0,...), so
-   * this section is mainly defensive for future use.
-   */
-
-  if (
-  gap <= -8
-) {
-
-  recommendation =
-    'PASS';
-
-} else if (
-  gap <= -4 &&
-  confidence >= 40
-) {
-
-  recommendation =
-    'PASS';
-
-}
-
-
   return {
 
     recommendation:
