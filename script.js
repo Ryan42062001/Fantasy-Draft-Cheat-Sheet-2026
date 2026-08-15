@@ -5021,10 +5021,9 @@ function calculateRecommendationConfidence(
   playerScore - alternativeScore;
 
 var decisionGap =
-  Math.abs(scoreGap);
+  Math.max(0, scoreGap);
 
-
-  var gapConfidence = 0;
+var gapConfidence = 0;
 
 if (decisionGap >= 15) {
 
@@ -5645,8 +5644,8 @@ function calculateNextPickAlternatives(
 
   var rankWindow =
     Math.max(
-      5,
-      picksUntilNext + 3
+      10,
+      picksUntilNext + 5
     );
 
 
