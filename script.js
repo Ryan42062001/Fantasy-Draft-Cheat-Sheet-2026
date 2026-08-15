@@ -5997,9 +5997,6 @@ var nextPlayer =
         })[0]
     : null;
 
-var score =
-  Number(player.finalScore) || 0;
-
 var nextScore =
   nextPlayer
     ? Number(nextPlayer.finalScore) || 0
