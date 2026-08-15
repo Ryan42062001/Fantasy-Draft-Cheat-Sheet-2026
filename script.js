@@ -7361,6 +7361,23 @@ console.log(
       )
     : null;
 
+  console.log(
+  'MANUAL NEXT PICK TEST:',
+  selectedPlayer
+    ? calculateNextPickAlternatives(
+        selectedPlayer,
+        scored,
+        context
+      ).map(function(candidate) {
+        return {
+          name: candidate.name,
+          rank: candidate.rank,
+          finalScore: candidate.finalScore
+        };
+      })
+    : []
+);
+
 console.log(
   'DRAFT RECOMMENDATION:',
   recommendation
