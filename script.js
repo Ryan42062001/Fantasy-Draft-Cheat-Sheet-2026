@@ -7008,19 +7008,19 @@ console.log(
 
   console.log(
   'MANUAL NEXT PICK TEST:',
-  selectedPlayer
-    ? calculateNextPickAlternatives(
-        selectedPlayer,
-        scored,
-        context
-      ).map(function(candidate) {
-        return {
-          name: candidate.name,
-          rank: candidate.rank,
-          finalScore: candidate.finalScore
-        };
-      })
-    : []
+  testAlternatives.map(function(candidate) {
+    return {
+      name: candidate.name,
+      rank: candidate.rank,
+      finalScore:
+        Number(candidate.finalScore) || 0,
+      survival:
+        calculateNextPickSurvival(
+          candidate,
+          context
+        )
+    };
+  })
 );
 
 console.log(
