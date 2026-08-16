@@ -6136,6 +6136,9 @@ var nextPlayer =
         })[0]
     : null;
 
+var nextPickFallback =
+  nextPlayer;
+
 var nextScore =
   nextPlayer
     ? Number(nextPlayer.finalScore) || 0
