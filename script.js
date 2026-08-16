@@ -5202,14 +5202,13 @@ if (
 
 function draftDebugSection(title, data) {
 
-  console.groupCollapsed(
-    '%c[DRAFT ENGINE] ' + title,
-    'font-weight:bold; color:#4CAF50;'
-  );
+  console.group('[DRAFT ENGINE] ' + title);
 
-  console.table(data);
-
-  console.trace('[DRAFT ENGINE TRACE]');
+  if (Array.isArray(data)) {
+    console.table(data);
+  } else {
+    console.log(data);
+  }
 
   console.groupEnd();
 
@@ -5591,74 +5590,6 @@ if (
   alternatives =
     alternatives.slice(0, 8);
 
-
-  /*
-   * -------------------------------------------------------
-   * DEBUG
-   * -------------------------------------------------------
-   */
-
-  draftDebugSection(
-  'NEXT PICK',
-  [{
-    player:
-      player.name,
-
-    teams:
-      teams,
-
-    currentPick:
-      currentPick,
-
-    currentRound:
-      currentRound,
-
-    pickInRound:
-      pickInRound,
-
-    suppliedNextPick:
-      suppliedNextPick,
-
-    calculatedNextPick:
-      nextPick,
-
-    picksBetween:
-      picksBetween,
-
-    rankWindow:
-      rankWindow
-  }]
-);
-
-
-draftDebugSection(
-  'ALTERNATIVES',
-  alternatives.map(function(candidate) {
-
-    return {
-      player:
-        candidate.name,
-
-      position:
-        candidate.position,
-
-      rank:
-        Number(candidate.rank) || 999,
-
-      rawScore:
-        Number(candidate.finalScore) || 0,
-
-      survival:
-        Number(candidate.nextPickSurvivalScore) || 0,
-
-      survivalAdjustedScore:
-        Number(candidate.survivalAdjustedScore) || 0
-    };
-
-  })
-);
-
-
   /*
    * Store the calculated values in context so the
    * survival function can use the actual next turn.
@@ -5835,56 +5766,6 @@ survival =
     )
   );
 
-  draftDebugSection(
-  'SURVIVAL: ' + candidate.name,
-  [{
-    candidate:
-      candidate.name,
-
-    currentPick:
-      currentPick,
-
-    nextPick:
-      nextPick,
-
-    picksUntilNext:
-      picksUntilNext,
-
-    candidateRank:
-      rank,
-
-    timingScore:
-      timing,
-
-    currentRank:
-      Number(context.currentRank) || 0,
-
-    rankPressure:
-      rankPressure,
-
-    rankPenalty:
-      rankPenalty,
-
-    timingPenalty:
-      timingPenalty,
-
-    rankDistance:
-      rankDistance,
-
-    rankDistancePenalty:
-      rankDistancePenalty,
-
-    pickDistancePenalty:
-      pickDistancePenalty,
-
-    startingSurvival:
-      startingSurvival,
-
-    finalSurvival:
-      survival
-  }]
-);
-  
   return survival;
 }
 function calculateRecommendationConfidence(
@@ -7655,34 +7536,6 @@ console.log(
       )
     : [];
 
-console.log(
-  'TEST NEXT PICK ALTERNATIVES:',
-  testAlternatives.map(function(candidate) {
-
-    return {
-      name: candidate.name,
-      position: candidate.position,
-      rank: candidate.rank,
-      finalScore:
-        Number(candidate.finalScore) || 0,
-      timingScore:
-        Number(candidate.timingScore) || 0,
-      tier:
-        candidate.tier,
-      tierScore:
-        Number(candidate.tierScore) || 0,
-      vorpScore:
-        Number(candidate.vorpScore) || 0,
-      survival:
-        calculateNextPickSurvival(
-          candidate,
-          context
-        )
-    };
-
-  })
-);
-
   var recommendation =
   selectedPlayer
     ? calculateDraftRecommendation(
@@ -7691,23 +7544,6 @@ console.log(
         context
       )
     : null;
-
-  console.log(
-  'MANUAL NEXT PICK TEST:',
-  testAlternatives.map(function(candidate) {
-    return {
-      name: candidate.name,
-      rank: candidate.rank,
-      finalScore:
-        Number(candidate.finalScore) || 0,
-      survival:
-        calculateNextPickSurvival(
-          candidate,
-          context
-        )
-    };
-  })
-);
 
 console.log(
   'DRAFT RECOMMENDATION:',
