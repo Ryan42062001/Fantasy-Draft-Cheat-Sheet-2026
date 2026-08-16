@@ -5636,120 +5636,44 @@ var timing =
    * Start with a neutral survival estimate.
    */
 
-  var survival = 100;
-
-  var startingSurvival =
-  survival;
-
-/*
- * -------------------------------------------------------
- * 1. RANK PRESSURE
- * -------------------------------------------------------
- *
- * How far ahead of our next pick is this player?
- *
- * Example:
- *
- * Rank 17 / next pick 20
- * = 3 picks ahead
- *
- * Rank 14 / next pick 20
- * = 6 picks ahead
- *
- * The further ahead they are ranked,
- * the less likely they are to survive.
- */
+ var startingSurvival = 100;
 
 var rankPressure =
   nextPick
     ? nextPick - rank
     : 0;
 
-if (rankPressure > 0) {
-
-  survival -=
-    rankPressure * 7;
-
-}
-
-  var rankPenalty =
+var rankPenalty =
   rankPressure > 0
     ? -(rankPressure * 7)
     : 0;
 
-/*
- * -------------------------------------------------------
- * 2. TIMING PRESSURE
- * -------------------------------------------------------
- *
- * timingScore represents how likely the player
- * is to disappear based on the draft environment.
- *
- * We use it as a moderate adjustment rather
- * than allowing it to completely destroy survival.
- */
-
-survival -=
-  timing * 0.10;
-
-  var timingPenalty =
+var timingPenalty =
   -(timing * 0.10);
-
-
-/*
- * -------------------------------------------------------
- * 3. RANK DISTANCE FROM CURRENT PLAYER
- * -------------------------------------------------------
- *
- * Players extremely close to the player we're
- * currently considering receive a small additional
- * risk adjustment.
- */
 
 var rankDistance =
   rank -
   (Number(context.currentRank) || 0);
 
-if (rankDistance <= 2) {
-
-  survival -= 5;
-
-} else if (rankDistance <= 4) {
-
-  survival -= 3;
-
-}
-
-  var rankDistancePenalty =
+var rankDistancePenalty =
   rankDistance <= 2
     ? -5
     : rankDistance <= 4
       ? -3
       : 0;
 
-/*
- * -------------------------------------------------------
- * 4. DISTANCE TO NEXT PICK
- * -------------------------------------------------------
- *
- * More picks between now and our next selection
- * means somewhat lower survival.
- *
- * Keep this deliberately small because rank
- * pressure already captures most of the risk.
- */
-
-survival -=
-  Math.min(
-    15,
-    picksUntilNext * 0.5
-  );
-
-  var pickDistancePenalty =
+var pickDistancePenalty =
   -Math.min(
     15,
     picksUntilNext * 0.5
   );
+
+var survival =
+  startingSurvival +
+  rankPenalty +
+  timingPenalty +
+  rankDistancePenalty +
+  pickDistancePenalty;
 
 /*
  * -------------------------------------------------------
@@ -6154,6 +6078,34 @@ var nextPlayer =
 
         })[0]
     : null;
+
+  draftDebugSection(
+  'NEXT PICK WINNER',
+  [{
+    currentPlayer:
+      player.name,
+
+    nextPlayer:
+      nextPlayer
+        ? nextPlayer.name
+        : null,
+
+    rawScore:
+      nextPlayer
+        ? Number(nextPlayer.finalScore) || 0
+        : 0,
+
+    survival:
+      nextPlayer
+        ? Number(nextPlayer.nextPickSurvivalScore) || 0
+        : 0,
+
+    survivalAdjustedScore:
+      nextPlayer
+        ? Number(nextPlayer.survivalAdjustedScore) || 0
+        : 0
+  }]
+);
 
 var nextPickFallback =
   nextPlayer;
