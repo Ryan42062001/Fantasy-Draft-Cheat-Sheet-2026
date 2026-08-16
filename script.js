@@ -5671,23 +5671,10 @@ function calculateNextPickSurvival(
   Number(context.currentPick) || 0;
 
 var nextPick =
-  Number(context.nextPick) || 0;
+  Number(context.calculatedNextPick) || 0;
 
-var picksUntilNext = 0;
-
-if (
-  currentPick &&
-  nextPick &&
-  nextPick > currentPick
-) {
-
-  picksUntilNext =
-    Math.max(
-      0,
-      nextPick - currentPick - 1
-    );
-
-}
+var picksUntilNext =
+  Number(context.calculatedPicksUntilNext) || 0;
 
 var rank =
   Number(candidate.rank) || 999;
@@ -5713,7 +5700,7 @@ var timing =
   {
     picksUntilNext: picksUntilNext,
     currentPick: context.currentPick,
-    nextPick: context.nextPick,
+    nextPick: context.calculatedNextPick,
     currentRank: context.currentRank,
     candidateRank: candidate.rank,
     timingScore: candidate.timingScore
