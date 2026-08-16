@@ -6808,6 +6808,9 @@ if (result.timingScore >= 70) {
     concerns:
       concerns
 
+    debugAlternatives:
+  nextPickAlternatives
+
   };
 }
 
@@ -7623,8 +7626,9 @@ console.log(
     currentRank:
       context.currentRank,
 
-    alternatives:
-      testAlternatives.map(function(candidate) {
+recommendation
+  ? recommendation.debugAlternatives
+  : []
 
         return {
           name:
