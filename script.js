@@ -5696,6 +5696,18 @@ var timing =
   Number(candidate.timingScore) || 0;
 
   console.log(
+  'SURVIVAL CHECK:',
+  candidate.name,
+  {
+    currentPick: currentPick,
+    nextPick: nextPick,
+    picksUntilNext: picksUntilNext,
+    candidateRank: rank,
+    timingScore: timing
+  }
+);
+
+  console.log(
   'SURVIVAL INPUT DEBUG:',
   candidate.name,
   {
