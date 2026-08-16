@@ -4985,7 +4985,8 @@ finalScore:
   };
 }
 
-[Log] NEXT PICK OPPORTUNITY: – "drake london" (script.js, line 5964)
+console.Log NEXT PICK OPPORTUNITY: – "drake london" (script.js, line 5964)
+
 Array (8)
 0
 {name: "a.j. brown", rank: 14, finalScore: 71.67873183483745, survival: 41.7, survivalAdjustedScore: 29.89003117512722}
