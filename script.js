@@ -5209,6 +5209,8 @@ function draftDebugSection(title, data) {
 
   console.table(data);
 
+  console.trace('[DRAFT ENGINE TRACE]');
+
   console.groupEnd();
 
 }
