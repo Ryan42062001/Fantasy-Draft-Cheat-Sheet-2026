@@ -5219,58 +5219,135 @@ function calculateNextPickAlternatives(
     context || {};
 
   var availablePlayers =
-  scoredPlayers.filter(function(candidate) {
+    scoredPlayers.filter(function(candidate) {
 
-    return candidate &&
-      candidate.name !== player.name &&
-      candidate.available !== false;
+      return candidate &&
+        candidate.name !== player.name &&
+        candidate.available !== false;
 
-  });
-
-  /*
-   * Number of picks until our next turn.
-   */
-
-  var picksUntilNext =
-    Number(context.picksUntilMyTurn) || 0;
+    });
 
 
   /*
-   * If picksUntilMyTurn is not available,
-   * fall back to the draft-state information.
+   * -------------------------------------------------------
+   * DETERMINE OUR CURRENT AND NEXT PICK
+   * -------------------------------------------------------
+   *
+   * This is designed to work when we are CURRENTLY
+   * on the clock.
+   *
+   * Example with 10 teams:
+   *
+   * Pick 1  -> next pick 20
+   * Pick 2  -> next pick 19
+   * Pick 10 -> next pick 11
+   * Pick 11 -> next pick 30
+   *
    */
 
-  if (
-    !picksUntilNext &&
-    context.currentPick &&
-    context.nextPick
-  ) {
+  var currentPick =
+    Number(context.currentPick) || 0;
 
-    picksUntilNext =
-      Math.max(
-        0,
-        Number(context.nextPick) -
-        Number(context.currentPick)
-      );
+  var teams =
+    Number(context.teams) || 10;
+
+  var nextPick =
+    Number(context.nextPick) || 0;
+
+
+  /*
+   * If we already have a valid nextPick from the
+   * draft state, use it.
+   *
+   * Otherwise calculate the next pick ourselves.
+   */
+
+  if (!nextPick && currentPick) {
+
+    var round =
+      Math.ceil(currentPick / teams);
+
+    var pickInRound =
+      ((currentPick - 1) % teams) + 1;
+
+    var nextRound =
+      round + 1;
+
+    if (round % 2 === 1) {
+
+      /*
+       * Odd round moves from left to right.
+       * Next round reverses direction.
+       */
+
+      nextPick =
+        (nextRound * teams) -
+        pickInRound +
+        1;
+
+    } else {
+
+      /*
+       * Even round moves from right to left.
+       * Next round reverses direction.
+       */
+
+      nextPick =
+        (nextRound * teams) -
+        (teams - pickInRound);
+
+    }
 
   }
 
-  var myNextPick =
-  Number(context.nextPick) || 0;
 
   /*
-   * Determine which players are realistic
-   * alternatives at the next pick.
+   * -------------------------------------------------------
+   * FALLBACK
+   * -------------------------------------------------------
+   */
+
+  if (!nextPick && context.myNextPick) {
+
+    nextPick =
+      Number(context.myNextPick) || 0;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * HOW MANY PICKS UNTIL OUR NEXT TURN?
+   * -------------------------------------------------------
+   */
+
+  var picksUntilNext =
+    nextPick && currentPick
+      ? Math.max(
+          0,
+          nextPick - currentPick - 1
+        )
+      : 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * RANK WINDOW
+   * -------------------------------------------------------
    *
-   * We allow a reasonable rank window beyond
-   * the next pick because players don't disappear
-   * strictly according to rank.
+   * Look around the actual next pick rather than simply
+   * taking the next few ranked players.
    */
 
   var rankWindow =
     Math.max(
-      10,
-      picksUntilNext + 5
+      5,
+      Math.ceil(
+        Math.max(
+          1,
+          picksUntilNext
+        ) * 0.35
+      )
     );
 
 
@@ -5285,80 +5362,94 @@ function calculateNextPickAlternatives(
         var candidateRank =
           Number(candidate.rank) || 999;
 
+        /*
+         * Candidates should be AFTER the player we're
+         * currently considering.
+         */
+
+        if (candidateRank <= currentRank) {
+          return false;
+        }
+
+        /*
+         * Focus around the actual next-pick range.
+         */
+
+        var distanceFromNextPick =
+          Math.abs(
+            candidateRank - nextPick
+          );
+
         return (
-          candidateRank > currentRank &&
-          candidateRank <=
-            currentRank + rankWindow
+          distanceFromNextPick <=
+          rankWindow
         );
 
       });
 
-  /*
- * -------------------------------------------------------
- * NEXT PICK SURVIVAL SCORE
- * -------------------------------------------------------
- *
- * Estimate how likely each alternative is to still
- * be available when we pick again.
- */
-
-alternatives.forEach(function(candidate) {
-
-  var candidateRank =
-    Number(candidate.rank) || 999;
-
-  var survivalScore =
-    100;
-
 
   /*
-   * Players ranked ahead of our next pick
-   * have increasing risk of disappearing.
+   * -------------------------------------------------------
+   * NEXT PICK SURVIVAL
+   * -------------------------------------------------------
    */
 
-  if (
-    myNextPick &&
-    candidateRank < myNextPick
-  ) {
+  alternatives.forEach(function(candidate) {
 
-    var picksAhead =
-      myNextPick - candidateRank;
+    var candidateRank =
+      Number(candidate.rank) || 999;
 
-    survivalScore -=
-      picksAhead * 12;
+    var survivalScore =
+      100;
 
-  }
+
+    /*
+     * Players ranked significantly ahead of our
+     * next pick are less likely to survive.
+     */
+
+    if (nextPick) {
+
+      var distance =
+        nextPick - candidateRank;
+
+      if (distance > 0) {
+
+        survivalScore -=
+          distance * 8;
+
+      }
+
+      /*
+       * Players around or after our next pick
+       * have better survival odds.
+       */
+
+      if (candidateRank >= nextPick) {
+
+        survivalScore += 15;
+
+      }
+
+    }
+
+
+    candidate.nextPickSurvivalScore =
+      Math.max(
+        0,
+        Math.min(
+          100,
+          survivalScore
+        )
+      );
+
+  });
 
 
   /*
-   * Players ranked at or after our next pick
-   * are more likely to survive.
-   */
-
-  if (
-    myNextPick &&
-    candidateRank >= myNextPick
-  ) {
-
-    survivalScore += 20;
-
-  }
-
-
-  candidate.nextPickSurvivalScore =
-    Math.max(
-      0,
-      Math.min(
-        100,
-        survivalScore
-      )
-    );
-
-});
-
-
-  /*
-   * Sort alternatives by decision score.
+   * -------------------------------------------------------
+   * SORT BY FINAL SCORE
+   * -------------------------------------------------------
    */
 
   alternatives.sort(function(a, b) {
@@ -5372,7 +5463,7 @@ alternatives.forEach(function(candidate) {
 
 
   /*
-   * Keep the strongest few alternatives.
+   * Keep strongest alternatives.
    */
 
   alternatives =
@@ -5380,15 +5471,23 @@ alternatives.forEach(function(candidate) {
 
 
   /*
-   * Debug.
+   * -------------------------------------------------------
+   * DEBUG
+   * -------------------------------------------------------
    */
 
   console.log(
-    'NEXT PICK ALTERNATIVES:',
+    'NEXT PICK CALCULATION:',
     player.name,
     {
-      currentRank:
-        currentRank,
+      teams:
+        teams,
+
+      currentPick:
+        currentPick,
+
+      nextPick:
+        nextPick,
 
       picksUntilNext:
         picksUntilNext,
@@ -5400,25 +5499,25 @@ alternatives.forEach(function(candidate) {
         alternatives.map(function(candidate) {
 
           return {
-  name: candidate.name,
-  position: candidate.position,
-  rank: candidate.rank,
+            name:
+              candidate.name,
 
-  finalScore:
-    Number(
-      candidate.finalScore || 0
-    ),
+            position:
+              candidate.position,
 
-  timingScore:
-    Number(
-      candidate.timingScore || 0
-    ),
+            rank:
+              candidate.rank,
 
-  nextPickSurvivalScore:
-    Number(
-      candidate.nextPickSurvivalScore || 0
-    )
-};
+            finalScore:
+              Number(
+                candidate.finalScore || 0
+              ),
+
+            survival:
+              Number(
+                candidate.nextPickSurvivalScore || 0
+              )
+          };
 
         })
     }
