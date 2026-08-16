@@ -5670,6 +5670,19 @@ function calculateNextPickSurvival(
   var picksUntilNext =
     Number(context.picksUntilMyTurn) || 0;
 
+  console.log(
+  'SURVIVAL INPUT DEBUG:',
+  candidate.name,
+  {
+    picksUntilNext: picksUntilNext,
+    currentPick: context.currentPick,
+    nextPick: context.nextPick,
+    currentRank: context.currentRank,
+    candidateRank: candidate.rank,
+    timingScore: candidate.timingScore
+  }
+);
+  
   var rank =
     Number(candidate.rank) || 999;
 
