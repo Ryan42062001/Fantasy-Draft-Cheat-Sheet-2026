@@ -5230,19 +5230,8 @@ function calculateNextPickAlternatives(
 
   /*
    * -------------------------------------------------------
-   * DETERMINE OUR CURRENT AND NEXT PICK
+   * DETERMINE CURRENT PICK
    * -------------------------------------------------------
-   *
-   * This is designed to work when we are CURRENTLY
-   * on the clock.
-   *
-   * Example with 10 teams:
-   *
-   * Pick 1  -> next pick 20
-   * Pick 2  -> next pick 19
-   * Pick 10 -> next pick 11
-   * Pick 11 -> next pick 30
-   *
    */
 
   var currentPick =
@@ -5251,50 +5240,104 @@ function calculateNextPickAlternatives(
   var teams =
     Number(context.teams) || 10;
 
-  var nextPick =
-    Number(context.nextPick) || 0;
+  var currentRound =
+    currentPick
+      ? Math.ceil(currentPick / teams)
+      : 0;
+
+  var pickInRound =
+    currentPick
+      ? ((currentPick - 1) % teams) + 1
+      : 0;
 
 
   /*
-   * If we already have a valid nextPick from the
-   * draft state, use it.
+   * -------------------------------------------------------
+   * CALCULATE OUR ACTUAL NEXT PICK
+   * -------------------------------------------------------
    *
-   * Otherwise calculate the next pick ourselves.
+   * IMPORTANT:
+   *
+   * context.nextPick may equal currentPick when we are
+   * currently on the clock.
+   *
+   * Example:
+   *
+   * 10 teams:
+   *
+   * Pick 1  -> Pick 20
+   * Pick 2  -> Pick 19
+   * Pick 10 -> Pick 11
+   * Pick 11 -> Pick 30
+   *
    */
 
-  if (!nextPick && currentPick) {
+  var suppliedNextPick =
+    Number(context.nextPick) || 0;
 
-    var round =
-      Math.ceil(currentPick / teams);
+  var nextPick =
+    0;
 
-    var pickInRound =
-      ((currentPick - 1) % teams) + 1;
 
-    var nextRound =
-      round + 1;
+  /*
+   * If the supplied nextPick is actually different
+   * from our current pick, trust it.
+   */
 
-    if (round % 2 === 1) {
+  if (
+    suppliedNextPick &&
+    suppliedNextPick !== currentPick
+  ) {
 
-      /*
-       * Odd round moves from left to right.
-       * Next round reverses direction.
-       */
+    nextPick =
+      suppliedNextPick;
+
+  }
+
+
+  /*
+   * Otherwise calculate the next time we draft
+   * using snake-draft mathematics.
+   */
+
+  if (
+    !nextPick &&
+    currentPick
+  ) {
+
+    /*
+     * Odd-numbered rounds:
+     * We pick from low slot -> high slot.
+     *
+     * The next round reverses direction.
+     */
+
+    if (currentRound % 2 === 1) {
 
       nextPick =
-        (nextRound * teams) -
+        (
+          (currentRound + 1) *
+          teams
+        ) -
         pickInRound +
         1;
 
     } else {
 
       /*
-       * Even round moves from right to left.
-       * Next round reverses direction.
+       * Even-numbered rounds:
+       * We pick from high slot -> low slot.
        */
 
       nextPick =
-        (nextRound * teams) -
-        (teams - pickInRound);
+        (
+          (currentRound + 1) *
+          teams
+        ) -
+        (
+          teams -
+          pickInRound
+        );
 
     }
 
@@ -5303,25 +5346,16 @@ function calculateNextPickAlternatives(
 
   /*
    * -------------------------------------------------------
-   * FALLBACK
+   * PICKS BETWEEN NOW AND OUR NEXT TURN
    * -------------------------------------------------------
+   *
+   * Pick 1 -> Pick 20:
+   *
+   * 18 other selections happen between them.
+   *
    */
 
-  if (!nextPick && context.myNextPick) {
-
-    nextPick =
-      Number(context.myNextPick) || 0;
-
-  }
-
-
-  /*
-   * -------------------------------------------------------
-   * HOW MANY PICKS UNTIL OUR NEXT TURN?
-   * -------------------------------------------------------
-   */
-
-  var picksUntilNext =
+  var picksBetween =
     nextPick && currentPick
       ? Math.max(
           0,
@@ -5335,8 +5369,8 @@ function calculateNextPickAlternatives(
    * RANK WINDOW
    * -------------------------------------------------------
    *
-   * Look around the actual next pick rather than simply
-   * taking the next few ranked players.
+   * Look around the player's likely availability
+   * at the next pick.
    */
 
   var rankWindow =
@@ -5345,7 +5379,7 @@ function calculateNextPickAlternatives(
       Math.ceil(
         Math.max(
           1,
-          picksUntilNext
+          picksBetween
         ) * 0.35
       )
     );
@@ -5355,6 +5389,12 @@ function calculateNextPickAlternatives(
     Number(player.rank) || 999;
 
 
+  /*
+   * -------------------------------------------------------
+   * FIND REALISTIC ALTERNATIVES
+   * -------------------------------------------------------
+   */
+
   var alternatives =
     availablePlayers
       .filter(function(candidate) {
@@ -5363,21 +5403,27 @@ function calculateNextPickAlternatives(
           Number(candidate.rank) || 999;
 
         /*
-         * Candidates should be AFTER the player we're
-         * currently considering.
+         * Never consider someone ranked above/equal to
+         * the player we're currently evaluating.
          */
 
-        if (candidateRank <= currentRank) {
+        if (
+          candidateRank <= currentRank
+        ) {
+
           return false;
+
         }
 
+
         /*
-         * Focus around the actual next-pick range.
+         * Look around the actual next pick.
          */
 
         var distanceFromNextPick =
           Math.abs(
-            candidateRank - nextPick
+            candidateRank -
+            nextPick
           );
 
         return (
@@ -5403,15 +5449,16 @@ function calculateNextPickAlternatives(
       100;
 
 
-    /*
-     * Players ranked significantly ahead of our
-     * next pick are less likely to survive.
-     */
-
     if (nextPick) {
 
+      /*
+       * Players ranked ahead of our next pick
+       * are increasingly likely to disappear.
+       */
+
       var distance =
-        nextPick - candidateRank;
+        nextPick -
+        candidateRank;
 
       if (distance > 0) {
 
@@ -5420,12 +5467,16 @@ function calculateNextPickAlternatives(
 
       }
 
+
       /*
-       * Players around or after our next pick
-       * have better survival odds.
+       * Players ranked at or after our next pick
+       * are more likely to survive.
        */
 
-      if (candidateRank >= nextPick) {
+      if (
+        candidateRank >=
+        nextPick
+      ) {
 
         survivalScore += 15;
 
@@ -5486,11 +5537,20 @@ function calculateNextPickAlternatives(
       currentPick:
         currentPick,
 
+      currentRound:
+        currentRound,
+
+      pickInRound:
+        pickInRound,
+
+      suppliedNextPick:
+        suppliedNextPick,
+
       nextPick:
         nextPick,
 
-      picksUntilNext:
-        picksUntilNext,
+      picksBetween:
+        picksBetween,
 
       rankWindow:
         rankWindow,
@@ -5522,6 +5582,18 @@ function calculateNextPickAlternatives(
         })
     }
   );
+
+
+  /*
+   * Store the calculated values in context so the
+   * survival function can use the actual next turn.
+   */
+
+  context.calculatedNextPick =
+    nextPick;
+
+  context.calculatedPicksUntilNext =
+    picksBetween;
 
 
   return alternatives;
