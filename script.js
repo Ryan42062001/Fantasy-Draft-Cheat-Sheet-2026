@@ -5279,20 +5279,76 @@ function calculateNextPickAlternatives(
     0;
 
 
+ /*
+ * -------------------------------------------------------
+ * DETERMINE NEXT PICK
+ * -------------------------------------------------------
+ *
+ * When we are currently on the clock, context.nextPick
+ * may still contain the CURRENT pick rather than our
+ * actual next selection.
+ *
+ * Therefore:
+ *
+ * currentPick = 1
+ * suppliedNextPick = 1
+ *
+ * means we must calculate the actual next pick = 20.
+ *
+ * If suppliedNextPick is genuinely different from
+ * currentPick, we can trust it.
+ */
+
+if (
+  suppliedNextPick &&
+  suppliedNextPick !== currentPick
+) {
+
+  nextPick =
+    suppliedNextPick;
+
+} else {
+
   /*
-   * If the supplied nextPick is actually different
-   * from our current pick, trust it.
+   * Supplied next pick is either missing or is actually
+   * the current pick. Calculate the next pick ourselves.
    */
 
-  if (
-    suppliedNextPick &&
-    suppliedNextPick !== currentPick
-  ) {
+  var currentRound =
+    Math.ceil(
+      currentPick / teams
+    );
+
+  var pickInRound =
+    ((currentPick - 1) % teams) + 1;
+
+  var nextRound =
+    currentRound + 1;
+
+  if (currentRound % 2 === 1) {
+
+    /*
+     * Odd round -> next round reverses.
+     */
 
     nextPick =
-      suppliedNextPick;
+      (nextRound * teams) -
+      pickInRound +
+      1;
+
+  } else {
+
+    /*
+     * Even round -> next round reverses.
+     */
+
+    nextPick =
+      (nextRound * teams) -
+      (teams - pickInRound);
 
   }
+
+}
 
 
   /*
