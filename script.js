@@ -5621,6 +5621,294 @@ function calculateNextPickSurvival(
 
   return survival;
 }
+function calculateRecommendationConfidence(
+  player,
+  nextPlayer,
+  context
+) {
+
+  if (!player) {
+    return 0;
+  }
+
+  context = context || {};
+
+  var confidence = 0;
+
+  var score =
+    Number(player.finalScore) || 0;
+
+  var nextScore =
+    nextPlayer
+      ? Number(nextPlayer.finalScore) || 0
+      : 0;
+
+  var scoreGap =
+    score - nextScore;
+
+
+  /*
+   * -------------------------------------------------------
+   * 1. SCORE GAP
+   * -------------------------------------------------------
+   */
+
+  if (scoreGap >= 10) {
+
+    confidence += 30;
+
+  } else if (scoreGap >= 7) {
+
+    confidence += 25;
+
+  } else if (scoreGap >= 5) {
+
+    confidence += 20;
+
+  } else if (scoreGap >= 3) {
+
+    confidence += 15;
+
+  } else if (scoreGap >= 1) {
+
+    confidence += 8;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 2. VORP ADVANTAGE
+   * -------------------------------------------------------
+   */
+
+  var playerVorp =
+    Number(player.vorpScore) || 0;
+
+  var nextVorp =
+    nextPlayer
+      ? Number(nextPlayer.vorpScore) || 0
+      : 0;
+
+  var vorpDifference =
+    playerVorp - nextVorp;
+
+  if (vorpDifference >= 20) {
+
+    confidence += 20;
+
+  } else if (vorpDifference >= 10) {
+
+    confidence += 15;
+
+  } else if (vorpDifference >= 5) {
+
+    confidence += 10;
+
+  } else if (vorpDifference >= 2) {
+
+    confidence += 5;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 3. TIER ADVANTAGE
+   * -------------------------------------------------------
+   */
+
+  var playerTier =
+    Number(player.tierScore) || 0;
+
+  var nextTier =
+    nextPlayer
+      ? Number(nextPlayer.tierScore) || 0
+      : 0;
+
+  var tierDifference =
+    playerTier - nextTier;
+
+  if (tierDifference >= 20) {
+
+    confidence += 15;
+
+  } else if (tierDifference >= 10) {
+
+    confidence += 10;
+
+  } else if (tierDifference >= 5) {
+
+    confidence += 6;
+
+  } else if (tierDifference >= 2) {
+
+    confidence += 3;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 4. TIMING
+   * -------------------------------------------------------
+   */
+
+  var timing =
+    Number(player.timingScore) || 0;
+
+  if (timing >= 80) {
+
+    confidence += 10;
+
+  } else if (timing >= 65) {
+
+    confidence += 7;
+
+  } else if (timing >= 50) {
+
+    confidence += 4;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 5. SCARCITY
+   * -------------------------------------------------------
+   */
+
+  var scarcity =
+    Number(player.scarcityScore) || 0;
+
+  if (scarcity >= 80) {
+
+    confidence += 10;
+
+  } else if (scarcity >= 60) {
+
+    confidence += 7;
+
+  } else if (scarcity >= 40) {
+
+    confidence += 4;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 6. ROSTER NEED
+   * -------------------------------------------------------
+   */
+
+  var need =
+    Number(player.rosterNeedScore) || 0;
+
+  if (need >= 3) {
+
+    confidence += 5;
+
+  } else if (need >= 2) {
+
+    confidence += 3;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 7. DRAFT-AWARE VORP
+   * -------------------------------------------------------
+   */
+
+  var draftAware =
+    Number(
+      player.draftAwareVorpOpportunityScore
+    ) || 0;
+
+  if (draftAware >= 8) {
+
+    confidence += 10;
+
+  } else if (draftAware >= 5) {
+
+    confidence += 7;
+
+  } else if (draftAware >= 3) {
+
+    confidence += 4;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 8. TIER CLIFF
+   * -------------------------------------------------------
+   */
+
+  var tierCliff =
+    Number(
+      player.tierCliffOpportunityScore
+    ) || 0;
+
+  if (tierCliff >= 8) {
+
+    confidence += 10;
+
+  } else if (tierCliff >= 5) {
+
+    confidence += 7;
+
+  } else if (tierCliff >= 3) {
+
+    confidence += 4;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 9. NEXT-PICK SURVIVAL
+   * -------------------------------------------------------
+   */
+
+  if (nextPlayer) {
+
+    var survival =
+      Number(
+        nextPlayer.nextPickSurvivalScore
+      ) || 0;
+
+    if (survival >= 80) {
+
+      confidence += 5;
+
+    } else if (survival >= 60) {
+
+      confidence += 3;
+
+    }
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CAP
+   * -------------------------------------------------------
+   */
+
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(confidence)
+    )
+  );
+
+}
 
 function calculateDraftRecommendation(
   player,
