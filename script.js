@@ -5200,7 +5200,45 @@ if (
   };
 }
 
+var DRAFT_DEBUG = {
+  sections: {},
+
+  reset: function() {
+    this.sections = {};
+  },
+
+  add: function(section, data) {
+    if (!this.sections[section]) {
+      this.sections[section] = [];
+    }
+
+    this.sections[section].push(data);
+  },
+
+  print: function() {
+
+    console.group(
+      '[DRAFT ENGINE DEBUG]'
+    );
+
+    Object.keys(this.sections).forEach(
+      function(section) {
+
+        console.log(
+          section,
+          this.sections[section]
+        );
+
+      }.bind(this)
+    );
+
+    console.groupEnd();
+  }
+};
+
 function draftDebugSection(title, data) {
+
+  DRAFT_DEBUG.reset();
 
   console.group('[DRAFT ENGINE] ' + title);
 
@@ -5601,6 +5639,38 @@ if (
   context.calculatedPicksUntilNext =
     picksBetween;
 
+  DRAFT_DEBUG.add(
+  'NEXT PICK',
+  {
+    player:
+      player.name,
+
+    teams:
+      teams,
+
+    currentPick:
+      currentPick,
+
+    currentRound:
+      currentRound,
+
+    pickInRound:
+      pickInRound,
+
+    suppliedNextPick:
+      suppliedNextPick,
+
+    calculatedNextPick:
+      nextPick,
+
+    picksBetween:
+      picksBetween,
+
+    rankWindow:
+      rankWindow
+  }
+);
+
 
   return alternatives;
 }
@@ -5689,6 +5759,53 @@ survival =
       survival
     )
   );
+
+  DRAFT_DEBUG.add(
+  'SURVIVAL',
+  {
+    player:
+      candidate.name,
+
+    currentPick:
+      currentPick,
+
+    nextPick:
+      nextPick,
+
+    picksUntilNext:
+      picksUntilNext,
+
+    candidateRank:
+      rank,
+
+    timingScore:
+      timing,
+
+    startingSurvival:
+      startingSurvival,
+
+    rankPressure:
+      rankPressure,
+
+    rankPenalty:
+      rankPenalty,
+
+    timingPenalty:
+      timingPenalty,
+
+    rankDistance:
+      rankDistance,
+
+    rankDistancePenalty:
+      rankDistancePenalty,
+
+    pickDistancePenalty:
+      pickDistancePenalty,
+
+    finalSurvival:
+      survival
+  }
+);
 
   return survival;
 }
@@ -7479,14 +7596,60 @@ console.log(
     : null
 );
 
-  var testAlternatives =
-  selectedPlayer
-    ? calculateNextPickAlternatives(
-        selectedPlayer,
-        scored,
-        context
-      )
-    : [];
+  console.log(
+  '%c[DRAFT DEBUG] NEXT PICK PIPELINE',
+  'color:#00ff88;font-weight:bold;',
+  {
+    player:
+      selectedPlayer
+        ? selectedPlayer.name
+        : null,
+
+    teams:
+      context.teams,
+
+    currentPick:
+      context.currentPick,
+
+    suppliedNextPick:
+      context.nextPick,
+
+    calculatedNextPick:
+      context.calculatedNextPick,
+
+    picksBetween:
+      context.calculatedPicksUntilNext,
+
+    currentRank:
+      context.currentRank,
+
+    alternatives:
+      testAlternatives.map(function(candidate) {
+
+        return {
+          name:
+            candidate.name,
+
+          rank:
+            candidate.rank,
+
+          rawScore:
+            Number(candidate.finalScore || 0),
+
+          survival:
+            Number(
+              candidate.nextPickSurvivalScore || 0
+            ),
+
+          survivalAdjustedScore:
+            Number(
+              candidate.survivalAdjustedScore || 0
+            )
+        };
+
+      })
+  }
+);
 
   var recommendation =
   selectedPlayer
