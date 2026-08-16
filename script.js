@@ -5670,6 +5670,9 @@ function calculateNextPickSurvival(
   var picksUntilNext =
     Number(context.picksUntilMyTurn) || 0;
 
+  var nextPick =
+  Number(context.nextPick) || 0;
+
   console.log(
   'SURVIVAL INPUT DEBUG:',
   candidate.name,
@@ -5693,61 +5696,115 @@ function calculateNextPickSurvival(
    * Start with a neutral survival estimate.
    */
 
-  var survival =
-    100;
+  var survival = 100;
 
-  /*
-   * Each pick between now and our next
-   * selection creates some chance the player
-   * disappears.
-   */
+
+/*
+ * -------------------------------------------------------
+ * 1. RANK PRESSURE
+ * -------------------------------------------------------
+ *
+ * How far ahead of our next pick is this player?
+ *
+ * Example:
+ *
+ * Rank 17 / next pick 20
+ * = 3 picks ahead
+ *
+ * Rank 14 / next pick 20
+ * = 6 picks ahead
+ *
+ * The further ahead they are ranked,
+ * the less likely they are to survive.
+ */
+
+var rankPressure =
+  nextPick
+    ? nextPick - rank
+    : 0;
+
+if (rankPressure > 0) {
 
   survival -=
-    picksUntilNext * 5;
+    rankPressure * 7;
 
-  /*
-   * Higher timing pressure means the player
-   * is more likely to disappear.
-   */
+}
 
-  survival -=
-    timing * 0.35;
 
-  /*
-   * Players ranked very close to the current
-   * player are naturally more vulnerable.
-   */
+/*
+ * -------------------------------------------------------
+ * 2. TIMING PRESSURE
+ * -------------------------------------------------------
+ *
+ * timingScore represents how likely the player
+ * is to disappear based on the draft environment.
+ *
+ * We use it as a moderate adjustment rather
+ * than allowing it to completely destroy survival.
+ */
 
-  var rankDistance =
-    rank -
-    (Number(context.currentRank) || 0);
+survival -=
+  timing * 0.10;
 
-  if (rankDistance <= 2) {
 
-    survival -= 15;
+/*
+ * -------------------------------------------------------
+ * 3. RANK DISTANCE FROM CURRENT PLAYER
+ * -------------------------------------------------------
+ *
+ * Players extremely close to the player we're
+ * currently considering receive a small additional
+ * risk adjustment.
+ */
 
-  } else if (rankDistance <= 4) {
+var rankDistance =
+  rank -
+  (Number(context.currentRank) || 0);
 
-    survival -= 8;
+if (rankDistance <= 2) {
 
-  } else if (rankDistance <= 6) {
+  survival -= 5;
 
-    survival -= 3;
+} else if (rankDistance <= 4) {
 
-  }
+  survival -= 3;
 
-  /*
-   * Keep result between 0 and 100.
-   */
+}
 
-  survival =
-    Math.max(
-      0,
-      Math.min(
-        100,
-        survival
-      )
-    );
+
+/*
+ * -------------------------------------------------------
+ * 4. DISTANCE TO NEXT PICK
+ * -------------------------------------------------------
+ *
+ * More picks between now and our next selection
+ * means somewhat lower survival.
+ *
+ * Keep this deliberately small because rank
+ * pressure already captures most of the risk.
+ */
+
+survival -=
+  Math.min(
+    15,
+    picksUntilNext * 0.5
+  );
+
+
+/*
+ * -------------------------------------------------------
+ * CLAMP
+ * -------------------------------------------------------
+ */
+
+survival =
+  Math.max(
+    0,
+    Math.min(
+      100,
+      survival
+    )
+  );
 
   console.log(
     'NEXT PICK SURVIVAL:',
