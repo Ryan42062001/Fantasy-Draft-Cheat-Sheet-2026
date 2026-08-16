@@ -5200,6 +5200,19 @@ if (
   };
 }
 
+function draftDebugSection(title, data) {
+
+  console.groupCollapsed(
+    '%c[DRAFT ENGINE] ' + title,
+    'font-weight:bold; color:#4CAF50;'
+  );
+
+  console.table(data);
+
+  console.groupEnd();
+
+}
+
 function calculateNextPickAlternatives(
   player,
   scoredPlayers,
@@ -5583,61 +5596,65 @@ if (
    * -------------------------------------------------------
    */
 
-  console.log(
-    'NEXT PICK CALCULATION:',
-    player.name,
-    {
-      teams:
-        teams,
+  draftDebugSection(
+  'NEXT PICK',
+  [{
+    player:
+      player.name,
 
-      currentPick:
-        currentPick,
+    teams:
+      teams,
 
-      currentRound:
-        currentRound,
+    currentPick:
+      currentPick,
 
-      pickInRound:
-        pickInRound,
+    currentRound:
+      currentRound,
 
-      suppliedNextPick:
-        suppliedNextPick,
+    pickInRound:
+      pickInRound,
 
-      nextPick:
-        nextPick,
+    suppliedNextPick:
+      suppliedNextPick,
 
-      picksBetween:
-        picksBetween,
+    calculatedNextPick:
+      nextPick,
 
-      rankWindow:
-        rankWindow,
+    picksBetween:
+      picksBetween,
 
-      alternatives:
-        alternatives.map(function(candidate) {
+    rankWindow:
+      rankWindow
+  }]
+);
 
-          return {
-            name:
-              candidate.name,
 
-            position:
-              candidate.position,
+draftDebugSection(
+  'ALTERNATIVES',
+  alternatives.map(function(candidate) {
 
-            rank:
-              candidate.rank,
+    return {
+      player:
+        candidate.name,
 
-            finalScore:
-              Number(
-                candidate.finalScore || 0
-              ),
+      position:
+        candidate.position,
 
-            survival:
-              Number(
-                candidate.nextPickSurvivalScore || 0
-              )
-          };
+      rank:
+        Number(candidate.rank) || 999,
 
-        })
-    }
-  );
+      rawScore:
+        Number(candidate.finalScore) || 0,
+
+      survival:
+        Number(candidate.nextPickSurvivalScore) || 0,
+
+      survivalAdjustedScore:
+        Number(candidate.survivalAdjustedScore) || 0
+    };
+
+  })
+);
 
 
   /*
@@ -5681,40 +5698,15 @@ var rank =
 
 var timing =
   Number(candidate.timingScore) || 0;
-
-  console.log(
-  'SURVIVAL CHECK:',
-  candidate.name,
-  {
-    currentPick: currentPick,
-    nextPick: nextPick,
-    picksUntilNext: picksUntilNext,
-    candidateRank: rank,
-    timingScore: timing
-  }
-);
-
-  console.log(
-  'SURVIVAL INPUT DEBUG:',
-  candidate.name,
-  {
-    picksUntilNext: picksUntilNext,
-    currentPick: context.currentPick,
-    nextPick: context.calculatedNextPick,
-    currentRank: context.currentRank,
-    candidateRank: candidate.rank,
-    timingScore: candidate.timingScore
-  }
-);
   
-
-
   /*
    * Start with a neutral survival estimate.
    */
 
   var survival = 100;
 
+  var startingSurvival =
+  survival;
 
 /*
  * -------------------------------------------------------
@@ -5747,6 +5739,10 @@ if (rankPressure > 0) {
 
 }
 
+  var rankPenalty =
+  rankPressure > 0
+    ? -(rankPressure * 7)
+    : 0;
 
 /*
  * -------------------------------------------------------
@@ -5762,6 +5758,9 @@ if (rankPressure > 0) {
 
 survival -=
   timing * 0.10;
+
+  var timingPenalty =
+  -(timing * 0.10);
 
 
 /*
@@ -5788,6 +5787,12 @@ if (rankDistance <= 2) {
 
 }
 
+  var rankDistancePenalty =
+  rankDistance <= 2
+    ? -5
+    : rankDistance <= 4
+      ? -3
+      : 0;
 
 /*
  * -------------------------------------------------------
@@ -5807,6 +5812,11 @@ survival -=
     picksUntilNext * 0.5
   );
 
+  var pickDistancePenalty =
+  -Math.min(
+    15,
+    picksUntilNext * 0.5
+  );
 
 /*
  * -------------------------------------------------------
@@ -5823,17 +5833,56 @@ survival =
     )
   );
 
-  console.log(
-    'NEXT PICK SURVIVAL:',
-    candidate.name,
-    {
-      rank: rank,
-      timing: timing,
-      picksUntilNext: picksUntilNext,
-      survival: survival
-    }
-  );
+  draftDebugSection(
+  'SURVIVAL: ' + candidate.name,
+  [{
+    candidate:
+      candidate.name,
 
+    currentPick:
+      currentPick,
+
+    nextPick:
+      nextPick,
+
+    picksUntilNext:
+      picksUntilNext,
+
+    candidateRank:
+      rank,
+
+    timingScore:
+      timing,
+
+    currentRank:
+      Number(context.currentRank) || 0,
+
+    rankPressure:
+      rankPressure,
+
+    rankPenalty:
+      rankPenalty,
+
+    timingPenalty:
+      timingPenalty,
+
+    rankDistance:
+      rankDistance,
+
+    rankDistancePenalty:
+      rankDistancePenalty,
+
+    pickDistancePenalty:
+      pickDistancePenalty,
+
+    startingSurvival:
+      startingSurvival,
+
+    finalSurvival:
+      survival
+  }]
+);
+  
   return survival;
 }
 function calculateRecommendationConfidence(
@@ -6381,47 +6430,98 @@ var scoreGap =
    * -------------------------------------------------------
    */
 
-  console.log(
-    'DRAFT DECISION:',
-    player.name,
-    {
-      score:
-        score,
+  draftDebugSection(
+  'PLAYER SCORE: ' + player.name,
+  [{
+    player:
+      player.name,
 
-      nextPlayer:
-        nextPlayer
-          ? nextPlayer.name
-          : null,
+    position:
+      player.position,
 
-      nextScore:
-        nextScore,
+    rank:
+      Number(player.rank) || 999,
 
-      alternativeSurvival:
-  nextPlayer
-    ? Number(nextPlayer.nextPickSurvivalScore) || 0
-    : 0,
+    finalScore:
+      Number(player.finalScore) || 0,
 
-alternativeSurvivalAdjusted:
-  nextPlayer
-    ? Number(nextPlayer.survivalAdjustedScore) || 0
-    : 0,
+    tierScore:
+      Number(player.tierScore) || 0,
 
-      scoreGap:
-        scoreGap,
+    vorpScore:
+      Number(player.vorpScore) || 0,
 
-      confidenceScore:
-        confidenceScore,
+    timingScore:
+      Number(player.timingScore) || 0,
 
-      confidence:
-        confidence,
+    scarcityScore:
+      Number(player.scarcityScore) || 0,
 
-      recommendation:
-        decision.recommendation,
+    rosterNeedScore:
+      Number(player.rosterNeedScore) || 0,
 
-      reason:
-        reason
-    }
-  );
+    draftAwareVorp:
+      Number(
+        player.draftAwareVorpOpportunityScore
+      ) || 0,
+
+    tierCliff:
+      Number(
+        player.tierCliffOpportunityScore
+      ) || 0
+  }]
+);
+  
+  draftDebugSection(
+  'DECISION: ' + player.name,
+  [{
+    player:
+      player.name,
+
+    position:
+      player.position,
+
+    playerScore:
+      score,
+
+    nextPlayer:
+      nextPlayer
+        ? nextPlayer.name
+        : null,
+
+    nextPlayerRawScore:
+      nextScore,
+
+    nextPlayerSurvival:
+      nextPlayer
+        ? Number(
+            nextPlayer.nextPickSurvivalScore
+          ) || 0
+        : 0,
+
+    nextPlayerAdjustedScore:
+      nextPlayer
+        ? Number(
+            nextPlayer.survivalAdjustedScore
+          ) || 0
+        : 0,
+
+    scoreGap:
+      scoreGap,
+
+    confidenceScore:
+      confidenceScore,
+
+    confidence:
+      confidence,
+
+    recommendation:
+      decision.recommendation,
+
+    reason:
+      reason
+  }]
+);
 
 
   /*
