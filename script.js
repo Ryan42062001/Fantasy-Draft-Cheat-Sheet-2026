@@ -5667,11 +5667,33 @@ function calculateNextPickSurvival(
   context =
     context || {};
 
-  var picksUntilNext =
-    Number(context.picksUntilMyTurn) || 0;
+  var currentPick =
+  Number(context.currentPick) || 0;
 
-  var nextPick =
+var nextPick =
   Number(context.nextPick) || 0;
+
+var picksUntilNext = 0;
+
+if (
+  currentPick &&
+  nextPick &&
+  nextPick > currentPick
+) {
+
+  picksUntilNext =
+    Math.max(
+      0,
+      nextPick - currentPick - 1
+    );
+
+}
+
+var rank =
+  Number(candidate.rank) || 999;
+
+var timing =
+  Number(candidate.timingScore) || 0;
 
   console.log(
   'SURVIVAL INPUT DEBUG:',
@@ -5686,11 +5708,7 @@ function calculateNextPickSurvival(
   }
 );
   
-  var rank =
-    Number(candidate.rank) || 999;
 
-  var timing =
-    Number(candidate.timingScore) || 0;
 
   /*
    * Start with a neutral survival estimate.
