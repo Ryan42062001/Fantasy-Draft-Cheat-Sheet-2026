@@ -4985,27 +4985,22 @@ finalScore:
   };
 }
 
-console.Log NEXT PICK OPPORTUNITY: – "drake london" (script.js, line 5964)
-
-Array (8)
-0
-{name: "a.j. brown", rank: 14, finalScore: 71.67873183483745, survival: 41.7, survivalAdjustedScore: 29.89003117512722}
-1
-{name: "brock bowers", rank: 15, finalScore: 68.49221958730547, survival: 34, survivalAdjustedScore: 23.28735465968386}
-2
-{name: "nico collins", rank: 16, finalScore: 59.545713696546734, survival: 48.7, survivalAdjustedScore: 28.99876257021826}
-3
-{name: "de'von achane", rank: 17, finalScore: 53.75079287481584, survival: 48.7, survivalAdjustedScore: 26.176636130035316}
-4
-{name: "trey mcbride", rank: 22, finalScore: 51.625, survival: 50.75, survivalAdjustedScore: 26.1996875}
-5
-{name: "chase brown", rank: 18, finalScore: 51.04476858388135, survival: 53.7, survivalAdjustedScore: 27.41104072954429}
-6
-{name: "saquon barkley", rank: 19, finalScore: 48.259278922571646, survival: 55.45, survivalAdjustedScore: 26.759770162565978}
-7
-{name: "omarion hampton", rank: 20, finalScore: 47.284278922571644, survival: 55.65, survivalAdjustedScore: 26.313701220411122}
-
-Array Prototype
+console.log(
+  'NEXT PICK OPPORTUNITY:',
+  player.name,
+  nextPickAlternatives.map(function(candidate) {
+    return {
+      name: candidate.name,
+      rank: candidate.rank,
+      finalScore:
+        Number(candidate.finalScore) || 0,
+      survival:
+        Number(candidate.nextPickSurvivalScore) || 0,
+      survivalAdjustedScore:
+        Number(candidate.survivalAdjustedScore) || 0
+    };
+  })
+);
 
 function calculateRecommendationDecision(
   player,
