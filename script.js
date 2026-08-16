@@ -4985,23 +4985,6 @@ finalScore:
   };
 }
 
-console.log(
-  'NEXT PICK OPPORTUNITY:',
-  player.name,
-  nextPickAlternatives.map(function(candidate) {
-    return {
-      name: candidate.name,
-      rank: candidate.rank,
-      finalScore:
-        Number(candidate.finalScore) || 0,
-      survival:
-        Number(candidate.nextPickSurvivalScore) || 0,
-      survivalAdjustedScore:
-        Number(candidate.survivalAdjustedScore) || 0
-    };
-  })
-);
-
 function calculateRecommendationDecision(
   player,
   alternative,
