@@ -7599,21 +7599,16 @@ console.log(
     : null
 );
 
-  var recommendation =
+var testAlternatives =
   selectedPlayer
-    ? calculateDraftRecommendation(
+    ? calculateNextPickAlternatives(
         selectedPlayer,
         scored,
         context
       )
-    : null;
+    : [];
 
 console.log(
-  'DRAFT RECOMMENDATION:',
-  recommendation
-);
-
-  console.log(
   '%c[DRAFT DEBUG] NEXT PICK PIPELINE',
   'color:#00ff88;font-weight:bold;',
   {
@@ -7641,12 +7636,45 @@ console.log(
       context.currentRank,
 
     alternatives:
-      recommendation &&
-      recommendation.debugAlternatives
-        ? recommendation.debugAlternatives
+      testAlternatives
+        ? testAlternatives.map(function(candidate) {
+
+            return {
+              name:
+                candidate.name,
+
+              rank:
+                candidate.rank,
+
+              rawScore:
+                Number(
+                  candidate.finalScore || 0
+                ),
+
+              survival:
+                Number(
+                  candidate.nextPickSurvivalScore || 0
+                ),
+
+              survivalAdjustedScore:
+                Number(
+                  candidate.survivalAdjustedScore || 0
+                )
+            };
+
+          })
         : []
   }
 );
+
+var recommendation =
+  selectedPlayer
+    ? calculateDraftRecommendation(
+        selectedPlayer,
+        scored,
+        context
+      )
+    : null;
 
   /*
  * -------------------------------------------------------
