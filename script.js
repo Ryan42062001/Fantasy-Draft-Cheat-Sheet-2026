@@ -1854,22 +1854,33 @@ function calculateReplacementLevels(players) {
 
   /*
    * -------------------------------------------------------
-   * DRAFT-AWARE REPLACEMENT LEVELS
+   * REPLACEMENT LEVEL MODEL
    * -------------------------------------------------------
    *
-   * Instead of using a fixed roster-count replacement
-   * player, estimate who would realistically remain by
-   * the time we pick again.
+   * Replacement level represents the player we expect
+   * to be available at the edge of the league's starting
+   * demand.
    *
-   * Example:
+   * Example in a 10-team league:
    *
-   * Current pick = 25
-   * My next pick = 32
+   * QB  = 10 starters
+   * RB  = 20 starters
+   * WR  = 20 starters
+   * TE  = 10 starters
    *
-   * There are 7 picks before I select again.
+   * FLEX is shared between RB / WR / TE and is handled
+   * separately below.
    *
-   * We therefore project that the best ~7 currently
-   * available players may disappear before our next pick.
+   * We then make the replacement level draft-aware by
+   * projecting players who are likely to disappear before
+   * our next selection.
+   */
+
+
+  /*
+   * -------------------------------------------------------
+   * PICKS UNTIL NEXT TURN
+   * -------------------------------------------------------
    */
 
   var picksUntilMyTurn =
@@ -1879,7 +1890,9 @@ function calculateReplacementLevels(players) {
 
 
   /*
-   * Build position pools.
+   * -------------------------------------------------------
+   * BUILD POSITION POOLS
+   * -------------------------------------------------------
    */
 
   var positionPools = {};
@@ -1911,16 +1924,13 @@ function calculateReplacementLevels(players) {
 
   /*
    * -------------------------------------------------------
-   * PROJECTED AVAILABLE POOL
+   * PROJECT PLAYERS TAKEN BEFORE OUR NEXT PICK
    * -------------------------------------------------------
    *
-   * We don't know exactly which players opponents will
-   * select, so use overall ranking as the baseline
-   * projection.
+   * Use overall ranking as the baseline projection.
    *
-   * We remove the highest-ranked currently available
-   * players equal to the number of picks before our next
-   * selection.
+   * This does NOT mean these exact players will be taken.
+   * It simply gives the engine a deterministic estimate.
    */
 
   var projectedPlayers =
@@ -1946,12 +1956,6 @@ function calculateReplacementLevels(players) {
       });
 
 
-  /*
-   * Do not remove the entire pool.
-   *
-   * This is only a projection of the players most
-   * likely to disappear before our next pick.
-   */
   var projectedGoneCount =
     Math.min(
       picksUntilMyTurn,
@@ -1967,8 +1971,7 @@ function calculateReplacementLevels(players) {
 
 
   /*
-   * Build a quick lookup of projected players
-   * who are expected to disappear.
+   * Build lookup of projected players.
    */
 
   var projectedGoneNames = {};
@@ -1983,8 +1986,9 @@ function calculateReplacementLevels(players) {
 
 
   /*
-   * Build replacement pools after the projected
-   * upcoming picks.
+   * -------------------------------------------------------
+   * PROJECTED POSITION POOLS
+   * -------------------------------------------------------
    */
 
   var projectedPositionPools = {};
@@ -2006,12 +2010,22 @@ function calculateReplacementLevels(players) {
 
   /*
    * -------------------------------------------------------
-   * DEDICATED POSITION REPLACEMENTS
+   * POSITION REPLACEMENT LEVELS
    * -------------------------------------------------------
    *
-   * The replacement player is now the best player
-   * projected to remain at that position after our
-   * next selection window.
+   * IMPORTANT:
+   *
+   * We do NOT use pool[0].
+   *
+   * The replacement index is based on league demand.
+   *
+   * settings.QB = 10
+   * settings.RB = 20
+   * settings.WR = 20
+   * settings.TE = 10
+   *
+   * Since arrays are zero-indexed, the replacement player
+   * is at index demand - 1.
    */
 
   var replacement = {};
@@ -2019,10 +2033,21 @@ function calculateReplacementLevels(players) {
   ['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
 
     var pool =
-      projectedPositionPools[position];
+      projectedPositionPools[position] || [];
+
+    var demand =
+      Number(settings[position]) || 0;
+
+    var replacementIndex =
+      Math.max(
+        0,
+        demand - 1
+      );
 
     replacement[position] =
-      pool[0] || null;
+      pool[replacementIndex] ||
+      pool[pool.length - 1] ||
+      null;
 
   });
 
@@ -2032,10 +2057,12 @@ function calculateReplacementLevels(players) {
    * FLEX REPLACEMENT
    * -------------------------------------------------------
    *
-   * FLEX can be RB / WR / TE.
+   * FLEX is shared by RB / WR / TE.
    *
-   * Combine those positions and select the best
-   * projected remaining player.
+   * We don't want the best RB/WR/TE.
+   *
+   * Instead, approximate the FLEX replacement by taking
+   * the player around the combined starting-demand edge.
    */
 
   var flexPool = [];
@@ -2044,11 +2071,10 @@ function calculateReplacementLevels(players) {
 
     flexPool =
       flexPool.concat(
-        projectedPositionPools[position]
+        projectedPositionPools[position] || []
       );
 
   });
-
 
   flexPool.sort(function(a, b) {
 
@@ -2058,8 +2084,40 @@ function calculateReplacementLevels(players) {
   });
 
 
+  /*
+   * The base RB/WR/TE demand already represents the
+   * dedicated starting positions.
+   *
+   * FLEX adds one additional eligible player per team.
+   */
+
+  var flexDemand =
+    Number(settings.FLEX) || 0;
+
+  var flexIndex =
+    (
+      Number(settings.RB) || 0
+    ) +
+    (
+      Number(settings.WR) || 0
+    ) +
+    (
+      Number(settings.TE) || 0
+    ) +
+    flexDemand -
+    1;
+
+  flexIndex =
+    Math.max(
+      0,
+      flexIndex
+    );
+
+
   replacement.FLEX =
-    flexPool[0] || null;
+    flexPool[flexIndex] ||
+    flexPool[flexPool.length - 1] ||
+    null;
 
 
   /*
@@ -2071,6 +2129,7 @@ function calculateReplacementLevels(players) {
   console.log(
     'DRAFT-AWARE REPLACEMENT LEVELS:',
     {
+
       currentPick:
         draftState.currentPick,
 
@@ -2079,6 +2138,15 @@ function calculateReplacementLevels(players) {
 
       picksUntilMyTurn:
         picksUntilMyTurn,
+
+      settings:
+        {
+          QB: settings.QB,
+          RB: settings.RB,
+          WR: settings.WR,
+          TE: settings.TE,
+          FLEX: settings.FLEX
+        },
 
       replacements:
         {
@@ -2102,6 +2170,7 @@ function calculateReplacementLevels(players) {
             replacement.FLEX &&
             replacement.FLEX.name
         }
+
     }
   );
 
