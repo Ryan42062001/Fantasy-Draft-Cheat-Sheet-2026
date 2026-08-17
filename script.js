@@ -4202,24 +4202,26 @@ function calculateDraftAwareVorpOpportunity(player, context){
   }
 
 
-  var draftState =
-    getDraftAssistantState();
+ var draftState =
+  getDraftAssistantState();
 
+var currentPick =
+  Number(draftState.currentPick) || 0;
 
-  var picksUntilNext =
-    Number(
-      draftState.picksUntilMyTurn
-    ) || 0;
+var teams =
+  Number(draftState.teams) || 10;
 
-  var draftWindow =
+var draftWindow =
   calculateMyNextDraftPick(
-    draftState.currentPick,
-    draftState.teams
+    currentPick,
+    teams
   );
+
+var nextPick =
+  draftWindow.nextPick;
 
 var picksUntilNext =
   draftWindow.picksBetween;
-
 
   /*
    * If we're already on the clock, there is no waiting
@@ -7587,7 +7589,7 @@ replacements:
     draftState.currentPick,
 
   nextPick:
-    draftState.myNextPick,
+  nextPick,
 
   picksUntilMyTurn:
   draftState.picksUntilMyTurn,
