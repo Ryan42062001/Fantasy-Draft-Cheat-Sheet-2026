@@ -6806,7 +6806,7 @@ if (result.timingScore >= 70) {
       positives,
 
     concerns:
-      concerns
+      concerns,
 
     debugAlternatives:
   nextPickAlternatives
