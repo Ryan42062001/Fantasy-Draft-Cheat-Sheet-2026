@@ -4223,7 +4223,28 @@ function calculateAllFantasyVorp(players) {
 
 function calculateDraftAwareVorpOpportunity(player, context){
 
+  console.log(
+    'DRAFT-AWARE ENTER:',
+    player && player.name,
+    {
+      hasContext: !!context,
+      hasReplacements: !!(
+        context &&
+        context.replacements
+      ),
+      hasPlayers: !!(
+        context &&
+        context.players &&
+        context.players.length
+      ),
+      playerPosition:
+        player &&
+        player.position
+    }
+  );
+
   if(!player || !context){
+    console.log('DRAFT-AWARE EXIT: missing player/context');
     return 0;
   }
 
