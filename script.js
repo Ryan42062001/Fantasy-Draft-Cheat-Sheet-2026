@@ -2535,92 +2535,131 @@ function calculateFantasyVorp(
   replacement
 ) {
 
-  if (!player || !player.rank) {
+  if (
+    !player ||
+    !player.rank ||
+    !replacement ||
+    !replacement.rank
+  ) {
     return 0;
   }
 
-  /*
-   * Base player value.
-   *
-   * Overall rank is our primary indication of
-   * how good the player actually is.
-   *
-   * The curve is intentionally nonlinear so
-   * elite players receive more separation.
-   */
-  var rank =
+  var playerRank =
     Number(player.rank);
 
-  var baseValue =
-    100 / Math.sqrt(rank);
+  var replacementRank =
+    Number(replacement.rank);
 
-
-  /*
-   * Replacement value.
-   *
-   * This tells us how much value is available
-   * at the position later in the draft.
-   */
-  var replacementValue = 0;
-
-  if (replacement && replacement.rank) {
-
-    replacementValue =
-      100 / Math.sqrt(
-        Number(replacement.rank)
-      );
+  if (
+    playerRank <= 0 ||
+    replacementRank <= 0 ||
+    playerRank >= replacementRank
+  ) {
+    return 0;
   }
 
 
   /*
-   * Positional advantage.
+   * -------------------------------------------------------
+   * RANK-BASED VORP
+   * -------------------------------------------------------
    *
-   * This is the actual VORP component.
+   * We do not have fantasy-point projections in the player
+   * data, so use positional rank distance as a proxy.
+   *
+   * Larger distance above replacement =
+   * greater value over replacement.
    */
-  var positionalAdvantage =
+
+
+  var rankGap =
+    replacementRank -
+    playerRank;
+
+
+  /*
+   * Maximum possible gap within this position.
+   *
+   * A rank-1 player receives the maximum VORP
+   * available for that position.
+   */
+
+  var maximumGap =
+    replacementRank - 1;
+
+
+  if (maximumGap <= 0) {
+    return 0;
+  }
+
+
+  /*
+   * Normalize to 0-100.
+   */
+
+  var vorp =
+    (
+      rankGap /
+      maximumGap
+    ) * 100;
+
+
+  /*
+   * -------------------------------------------------------
+   * ELITE SEPARATION
+   * -------------------------------------------------------
+   *
+   * Give the very top players a small additional
+   * distinction without allowing the number to explode.
+   */
+
+  if (playerRank <= 3) {
+
+    vorp += 5;
+
+  } else if (playerRank <= 5) {
+
+    vorp += 3;
+
+  } else if (playerRank <= 10) {
+
+    vorp += 1;
+
+  }
+
+
+  /*
+   * Clamp.
+   */
+
+  vorp =
     Math.max(
       0,
-      baseValue - replacementValue
+      Math.min(
+        100,
+        vorp
+      )
     );
 
 
-  /*
-   * Convert to a useful fantasy scale.
-   *
-   * We intentionally DO NOT cap this at 100.
-   *
-   * Elite players should be separated from
-   * merely good players.
-   */
-  var vorp =
-    positionalAdvantage * 10;
-
-
-  /*
-   * Small premium for extremely highly ranked
-   * players.
-   *
-   * This prevents an elite overall player from
-   * being buried simply because his position
-   * has depth.
-   */
-  if (rank <= 5) {
-
-    vorp += 15;
-
-  } else if (rank <= 10) {
-
-    vorp += 10;
-
-  } else if (rank <= 20) {
-
-    vorp += 5;
-  }
+  console.log(
+    'RANK-BASED VORP:',
+    player.name,
+    'position =',
+    player.position,
+    'playerRank =',
+    playerRank,
+    'replacementRank =',
+    replacementRank,
+    'rankGap =',
+    rankGap,
+    'vorp =',
+    vorp
+  );
 
 
   return vorp;
 }
-
 /*
  * Calculate tier/drop-off information.
  *
