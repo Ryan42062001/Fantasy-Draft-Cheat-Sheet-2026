@@ -4524,40 +4524,113 @@ var picksUntilNext =
    * 21+             = strong
    */
 
-  var opportunityScore = 0;
-
-
-  if(rankDrop >= 21){
-
-    opportunityScore = 5;
-
-  } else if(rankDrop >= 11){
-
-    opportunityScore = 3;
-
-  } else if(rankDrop >= 6){
-
-    opportunityScore = 2;
-
-  } else {
-
-    opportunityScore = 1;
-  }
+  
+  /*
+   * -------------------------------------------------------
+   * DRAFT-AWARE OPPORTUNITY SCORE
+   * -------------------------------------------------------
+   *
+   * The replacement drop tells us how much positional
+   * inventory may disappear.
+   *
+   * But we also need to know whether THIS PLAYER is
+   * valuable enough to justify protecting that inventory.
+   *
+   * We therefore combine:
+   *
+   *   1. Replacement rank drop
+   *   2. Player's position above replacement
+   *   3. How much of that value is exposed by waiting
+   *
+   * Result: 0-5 bonus.
+   */
 
 
   /*
-   * Don't give the bonus to players who are themselves
-   * below the current replacement level.
+   * How much positional value disappears?
    *
-   * The opportunity is specifically about protecting
-   * valuable positional inventory.
+   * 71 ranks = extremely meaningful
+   * 30 ranks = meaningful
+   * 10 ranks = small
    */
-  if(
-    Number(player.rank) >
-    currentRank
-  ){
+  var replacementDropScore =
+    Math.min(
+      1,
+      rankDrop / 50
+    );
 
-    return 0;
+
+  /*
+   * How far above the current replacement is
+   * this specific player?
+   *
+   * Example:
+   *
+   * Player #1
+   * Replacement #73
+   * = 72 ranks above replacement
+   *
+   * Player #60
+   * Replacement #73
+   * = only 13 ranks above replacement
+   *
+   * This prevents every player above replacement
+   * from automatically receiving the same bonus.
+   */
+  var playerAdvantage =
+    Math.max(
+      0,
+      currentRank - Number(player.rank)
+    );
+
+
+  /*
+   * Normalize the player's positional advantage.
+   *
+   * 50+ ranks above replacement = maximum exposure
+   */
+  var playerAdvantageScore =
+    Math.min(
+      1,
+      playerAdvantage / 50
+    );
+
+
+  /*
+   * Combine the two factors.
+   */
+  var opportunityStrength =
+    replacementDropScore *
+    playerAdvantageScore;
+
+
+  /*
+   * Convert to 0-5 scale.
+   */
+  var opportunityScore =
+    opportunityStrength * 5;
+
+
+  /*
+   * Round to two decimals so the decision engine
+   * gets useful differentiation.
+   */
+  opportunityScore =
+    Math.round(
+      opportunityScore * 100
+    ) / 100;
+
+
+  /*
+   * Don't give meaningful opportunity credit to
+   * players at or below replacement.
+   */
+  if (
+    Number(player.rank) >= currentRank
+  ) {
+
+    opportunityScore = 0;
+
   }
 
 
@@ -4574,14 +4647,15 @@ var picksUntilNext =
     futureRank,
     'rankDrop =',
     rankDrop,
-    'picksUntilNext =',
-    picksUntilNext,
+    'playerAdvantage =',
+    playerAdvantage,
     'opportunityScore =',
     opportunityScore
   );
 
 
   return opportunityScore;
+
 }
 
 
