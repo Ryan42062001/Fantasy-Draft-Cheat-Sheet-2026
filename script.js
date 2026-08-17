@@ -5129,7 +5129,11 @@ function calculateDraftDecisionScore(player, context){
     Number(player.rank || player.rk || 9999);
 
   var vorp =
-    Number(player.vorp || 0);
+  Number(
+    player.vorp ||
+    context.vorp ||
+    0
+  );
 
   /*
    * -------------------------------------------------------
