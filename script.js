@@ -4157,9 +4157,6 @@ function calculateVorpProfile(
         players:
           players,
 
-        availablePlayers:
-          players,
-
         replacements:
           replacements
       }
@@ -4171,36 +4168,18 @@ function calculateVorpProfile(
    * -------------------------------------------------------
    */
 
-  return {
+return {
+  player: player,
+  vorp: vorp,
+  draftAware: draftAware,
+  tierDrop: tierDrop.score,
+  tierDropRankGap: tierDrop.rankGap,
+  scarcity: scarcity,
+  lateAvailability: lateAvailability,
+  replacement: replacement,
+  nextPlayer: tierDrop.nextPlayer
+};
 
-    player:
-      player,
-
-    vorp:
-      vorp,
-
-    tierDrop:
-      tierDrop.score,
-
-    tierDropRankGap:
-      tierDrop.rankGap,
-
-    scarcity:
-      scarcity,
-
-    lateAvailability:
-      lateAvailability,
-
-    draftAwareVorpOpportunity:
-      draftAwareVorpOpportunity,
-
-    replacement:
-      replacement,
-
-    nextPlayer:
-      tierDrop.nextPlayer
-
-  };
 }
 /*
  * Calculate Stage 2 for all available players.
