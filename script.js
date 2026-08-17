@@ -2190,8 +2190,8 @@ var picksUntilNext =
       nextPick:
         draftState.myNextPick,
 
-      picksUntilMyTurn:
-        picksUntilMyTurn,
+      picksUntilNext:
+  picksUntilNext,
 
       settings:
         {
