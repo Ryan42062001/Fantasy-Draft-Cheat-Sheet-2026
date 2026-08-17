@@ -2011,10 +2011,10 @@ var picksUntilNext =
 
 
   var projectedGoneCount =
-    Math.min(
-      picksUntilMyTurn,
-      projectedPlayers.length
-    );
+  Math.min(
+    picksUntilNext,
+    projectedPlayers.length
+  );
 
 
   var projectedGone =
@@ -4210,6 +4210,15 @@ function calculateDraftAwareVorpOpportunity(player, context){
     Number(
       draftState.picksUntilMyTurn
     ) || 0;
+
+  var draftWindow =
+  calculateMyNextDraftPick(
+    draftState.currentPick,
+    draftState.teams
+  );
+
+var picksUntilNext =
+  draftWindow.picksBetween;
 
 
   /*
