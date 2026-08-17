@@ -4116,41 +4116,6 @@ function calculateVorpProfile(
       replacements
     );
 
-  /*
-   * -------------------------------------------------------
-   * DRAFT-AWARE VORP OPPORTUNITY
-   * -------------------------------------------------------
-   */
-
-  var draftAwareVorpOpportunity =
-    calculateDraftAwareVorpOpportunity(
-      player,
-      {
-        players:
-          players,
-
-        replacements:
-          replacements,
-
-        availablePlayers:
-          players
-      }
-    );
-
-  console.log(
-    'VORP DRAFT-AWARE HANDOFF:',
-    player.name,
-    'draftAwareVorpOpportunity =',
-    draftAwareVorpOpportunity
-  );
-
-
-  /*
-   * -------------------------------------------------------
-   * LATE AVAILABILITY
-   * -------------------------------------------------------
-   */
-
   var draftState =
     getDraftAssistantState();
 
@@ -4167,14 +4132,33 @@ function calculateVorpProfile(
       }
     );
 
+  /*
+   * -------------------------------------------------------
+   * DRAFT-AWARE VORP OPPORTUNITY
+   * -------------------------------------------------------
+   */
+
+  var draftAwareVorpOpportunity =
+    calculateDraftAwareVorpOpportunity(
+      player,
+      {
+        players: players,
+        replacements: replacements
+      }
+    );
+
+  console.log(
+    'VORP DRAFT-AWARE:',
+    player.name,
+    'score =',
+    draftAwareVorpOpportunity
+  );
 
   return {
 
-    player:
-      player,
+    player: player,
 
-    vorp:
-      vorp,
+    vorp: vorp,
 
     tierDrop:
       tierDrop.score,
