@@ -3188,15 +3188,6 @@ function calculatePositionScarcity(
   replacements
 ) {
 
-  console.log(
-  'SCARCITY INPUT:',
-  player.name,
-  'rank =',
-  player.rank,
-  'position =',
-  player.position || player.pos
-);
-
   if (!player || !player.rank) {
     return 0;
   }
@@ -3207,42 +3198,105 @@ function calculatePositionScarcity(
       replacements
     );
 
-  console.log(
-  'SCARCITY REPLACEMENT:',
-  player.name,
-  replacement
-);
-
-  if (!replacement) {
+  if (!replacement || !replacement.rank) {
     return 0;
   }
 
-  var gap =
-    replacement.rank - player.rank;
+  var playerRank =
+    Number(player.rank);
 
-  console.log(
-  'SCARCITY CALC:',
-  player.name,
-  'replacement.rank =',
-  replacement.rank,
-  'player.rank =',
-  player.rank,
-  'gap =',
-  gap,
-  'result =',
-  Math.min(100, Math.max(0, gap * 2))
-);
+  var replacementRank =
+    Number(replacement.rank);
 
   /*
-   * Larger gap = greater scarcity/value.
+   * -------------------------------------------------------
+   * RELATIVE POSITIONAL SCARCITY
+   * -------------------------------------------------------
+   *
+   * Measure how much of the positional player pool exists
+   * between this player and the replacement level.
+   *
+   * A player sitting much farther above replacement gets
+   * a higher scarcity score.
+   *
+   * Unlike the old model, this does NOT simply multiply
+   * the rank gap by 2 and immediately cap most elite
+   * players at 100.
    */
-  return Math.min(
-    100,
+
+  var gap =
+    replacementRank -
+    playerRank;
+
+  if (gap <= 0) {
+    return 0;
+  }
+
+  /*
+   * Express the player's distance above replacement
+   * as a percentage of the entire replacement range.
+   *
+   * Example:
+   *
+   * Gibbs:
+   *   replacement = 73
+   *   player = 1
+   *
+   *   72 / 72 = 100
+   *
+   * Chase:
+   *   replacement = 63
+   *   player = 3
+   *
+   *   60 / 62 ≈ 96.8
+   *
+   * Bowers:
+   *   replacement = 112
+   *   player = 15
+   *
+   *   97 / 111 ≈ 87.4
+   */
+
+  var maximumGap =
+    replacementRank - 1;
+
+  if (maximumGap <= 0) {
+    return 0;
+  }
+
+  var scarcity =
+    (
+      gap /
+      maximumGap
+    ) * 100;
+
+  scarcity =
     Math.max(
       0,
-      gap * 2
-    )
+      Math.min(
+        100,
+        scarcity
+      )
+    );
+
+  console.log(
+    'SCARCITY CALC:',
+    player.name,
+    'position =',
+    player.position || player.pos,
+    'playerRank =',
+    playerRank,
+    'replacement =',
+    replacement.name,
+    'replacementRank =',
+    replacementRank,
+    'gap =',
+    gap,
+    'scarcity =',
+    scarcity
   );
+
+  return scarcity;
 }
 
 
