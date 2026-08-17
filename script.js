@@ -1934,11 +1934,20 @@ function calculateReplacementLevels(players) {
    * -------------------------------------------------------
    */
 
+var currentPick =
+  Number(draftState.currentPick) || 0;
+
+var teams =
+  Number(draftState.teams) || 10;
+
 var draftWindow =
   calculateMyNextDraftPick(
-    draftState.currentPick,
-    draftState.teams
+    currentPick,
+    teams
   );
+
+var nextPick =
+  draftWindow.nextPick;
 
 var picksUntilNext =
   draftWindow.picksBetween;
