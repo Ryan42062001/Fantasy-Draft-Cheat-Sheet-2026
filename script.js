@@ -7599,6 +7599,20 @@ console.log(
     : null
 );
 
+  var recommendation =
+  selectedPlayer
+    ? calculateDraftRecommendation(
+        selectedPlayer,
+        scored,
+        context
+      )
+    : null;
+
+console.log(
+  'DRAFT RECOMMENDATION:',
+  recommendation
+);
+
   console.log(
   '%c[DRAFT DEBUG] NEXT PICK PIPELINE',
   'color:#00ff88;font-weight:bold;',
@@ -7626,47 +7640,12 @@ console.log(
     currentRank:
       context.currentRank,
 
-recommendation
-  ? recommendation.debugAlternatives
-  : []
-
-        return {
-          name:
-            candidate.name,
-
-          rank:
-            candidate.rank,
-
-          rawScore:
-            Number(candidate.finalScore || 0),
-
-          survival:
-            Number(
-              candidate.nextPickSurvivalScore || 0
-            ),
-
-          survivalAdjustedScore:
-            Number(
-              candidate.survivalAdjustedScore || 0
-            )
-        };
-
-      })
+    alternatives:
+      recommendation &&
+      recommendation.debugAlternatives
+        ? recommendation.debugAlternatives
+        : []
   }
-);
-
-  var recommendation =
-  selectedPlayer
-    ? calculateDraftRecommendation(
-        selectedPlayer,
-        scored,
-        context
-      )
-    : null;
-
-console.log(
-  'DRAFT RECOMMENDATION:',
-  recommendation
 );
 
   /*
