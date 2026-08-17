@@ -4441,6 +4441,19 @@ var picksUntilNext =
    * exposed the position is.
    */
 
+  /*
+   * -------------------------------------------------------
+   * POSITION-SPECIFIC DRAFT PRESSURE
+   * -------------------------------------------------------
+   *
+   * Not every pick between now and our next selection
+   * will be this position.
+   *
+   * Estimate how many players at THIS position are
+   * realistically likely to disappear.
+   */
+
+
   var comparableCount =
     positionPool.filter(function(candidate){
 
@@ -4451,16 +4464,108 @@ var picksUntilNext =
 
 
   /*
-   * If there are fewer positional players than the
-   * number of picks before our turn, the position is
-   * highly exposed.
+   * Estimate the proportion of the upcoming draft
+   * that this position represents.
+   *
+   * We look at the top available players and determine
+   * how frequently this position occurs.
+   */
+  var pressureSampleSize =
+    Math.min(
+      100,
+      players.length
+    );
+
+
+  var pressureSample =
+    players
+      .filter(function(candidate){
+
+        return candidate &&
+          candidate.available &&
+          candidate.rank &&
+          VORP_POSITIONS.includes(
+            candidate.position
+          );
+
+      })
+      .slice()
+      .sort(function(a,b){
+
+        return Number(a.rank) -
+               Number(b.rank);
+
+      })
+      .slice(
+        0,
+        pressureSampleSize
+      );
+
+
+  var positionCount =
+    pressureSample.filter(function(candidate){
+
+      return (
+        candidate.position ===
+        position
+      );
+
+    }).length;
+
+
+  var positionShare =
+    pressureSample.length > 0
+      ? positionCount /
+        pressureSample.length
+      : 0;
+
+
+  /*
+   * Don't allow the estimate to become absurdly
+   * aggressive or conservative.
+   *
+   * Minimum 5%
+   * Maximum 45%
+   */
+  positionShare =
+    Math.max(
+      0.05,
+      Math.min(
+        0.45,
+        positionShare
+      )
+    );
+
+
+  /*
+   * Expected number of players from this position
+   * drafted before our next pick.
    */
   var expectedLoss =
     Math.min(
-      picksUntilNext,
-      comparableCount
+      comparableCount,
+      Math.max(
+        1,
+        Math.round(
+          picksUntilNext *
+          positionShare
+        )
+      )
     );
 
+
+  console.log(
+    'DRAFT PRESSURE:',
+    player.name,
+    'position =',
+    position,
+    'positionShare =',
+    positionShare,
+    'picksUntilNext =',
+    picksUntilNext,
+    'expectedLoss =',
+    expectedLoss
+  );
 
   /*
    * -------------------------------------------------------
