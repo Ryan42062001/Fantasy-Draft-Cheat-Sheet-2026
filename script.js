@@ -4085,6 +4085,7 @@ function calculateDraftRunOpportunity(player, context){
   return opportunityScore;
 }
  
+
 function calculateVorpProfile(
   player,
   players,
@@ -4116,6 +4117,7 @@ function calculateVorpProfile(
       replacements
     );
 
+
   /*
    * -------------------------------------------------------
    * DRAFT STATE
@@ -4124,6 +4126,7 @@ function calculateVorpProfile(
 
   var draftState =
     getDraftAssistantState();
+
 
   /*
    * -------------------------------------------------------
@@ -4144,10 +4147,14 @@ function calculateVorpProfile(
       }
     );
 
+
   /*
    * -------------------------------------------------------
    * DRAFT-AWARE VORP OPPORTUNITY
    * -------------------------------------------------------
+   *
+   * Measures how much positional value could disappear
+   * before our next pick.
    */
 
   var draftAwareVorpOpportunity =
@@ -4162,25 +4169,46 @@ function calculateVorpProfile(
       }
     );
 
+
   /*
    * -------------------------------------------------------
    * RETURN PROFILE
    * -------------------------------------------------------
    */
 
-return {
-  player: player,
-  vorp: vorp,
-  draftAware: draftAware,
-  tierDrop: tierDrop.score,
-  tierDropRankGap: tierDrop.rankGap,
-  scarcity: scarcity,
-  lateAvailability: lateAvailability,
-  replacement: replacement,
-  nextPlayer: tierDrop.nextPlayer
-};
+  return {
+
+    player:
+      player,
+
+    vorp:
+      vorp,
+
+    draftAware:
+      draftAwareVorpOpportunity,
+
+    tierDrop:
+      tierDrop.score,
+
+    tierDropRankGap:
+      tierDrop.rankGap,
+
+    scarcity:
+      scarcity,
+
+    lateAvailability:
+      lateAvailability,
+
+    replacement:
+      replacement,
+
+    nextPlayer:
+      tierDrop.nextPlayer
+
+  };
 
 }
+
 /*
  * Calculate Stage 2 for all available players.
  */
