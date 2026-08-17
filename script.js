@@ -375,6 +375,57 @@ function updateBestAvailable() {
   var container = document.getElementById('best-available-list');
   if (container) container.innerHTML = '';
 }
+function calculateMyNextDraftPick(currentPick, teams) {
+
+  currentPick = Number(currentPick) || 0;
+  teams = Number(teams) || 10;
+
+  if (!currentPick || !teams) {
+    return {
+      nextPick: 0,
+      picksBetween: 0
+    };
+  }
+
+  var currentRound =
+    Math.ceil(currentPick / teams);
+
+  var pickInRound =
+    ((currentPick - 1) % teams) + 1;
+
+  var nextRound =
+    currentRound + 1;
+
+  var nextPick;
+
+  if (currentRound % 2 === 1) {
+
+    // Odd round → next round reverses
+    nextPick =
+      (nextRound * teams) -
+      pickInRound +
+      1;
+
+  } else {
+
+    // Even round → next round reverses
+    nextPick =
+      (nextRound * teams) -
+      (teams - pickInRound);
+
+  }
+
+  var picksBetween =
+    Math.max(
+      0,
+      nextPick - currentPick - 1
+    );
+
+  return {
+    nextPick: nextPick,
+    picksBetween: picksBetween
+  };
+}
 
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 
@@ -1883,11 +1934,14 @@ function calculateReplacementLevels(players) {
    * -------------------------------------------------------
    */
 
-  var picksUntilMyTurn =
-    Number(
-      draftState.picksUntilMyTurn
-    ) || 0;
+var draftWindow =
+  calculateMyNextDraftPick(
+    draftState.currentPick,
+    draftState.teams
+  );
 
+var picksUntilNext =
+  draftWindow.picksBetween;
 
   /*
    * -------------------------------------------------------
