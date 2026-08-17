@@ -4116,24 +4116,33 @@ function calculateVorpProfile(
       replacements
     );
 
- var draftWindow =
-  calculateMyNextDraftPick(
-    draftState.currentPick,
-    draftState.teams
-  );
+  /*
+   * -------------------------------------------------------
+   * DRAFT STATE
+   * -------------------------------------------------------
+   */
 
-var lateAvailability =
-  calculateLateAvailability(
-    player,
-    players,
-    {
-      currentPick:
-        draftState.currentPick,
+  var draftState =
+    getDraftAssistantState();
 
-      nextPick:
-        draftWindow.nextPick
-    }
-  );
+  /*
+   * -------------------------------------------------------
+   * LATE AVAILABILITY
+   * -------------------------------------------------------
+   */
+
+  var lateAvailability =
+    calculateLateAvailability(
+      player,
+      players,
+      {
+        currentPick:
+          draftState.currentPick,
+
+        nextPick:
+          draftState.myNextPick
+      }
+    );
 
   /*
    * -------------------------------------------------------
@@ -4145,23 +4154,30 @@ var lateAvailability =
     calculateDraftAwareVorpOpportunity(
       player,
       {
-        players: players,
-        replacements: replacements
+        players:
+          players,
+
+        availablePlayers:
+          players,
+
+        replacements:
+          replacements
       }
     );
 
-  console.log(
-    'VORP DRAFT-AWARE:',
-    player.name,
-    'score =',
-    draftAwareVorpOpportunity
-  );
+  /*
+   * -------------------------------------------------------
+   * RETURN PROFILE
+   * -------------------------------------------------------
+   */
 
   return {
 
-    player: player,
+    player:
+      player,
 
-    vorp: vorp,
+    vorp:
+      vorp,
 
     tierDrop:
       tierDrop.score,
@@ -4183,9 +4199,9 @@ var lateAvailability =
 
     nextPlayer:
       tierDrop.nextPlayer
+
   };
 }
-
 /*
  * Calculate Stage 2 for all available players.
  */
