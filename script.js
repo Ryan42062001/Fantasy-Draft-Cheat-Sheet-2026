@@ -7608,65 +7608,35 @@ var testAlternatives =
       )
     : [];
 
-console.log(
-  '%c[DRAFT DEBUG] NEXT PICK PIPELINE',
-  'color:#00ff88;font-weight:bold;',
-  {
-    player:
-      selectedPlayer
-        ? selectedPlayer.name
-        : null,
+  console.log(
+    '%c[DRAFT DEBUG] NEXT PICK PIPELINE',
+    'color:#00ff88;font-weight:bold;',
+    {
+      player:
+        selectedPlayer
+          ? selectedPlayer.name
+          : null,
 
-    teams:
-      context.teams,
+      teams:
+        context.teams,
 
-    currentPick:
-      context.currentPick,
+      currentPick:
+        context.currentPick,
 
-    suppliedNextPick:
-      context.nextPick,
+      suppliedNextPick:
+        context.nextPick,
 
-    calculatedNextPick:
-      context.calculatedNextPick,
+      calculatedNextPick:
+        context.calculatedNextPick,
 
-    picksBetween:
-      context.calculatedPicksUntilNext,
+      picksBetween:
+        context.calculatedPicksUntilNext,
 
-    currentRank:
-      context.currentRank,
-
-    alternatives:
-      testAlternatives
-        ? testAlternatives.map(function(candidate) {
-
-            return {
-              name:
-                candidate.name,
-
-              rank:
-                candidate.rank,
-
-              rawScore:
-                Number(
-                  candidate.finalScore || 0
-                ),
-
-              survival:
-                Number(
-                  candidate.nextPickSurvivalScore || 0
-                ),
-
-              survivalAdjustedScore:
-                Number(
-                  candidate.survivalAdjustedScore || 0
-                )
-            };
-
-          })
-        : []
-  }
-);
-
+      currentRank:
+        context.currentRank
+    }
+  );
+  
 var recommendation =
   selectedPlayer
     ? calculateDraftRecommendation(
