@@ -4116,21 +4116,24 @@ function calculateVorpProfile(
       replacements
     );
 
-  var draftState =
-    getDraftAssistantState();
+ var draftWindow =
+  calculateMyNextDraftPick(
+    draftState.currentPick,
+    draftState.teams
+  );
 
-  var lateAvailability =
-    calculateLateAvailability(
-      player,
-      players,
-      {
-        currentPick:
-          draftState.currentPick,
+var lateAvailability =
+  calculateLateAvailability(
+    player,
+    players,
+    {
+      currentPick:
+        draftState.currentPick,
 
-        nextPick:
-          draftState.myNextPick
-      }
-    );
+      nextPick:
+        draftWindow.nextPick
+    }
+  );
 
   /*
    * -------------------------------------------------------
