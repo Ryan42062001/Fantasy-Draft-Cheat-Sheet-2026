@@ -7821,6 +7821,8 @@ player.explanation.primaryReason +
   context.strategy
 );
 
+}
+
   panel.innerHTML =
     html;
 }
