@@ -6796,22 +6796,19 @@ if (result.timingScore >= 70) {
 
   return {
 
-    primaryReason:
-      primaryReason,
+  primaryReason:
+    primaryReason,
 
-    reasons:
-      reasons,
+  reasons:
+    reasons,
 
-    positives:
-      positives,
+  positives:
+    positives,
 
-    concerns:
-      concerns,
+  concerns:
+    concerns
 
-    debugAlternatives:
-  nextPickAlternatives
-
-  };
+};
 }
 
 function calculateDecisionRosterNeeds(){
