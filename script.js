@@ -7820,9 +7820,7 @@ player.explanation.primaryReason +
   'DRAFT STRATEGY:',
   context.strategy
 );
-
-}
-
+  
   panel.innerHTML =
     html;
 }
