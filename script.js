@@ -4116,41 +4116,65 @@ function calculateVorpProfile(
       replacements
     );
 
+  /*
+   * -------------------------------------------------------
+   * DRAFT-AWARE VORP OPPORTUNITY
+   * -------------------------------------------------------
+   */
+
+  var draftAwareVorpOpportunity =
+    calculateDraftAwareVorpOpportunity(
+      player,
+      {
+        players:
+          players,
+
+        replacements:
+          replacements,
+
+        availablePlayers:
+          players
+      }
+    );
+
   console.log(
-  'VORP SCARCITY HANDOFF:',
-  player.name,
-  'calculated scarcity =',
-  scarcity
-);
-
-  var draftState =
-  getDraftAssistantState();
-
-var lateAvailability =
-  calculateLateAvailability(
-    player,
-    players,
-    {
-      currentPick:
-        draftState.currentPick,
-
-      nextPick:
-        draftState.myNextPick
-    }
+    'VORP DRAFT-AWARE HANDOFF:',
+    player.name,
+    'draftAwareVorpOpportunity =',
+    draftAwareVorpOpportunity
   );
 
-  console.log(
-  'VORP SCARCITY RETURN:',
-  player.name,
-  'scarcity =',
-  scarcity
-);
-  
+
+  /*
+   * -------------------------------------------------------
+   * LATE AVAILABILITY
+   * -------------------------------------------------------
+   */
+
+  var draftState =
+    getDraftAssistantState();
+
+  var lateAvailability =
+    calculateLateAvailability(
+      player,
+      players,
+      {
+        currentPick:
+          draftState.currentPick,
+
+        nextPick:
+          draftState.myNextPick
+      }
+    );
+
+
   return {
 
-    player: player,
+    player:
+      player,
 
-    vorp: vorp,
+    vorp:
+      vorp,
 
     tierDrop:
       tierDrop.score,
@@ -4164,6 +4188,9 @@ var lateAvailability =
     lateAvailability:
       lateAvailability,
 
+    draftAwareVorpOpportunity:
+      draftAwareVorpOpportunity,
+
     replacement:
       replacement,
 
@@ -4171,7 +4198,6 @@ var lateAvailability =
       tierDrop.nextPlayer
   };
 }
-
 
 /*
  * Calculate Stage 2 for all available players.
