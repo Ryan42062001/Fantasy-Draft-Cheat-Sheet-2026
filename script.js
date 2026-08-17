@@ -2181,52 +2181,44 @@ var picksUntilNext =
    */
 
   console.log(
-    'DRAFT-AWARE REPLACEMENT LEVELS:',
-    {
+  'DRAFT-AWARE REPLACEMENT LEVELS:',
+  {
+    currentPick:
+      currentPick,
 
-      currentPick:
-        draftState.currentPick,
+    nextPick:
+      nextPick,
 
-      nextPick:
-        draftState.myNextPick,
+    picksUntilNext:
+      picksUntilNext,
 
-      picksUntilNext:
-  picksUntilNext,
+    settings:
+      settings,
 
-      settings:
-        {
-          QB: settings.QB,
-          RB: settings.RB,
-          WR: settings.WR,
-          TE: settings.TE,
-          FLEX: settings.FLEX
-        },
+    replacements:
+      {
+        QB:
+          replacement.QB &&
+          replacement.QB.name,
 
-      replacements:
-        {
-          QB:
-            replacement.QB &&
-            replacement.QB.name,
+        RB:
+          replacement.RB &&
+          replacement.RB.name,
 
-          RB:
-            replacement.RB &&
-            replacement.RB.name,
+        WR:
+          replacement.WR &&
+          replacement.WR.name,
 
-          WR:
-            replacement.WR &&
-            replacement.WR.name,
+        TE:
+          replacement.TE &&
+          replacement.TE.name,
 
-          TE:
-            replacement.TE &&
-            replacement.TE.name,
-
-          FLEX:
-            replacement.FLEX &&
-            replacement.FLEX.name
-        }
-
-    }
-  );
+        FLEX:
+          replacement.FLEX &&
+          replacement.FLEX.name
+      }
+  }
+);
 
 
   return replacement;
