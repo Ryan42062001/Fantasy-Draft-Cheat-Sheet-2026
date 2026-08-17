@@ -5921,8 +5921,17 @@ function calculateNextPickSurvival(
 var nextPick =
   Number(context.calculatedNextPick) || 0;
 
+var draftState =
+  getDraftAssistantState();
+
+var draftWindow =
+  calculateMyNextDraftPick(
+    Number(draftState.currentPick) || 0,
+    Number(draftState.teams) || 0
+  );
+
 var picksUntilNext =
-  Number(context.calculatedPicksUntilNext) || 0;
+  Number(draftWindow.picksBetween) || 0;
 
 var rank =
   Number(candidate.rank) || 999;
