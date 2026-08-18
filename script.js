@@ -8657,6 +8657,42 @@ function runDraftEngineTests(options) {
   }
 );
 
+  var snakeCases = [
+  { currentPick: 1, teams: 10, nextPick: 20, picksBetween: 18 },
+  { currentPick: 10, teams: 10, nextPick: 11, picksBetween: 0 },
+  { currentPick: 11, teams: 10, nextPick: 30, picksBetween: 18 },
+  { currentPick: 20, teams: 10, nextPick: 21, picksBetween: 0 },
+  { currentPick: 21, teams: 10, nextPick: 40, picksBetween: 18 }
+];
+
+snakeCases.forEach(function(testCase) {
+
+  var result =
+    calculateMyNextDraftPick(
+      testCase.currentPick,
+      testCase.teams
+    );
+
+  test.equal(
+    'Snake pick ' +
+    testCase.currentPick +
+    ' → next pick ' +
+    testCase.nextPick,
+    result.nextPick,
+    testCase.nextPick
+  );
+
+  test.equal(
+    'Snake pick ' +
+    testCase.currentPick +
+    ' → picks between ' +
+    testCase.picksBetween,
+    result.picksBetween,
+    testCase.picksBetween
+  );
+
+});  
+
     test.between('Late-player survival is 0–100', safeSurvival, 0, 100);
     test.between('Early-player survival is 0–100', riskySurvival, 0, 100);
 
