@@ -375,6 +375,7 @@ function updateBestAvailable() {
   var container = document.getElementById('best-available-list');
   if (container) container.innerHTML = '';
 }
+
 function calculateMyNextDraftPick(currentPick, teams) {
 
   currentPick =
@@ -462,6 +463,104 @@ function calculateMyNextDraftPick(currentPick, teams) {
     picksBetween: picksBetween
   };
 }
+
+function getSnakeDraftTeamForPick(
+  pick,
+  teams
+) {
+
+  pick =
+    Number(pick) || 0;
+
+  teams =
+    Number(teams) || 10;
+
+  if (
+    pick <= 0 ||
+    teams <= 0
+  ) {
+
+    return null;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * ROUND
+   * -------------------------------------------------------
+   */
+
+  var round =
+    Math.ceil(
+      pick / teams
+    );
+
+
+  /*
+   * Pick position inside the round:
+   *
+   * 1 through teams
+   */
+
+  var pickInRound =
+    ((pick - 1) % teams) + 1;
+
+
+  /*
+   * -------------------------------------------------------
+   * SNAKE TEAM SLOT
+   * -------------------------------------------------------
+   *
+   * Odd rounds:
+   *
+   * Pick 1  -> Team 1
+   * Pick 2  -> Team 2
+   * ...
+   * Pick 10 -> Team 10
+   *
+   * Even rounds:
+   *
+   * Pick 11 -> Team 10
+   * Pick 12 -> Team 9
+   * ...
+   * Pick 20 -> Team 1
+   */
+
+  var teamSlot;
+
+  if (
+    round % 2 === 1
+  ) {
+
+    teamSlot =
+      pickInRound;
+
+  } else {
+
+    teamSlot =
+      teams -
+      pickInRound +
+      1;
+
+  }
+
+
+  return {
+    pick:
+      pick,
+
+    round:
+      round,
+
+    pickInRound:
+      pickInRound,
+
+    teamSlot:
+      teamSlot
+  };
+}
+
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 
 // ==== REAL-TIME DRAFT POSITION & PICK COUNTER ====
@@ -8652,6 +8751,60 @@ function runDraftEngineTests(options) {
         afterPlayer: rbReplacement
       }
     };
+
+    test.equal(
+  'Opponent map: pick 1 belongs to team 1',
+  getSnakeDraftTeamForPick(
+    1,
+    10
+  ).teamSlot,
+  1
+);
+
+test.equal(
+  'Opponent map: pick 10 belongs to team 10',
+  getSnakeDraftTeamForPick(
+    10,
+    10
+  ).teamSlot,
+  10
+);
+
+test.equal(
+  'Opponent map: pick 11 belongs to team 10',
+  getSnakeDraftTeamForPick(
+    11,
+    10
+  ).teamSlot,
+  10
+);
+
+test.equal(
+  'Opponent map: pick 20 belongs to team 1',
+  getSnakeDraftTeamForPick(
+    20,
+    10
+  ).teamSlot,
+  1
+);
+
+test.equal(
+  'Opponent map: pick 21 belongs to team 1',
+  getSnakeDraftTeamForPick(
+    21,
+    10
+  ).teamSlot,
+  1
+);
+
+test.equal(
+  'Opponent map: pick 30 belongs to team 10',
+  getSnakeDraftTeamForPick(
+    30,
+    10
+  ).teamSlot,
+  10
+);
 
     test.equal(
       'Tier cliff: high cliff awards 5',
