@@ -9694,3 +9694,13 @@ function analyzeLiveDraftRecommendations(liveResult) {
 
   return warnings;
 }
+
+LIVE DRAFT SANITY WARNINGS
+script.js:9688 
+(index)
+player
+type
+message
+0	'omarion hampton'	'ALTERNATIVE CONCENTRATION'	'omarion hampton is the next-best alternative for 10 of 10 top candidates.'
+1	'ALL'	'RECOMMENDATION CONCENTRATION'	'Every displayed player received DRAFT. This may indicate overly aggressive thresholds.'
+Array(2)
