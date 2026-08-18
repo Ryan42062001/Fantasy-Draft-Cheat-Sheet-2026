@@ -9980,6 +9980,104 @@ function runDraftEngineTests(options) {
   1
 );
 
+    test.equal(
+  'Opponent demand: 0 RBs creates strong RB demand',
+  calculateOpponentPositionDemand(
+    {
+      QB: 0,
+      RB: 0,
+      WR: 2,
+      TE: 1
+    },
+    'RB'
+  ),
+  3
+);
+
+test.equal(
+  'Opponent demand: 1 RB creates starter RB demand',
+  calculateOpponentPositionDemand(
+    {
+      QB: 0,
+      RB: 1,
+      WR: 2,
+      TE: 1
+    },
+    'RB'
+  ),
+  2
+);
+
+test.equal(
+  'Opponent demand: 2 RBs with FLEX open creates RB flex demand',
+  calculateOpponentPositionDemand(
+    {
+      QB: 0,
+      RB: 2,
+      WR: 2,
+      TE: 1
+    },
+    'RB'
+  ),
+  1
+);
+
+test.equal(
+  'Opponent demand: 3 RBs creates only depth RB demand',
+  calculateOpponentPositionDemand(
+    {
+      QB: 0,
+      RB: 3,
+      WR: 2,
+      TE: 1
+    },
+    'RB'
+  ),
+  0.5
+);
+
+test.equal(
+  'Opponent demand: empty QB creates moderate QB demand',
+  calculateOpponentPositionDemand(
+    {
+      QB: 0,
+      RB: 2,
+      WR: 2,
+      TE: 1
+    },
+    'QB'
+  ),
+  1.5
+);
+
+test.equal(
+  'Opponent demand: filled QB creates very low backup demand',
+  calculateOpponentPositionDemand(
+    {
+      QB: 1,
+      RB: 2,
+      WR: 2,
+      TE: 1
+    },
+    'QB'
+  ),
+  0.25
+);
+
+test.equal(
+  'Opponent demand: empty TE creates moderate TE demand',
+  calculateOpponentPositionDemand(
+    {
+      QB: 1,
+      RB: 2,
+      WR: 2,
+      TE: 0
+    },
+    'TE'
+  ),
+  1.5
+);
+
 test.equal(
   'Opponent map: pick 10 belongs to team 10',
   getSnakeDraftTeamForPick(
