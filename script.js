@@ -5284,6 +5284,27 @@ console.log(
 
 var strategyScore = 0;
 
+  console.log(
+  'STRATEGY INPUT DEBUG:',
+  player.name,
+  {
+    position: position,
+    hasStrategy: !!context.strategy,
+    targetPosition:
+      context.strategy
+        ? context.strategy.targetPosition
+        : undefined,
+    targetPressure:
+      context.strategy
+        ? context.strategy.targetPressure
+        : undefined,
+    strategy:
+      context.strategy
+        ? context.strategy.strategy
+        : undefined
+  }
+);
+
 if (
   context.strategy &&
   context.strategy.targetPosition
