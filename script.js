@@ -6915,6 +6915,15 @@ var rankPenalty =
 var timingPenalty =
   -(timing * 0.10);
 
+  var opponentThreat =
+  calculateOpponentDraftThreat(
+    candidate,
+    context
+  );
+
+var opponentThreatPenalty =
+  -(opponentThreat * 0.15);
+
 var rankDistance =
   rank -
   (Number(context.currentRank) || 0);
@@ -6936,6 +6945,7 @@ var survival =
   startingSurvival +
   rankPenalty +
   timingPenalty +
+  opponentThreatPenalty +
   rankDistancePenalty +
   pickDistancePenalty;
 
@@ -7001,6 +7011,12 @@ survival =
 
       pickDistancePenalty:
         pickDistancePenalty,
+
+      opponentThreat:
+  opponentThreat,
+
+opponentThreatPenalty:
+  opponentThreatPenalty,
 
       finalSurvival:
         survival
