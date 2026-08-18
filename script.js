@@ -1257,6 +1257,251 @@ threatPoints +=
   );
 }
 
+function getOpponentDraftThreatDetails(
+  player,
+  context
+) {
+
+  if (!player) {
+    return {
+      position: null,
+      overallThreat: 0,
+      teams: []
+    };
+  }
+
+  context =
+    context || {};
+
+  var position =
+    player.position ||
+    player.pos ||
+    null;
+
+  var teams =
+    Number(context.teams) || 10;
+
+  var currentPick =
+    Number(context.currentPick) || 0;
+
+  var nextPick =
+    Number(
+      context.calculatedNextPick ||
+      context.nextPick
+    ) || 0;
+
+
+  if (
+    !position ||
+    currentPick <= 0 ||
+    nextPick <= currentPick
+  ) {
+
+    return {
+      position: position,
+      overallThreat: 0,
+      teams: []
+    };
+  }
+
+
+  var window =
+    getTeamsPickingBeforeMyNextTurn(
+      currentPick,
+      nextPick,
+      teams
+    );
+
+  var opponentData =
+    getOpponentNeedsByTeam(
+      teams
+    );
+
+  var rows = [];
+
+
+  Object.keys(
+    window.teamPickCounts
+  ).forEach(function(teamSlot) {
+
+    var roster =
+      opponentData.rosters[teamSlot] || {};
+
+    var pickCount =
+      Number(
+        window.teamPickCounts[teamSlot]
+      ) || 0;
+
+    var demand =
+      calculateOpponentPositionDemand(
+        roster,
+        position
+      );
+
+    var threatContribution =
+      pickCount * demand;
+
+
+    rows.push({
+      teamSlot:
+        Number(teamSlot),
+
+      picksBeforeNextTurn:
+        pickCount,
+
+      QB:
+        Number(roster.QB) || 0,
+
+      RB:
+        Number(roster.RB) || 0,
+
+      WR:
+        Number(roster.WR) || 0,
+
+      TE:
+        Number(roster.TE) || 0,
+
+      position:
+        position,
+
+      demand:
+        demand,
+
+      threatContribution:
+        threatContribution
+    });
+
+  });
+
+
+  rows.sort(function(a, b) {
+
+    return (
+      Number(b.threatContribution) -
+      Number(a.threatContribution)
+    );
+
+  });
+
+
+  var overallThreat =
+    calculateOpponentDraftThreat(
+      player,
+      context
+    );
+
+
+  return {
+    player:
+      player.name || null,
+
+    position:
+      position,
+
+    currentPick:
+      currentPick,
+
+    nextPick:
+      nextPick,
+
+    picksBetween:
+      window.picks.length,
+
+    overallThreat:
+      overallThreat,
+
+    teams:
+      rows
+  };
+}
+
+function debugOpponentDraftThreat(
+  playerName,
+  context
+) {
+
+  var players =
+    getDraftAssistantPlayers();
+
+  var player =
+    players.find(function(candidate) {
+
+      return candidate &&
+        candidate.name &&
+        candidate.name.toLowerCase() ===
+          String(playerName).toLowerCase();
+
+    });
+
+
+  if (!player) {
+
+    console.warn(
+      'OPPONENT THREAT DEBUG: Player not found:',
+      playerName
+    );
+
+    return null;
+
+  }
+
+
+  if (!context) {
+
+    var state =
+      buildLiveDraftDebugState();
+
+    context =
+      state.context;
+
+  }
+
+
+  var details =
+    getOpponentDraftThreatDetails(
+      player,
+      context
+    );
+
+
+  console.group(
+    'OPPONENT DRAFT THREAT — ' +
+    player.name
+  );
+
+
+  console.log(
+    'Window:',
+    {
+      currentPick:
+        details.currentPick,
+
+      nextPick:
+        details.nextPick,
+
+      picksBetween:
+        details.picksBetween,
+
+      position:
+        details.position,
+
+      overallThreat:
+        details.overallThreat
+    }
+  );
+
+
+  console.table(
+    details.teams
+  );
+
+
+  console.groupEnd();
+
+
+  return details;
+}
+
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 
 // ==== REAL-TIME DRAFT POSITION & PICK COUNTER ====
