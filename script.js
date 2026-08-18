@@ -979,27 +979,127 @@ function triggerAllBoardUpdates() {
   addRoundMarkers();
 }
 
-function toggleDraft(row){
-  if(!row || document.body.classList.contains('edit-mode')) return;
+function toggleDraft(row) {
 
-  if(row.classList.contains('drafted-other')){
-    // Taken → Mine
-    row.classList.remove('drafted-other');
-    row.classList.add('drafted-mine');
-
-  } else if(row.classList.contains('drafted-mine')){
-    // Mine → Available
-    row.classList.remove('drafted-mine');
-
-  } else {
-    // Available → Taken
-    row.classList.add('drafted-other');
+  if (
+    !row ||
+    document.body.classList.contains('edit-mode')
+  ) {
+    return;
   }
 
+
+  /*
+   * -------------------------------------------------------
+   * TAKEN -> MINE
+   * -------------------------------------------------------
+   *
+   * Keep the original draft pick / team metadata.
+   */
+
+  if (
+    row.classList.contains('drafted-other')
+  ) {
+
+    row.classList.remove(
+      'drafted-other'
+    );
+
+    row.classList.add(
+      'drafted-mine'
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * MINE -> AVAILABLE
+   * -------------------------------------------------------
+   *
+   * Player is no longer drafted, so remove the
+   * stored draft-history metadata.
+   */
+
+  } else if (
+    row.classList.contains('drafted-mine')
+  ) {
+
+    row.classList.remove(
+      'drafted-mine'
+    );
+
+    row.removeAttribute(
+      'data-pick'
+    );
+
+    row.removeAttribute(
+      'data-team-slot'
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * AVAILABLE -> TAKEN
+   * -------------------------------------------------------
+   *
+   * Record the current pick and which team owns it.
+   */
+
+  } else {
+
+    var draftState =
+      getDraftAssistantState();
+
+    var currentPick =
+      Number(
+        draftState.currentPick
+      ) || 0;
+
+    var teams =
+      Number(
+        draftState.teams
+      ) || 10;
+
+    var mapping =
+      getSnakeDraftTeamForPick(
+        currentPick,
+        teams
+      );
+
+
+    row.classList.add(
+      'drafted-other'
+    );
+
+
+    if (currentPick > 0) {
+
+      row.setAttribute(
+        'data-pick',
+        currentPick
+      );
+
+    }
+
+
+    if (
+      mapping &&
+      mapping.teamSlot
+    ) {
+
+      row.setAttribute(
+        'data-team-slot',
+        mapping.teamSlot
+      );
+
+    }
+
+  }
+
+
   triggerAllBoardUpdates();
+
   scheduleSave();
 }
-
 function resetBoard(){
   var btn = document.getElementById('resetBtn');
   if(!resetArmed){
