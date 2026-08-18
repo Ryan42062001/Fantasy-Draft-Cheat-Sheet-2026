@@ -10276,6 +10276,152 @@ var primaryRecommendation =
   };
 }
 
+function runLiveRosterScenario(
+  pick,
+  rosterPositions
+) {
+
+  pick =
+    Number(pick) || 0;
+
+  rosterPositions =
+    Array.isArray(rosterPositions)
+      ? rosterPositions
+      : [];
+
+
+  if (pick <= 0) {
+
+    console.warn(
+      'LIVE ROSTER SCENARIO: Invalid pick.'
+    );
+
+    return null;
+  }
+
+
+  var originalGetDraftAssistantState =
+    getDraftAssistantState;
+
+  var realState =
+    originalGetDraftAssistantState();
+
+  var teams =
+    Number(realState.teams) || 10;
+
+
+  /*
+   * Simulate the current pick.
+   */
+
+  getDraftAssistantState =
+    function() {
+
+      var simulatedState =
+        Object.assign(
+          {},
+          realState
+        );
+
+      simulatedState.currentPick =
+        pick;
+
+      simulatedState.myNextPick =
+        pick;
+
+      simulatedState.onClock =
+        true;
+
+      simulatedState.picksUntilMyTurn =
+        0;
+
+      return simulatedState;
+
+    };
+
+
+  var result = null;
+
+
+  try {
+
+    result =
+      draftEngineWithSimulatedPriorPicks(
+        pick,
+        function() {
+
+          return draftEngineWithSimulatedRoster(
+            rosterPositions,
+            function() {
+
+              var liveResult =
+                runLiveDraftRecommendationTests();
+
+              var primary =
+                getPrimaryDraftRecommendation(
+                  liveResult
+                );
+
+              var warnings =
+                analyzeLiveDraftRecommendations(
+                  liveResult
+                );
+
+
+              console.group(
+                'LIVE ROSTER SCENARIO — PICK ' +
+                pick
+              );
+
+              console.log(
+                'Simulated roster:',
+                rosterPositions
+              );
+
+              console.log(
+                'Roster needs:',
+                liveResult.state.context.rosterNeeds
+              );
+
+              console.log(
+                'Strategy:',
+                liveResult.state.context.strategy
+              );
+
+              console.groupEnd();
+
+
+              return {
+                liveResult:
+                  liveResult,
+
+                primary:
+                  primary,
+
+                warnings:
+                  warnings,
+
+                rosterPositions:
+                  rosterPositions
+              };
+
+            }
+          );
+
+        }
+      );
+
+  } finally {
+
+    getDraftAssistantState =
+      originalGetDraftAssistantState;
+
+  }
+
+
+  return result;
+}
+
 function testDraftPlayer(playerName) {
 
   if (!playerName) {
@@ -10704,6 +10850,91 @@ function draftEngineWithSimulatedPriorPicks(
       row.className =
         originalClasses[index];
 
+    });
+
+  }
+}
+
+function draftEngineWithSimulatedRoster(
+  positions,
+  fn
+) {
+
+  positions =
+    Array.isArray(positions)
+      ? positions
+      : [];
+
+  var rows =
+    Array.prototype.slice.call(
+      document.querySelectorAll('tr.draftrow')
+    );
+
+  var originalClasses =
+    rows.map(function(row) {
+      return row.className;
+    });
+
+
+  /*
+   * Group currently available rows by position.
+   */
+
+  var byPosition = {};
+
+  rows.forEach(function(row) {
+
+    var position =
+      row.getAttribute('data-pos');
+
+    if (!byPosition[position]) {
+      byPosition[position] = [];
+    }
+
+    /*
+     * Only use players who haven't already been
+     * removed by the prior-picks simulator.
+     */
+
+    if (
+      !row.classList.contains('drafted-other') &&
+      !row.classList.contains('drafted-mine')
+    ) {
+
+      byPosition[position].push(row);
+
+    }
+
+  });
+
+
+  /*
+   * Mark players as belonging to our simulated roster.
+   */
+
+  positions.forEach(function(position) {
+
+    var row =
+      (byPosition[position] || []).shift();
+
+    if (row) {
+      row.classList.add(
+        'drafted-mine'
+      );
+    }
+
+  });
+
+
+  try {
+
+    return fn();
+
+  } finally {
+
+    rows.forEach(function(row, index) {
+      row.className =
+        originalClasses[index];
     });
 
   }
