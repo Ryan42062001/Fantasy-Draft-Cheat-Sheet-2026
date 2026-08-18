@@ -636,6 +636,111 @@ function getTeamsPickingBeforeMyNextTurn(
   };
 }
 
+function getDraftedRosterByTeam(
+  teams
+) {
+
+  teams =
+    Number(teams) || 10;
+
+  var rosters = {};
+
+  for (
+    var team = 1;
+    team <= teams;
+    team++
+  ) {
+
+    rosters[team] = {
+      QB: 0,
+      RB: 0,
+      WR: 0,
+      TE: 0,
+      K: 0,
+      DST: 0
+    };
+
+  }
+
+
+  /*
+   * Look at every drafted player row.
+   *
+   * We need each row's draft pick number so we can
+   * determine which team owned that selection.
+   */
+
+  document
+    .querySelectorAll(
+      'tr.draftrow.drafted-other, ' +
+      'tr.draftrow.drafted-mine'
+    )
+    .forEach(function(row) {
+
+      var position =
+        row.getAttribute(
+          'data-pos'
+        );
+
+      if (
+        !position ||
+        rosters[1][position] === undefined
+      ) {
+        return;
+      }
+
+
+      /*
+       * Try to recover the draft pick from the row.
+       *
+       * We'll support a few likely attributes so the
+       * helper is resilient to your existing markup.
+       */
+
+      var pick =
+        Number(
+          row.getAttribute('data-pick') ||
+          row.getAttribute('data-draft-pick') ||
+          row.dataset.pick ||
+          row.dataset.draftPick
+        ) || 0;
+
+
+      /*
+       * If the row doesn't store its actual draft pick,
+       * skip it for now.
+       */
+
+      if (!pick) {
+        return;
+      }
+
+
+      var mapping =
+        getSnakeDraftTeamForPick(
+          pick,
+          teams
+        );
+
+      if (
+        !mapping ||
+        !mapping.teamSlot ||
+        !rosters[mapping.teamSlot]
+      ) {
+        return;
+      }
+
+
+      rosters[
+        mapping.teamSlot
+      ][position]++;
+
+    });
+
+
+  return rosters;
+}
+
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 
 // ==== REAL-TIME DRAFT POSITION & PICK COUNTER ====
