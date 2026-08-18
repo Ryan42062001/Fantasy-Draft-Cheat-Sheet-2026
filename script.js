@@ -8355,20 +8355,39 @@ function draftEngineTestCreateRunner() {
     },
 
     equal: function(name, actual, expected) {
-      add(
-        name,
-        actual === expected,
-        'Expected ' + expected + ', received ' + actual + '.'
-      );
-    },
+
+  var passed =
+    actual === expected;
+
+  add(
+    name,
+    passed,
+    passed
+      ? ''
+      : 'Expected ' + expected +
+        ', received ' + actual + '.'
+  );
+
+},
 
     between: function(name, value, min, max) {
-      add(
-        name,
-        Number.isFinite(value) && value >= min && value <= max,
-        'Expected ' + min + '–' + max + ', received ' + value + '.'
-      );
-    },
+
+  var passed =
+    Number.isFinite(value) &&
+    value >= min &&
+    value <= max;
+
+  add(
+    name,
+    passed,
+    passed
+      ? ''
+      : 'Expected ' + min +
+        '–' + max +
+        ', received ' + value + '.'
+  );
+
+},
 
     run: function(name, fn) {
       try {
