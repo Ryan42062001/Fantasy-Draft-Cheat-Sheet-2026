@@ -6232,37 +6232,45 @@ if (
   context.calculatedPicksUntilNext =
     picksBetween;
 
+ if (
+  typeof DRAFT_DEBUG !== 'undefined' &&
+  DRAFT_DEBUG &&
+  typeof DRAFT_DEBUG.add === 'function'
+) {
+
   DRAFT_DEBUG.add(
-  'NEXT PICK',
-  {
-    player:
-      player.name,
+    'NEXT PICK',
+    {
+      player:
+        player.name,
 
-    teams:
-      teams,
+      teams:
+        teams,
 
-    currentPick:
-      currentPick,
+      currentPick:
+        currentPick,
 
-    currentRound:
-      currentRound,
+      currentRound:
+        currentRound,
 
-    pickInRound:
-      pickInRound,
+      pickInRound:
+        pickInRound,
 
-    suppliedNextPick:
-      suppliedNextPick,
+      suppliedNextPick:
+        suppliedNextPick,
 
-    calculatedNextPick:
-      nextPick,
+      calculatedNextPick:
+        nextPick,
 
-    picksBetween:
-      picksBetween,
+      picksBetween:
+        picksBetween,
 
-    rankWindow:
-      rankWindow
-  }
-);
+      rankWindow:
+        rankWindow
+    }
+  );
+
+}
 
 
   return alternatives;
