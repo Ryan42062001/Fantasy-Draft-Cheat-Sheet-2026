@@ -9114,3 +9114,171 @@ function runDraftEngineScenario(name) {
     scenario: name
   });
 }
+
+function buildLiveDraftDebugState() {
+
+  var players =
+    getDraftAssistantPlayers();
+
+  var available =
+    players.filter(function(player) {
+      return player && player.available;
+    });
+
+  var vorpResult =
+    calculateAllFantasyVorp(players);
+
+  var draftState =
+    getDraftAssistantState();
+
+  var teams =
+    Number(draftState.teams) || 10;
+
+  var draftWindow =
+    calculateMyNextDraftPick(
+      draftState.currentPick,
+      teams
+    );
+
+  var draftRuns =
+    detectDraftRuns();
+
+  var draftStrategy =
+    calculateDraftStrategy();
+
+  var tierCliffs = {};
+
+  ['QB', 'RB', 'WR', 'TE'].forEach(
+    function(position) {
+
+      tierCliffs[position] =
+        calculatePositionTierCliff(
+          position,
+          players,
+          vorpResult.profiles
+        );
+
+    }
+  );
+
+  var vorpMax =
+    Math.max.apply(
+      null,
+      vorpResult.profiles.map(function(profile) {
+        return Number(profile.vorp) || 0;
+      })
+    );
+
+  var context = {
+
+    players:
+      players,
+
+    availablePlayers:
+      available,
+
+    teams:
+      teams,
+
+    currentPick:
+      draftState.currentPick,
+
+    nextPick:
+      draftWindow.nextPick,
+
+    calculatedNextPick:
+      draftWindow.nextPick,
+
+    calculatedPicksUntilNext:
+      draftWindow.picksBetween,
+
+    picksUntilMyTurn:
+      draftWindow.picksBetween,
+
+    replacements:
+      vorpResult.replacements,
+
+    rosterNeeds:
+      calculateDecisionRosterNeeds(),
+
+    strategy:
+      draftStrategy,
+
+    draftRuns:
+      draftRuns,
+
+    tierCliffs:
+      tierCliffs,
+
+    vorpMax:
+      vorpMax,
+
+    vorpProfiles:
+      vorpResult.profiles
+
+  };
+
+  var scored =
+    vorpResult.profiles
+      .filter(function(profile) {
+
+        return profile &&
+          profile.player &&
+          profile.player.available;
+
+      })
+      .map(function(profile) {
+
+        var player =
+          Object.assign(
+            {},
+            profile.player,
+            {
+              vorp:
+                profile.vorp,
+
+              scarcity:
+                profile.scarcity,
+
+              draftAware:
+                profile.draftAware
+            }
+          );
+
+        return calculateDraftDecisionScore(
+          player,
+          context
+        );
+
+      });
+
+  scored.sort(function(a, b) {
+    return (
+      Number(b.finalScore || 0) -
+      Number(a.finalScore || 0)
+    );
+  });
+
+  return {
+    players:
+      players,
+
+    available:
+      available,
+
+    vorpResult:
+      vorpResult,
+
+    draftState:
+      draftState,
+
+    draftWindow:
+      draftWindow,
+
+    context:
+      context,
+
+    scored:
+      scored
+  };
+}
