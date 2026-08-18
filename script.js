@@ -7888,6 +7888,20 @@ console.log(
 
   var draftState = getDraftAssistantState();
 
+  var draftWindow =
+  calculateMyNextDraftPick(
+    draftState.currentPick,
+    Number(
+      document.getElementById('pcTeams')?.value
+    ) || 10
+  );
+
+var nextPick =
+  draftWindow.nextPick;
+
+var calculatedPicksUntilNext =
+  draftWindow.picksBetween;
+  
   var draftRuns =
   detectDraftRuns();
 
@@ -7934,8 +7948,8 @@ replacements:
   nextPick:
   nextPick,
 
-  picksUntilMyTurn:
-  draftState.picksUntilMyTurn,
+ picksUntilMyTurn:
+  calculatedPicksUntilNext,
 
   rosterNeeds:
   calculateDecisionRosterNeeds(),
