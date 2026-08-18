@@ -7621,39 +7621,84 @@ function calculateDraftStrategy() {
    * -------------------------------------------------------
    */
 
-  var targetPosition = null;
-  var targetPressure = -1;
+  /*
+ * -------------------------------------------------------
+ * DETERMINE GENERAL TARGET
+ * -------------------------------------------------------
+ *
+ * Prefer true dedicated starter needs over pressure that
+ * exists only because the FLEX spot is still open.
+ */
 
-  [
-    {
-      position: 'RB',
-      pressure: rbPressure
-    },
-    {
-      position: 'WR',
-      pressure: wrPressure
-    },
-    {
-      position: 'TE',
-      pressure: tePressure
-    },
-    {
-      position: 'QB',
-      pressure: qbPressure
-    }
-  ].forEach(function(item){
+var targetPosition = null;
+var targetPressure = -1;
+var targetDedicatedNeed = -1;
 
-    if(item.pressure > targetPressure){
+[
+  {
+    position: 'RB',
+    pressure: rbPressure,
+    dedicatedNeed: rbNeed
+  },
+  {
+    position: 'WR',
+    pressure: wrPressure,
+    dedicatedNeed: wrNeed
+  },
+  {
+    position: 'TE',
+    pressure: tePressure,
+    dedicatedNeed: teNeed
+  },
+  {
+    position: 'QB',
+    pressure: qbPressure,
+    dedicatedNeed: qbNeed
+  }
+].forEach(function(item) {
 
-      targetPressure =
-        item.pressure;
+  /*
+   * Higher pressure always wins.
+   */
+  if (item.pressure > targetPressure) {
 
-      targetPosition =
-        item.position;
+    targetPressure =
+      item.pressure;
 
-    }
+    targetDedicatedNeed =
+      item.dedicatedNeed;
 
-  });
+    targetPosition =
+      item.position;
+
+    return;
+  }
+
+  /*
+   * If pressure is tied, prefer the position that still
+   * has an actual dedicated starter vacancy.
+   *
+   * Example:
+   *
+   * RB pressure = 1 only because FLEX is open
+   * QB pressure = 1 because QB starter is empty
+   *
+   * QB should win.
+   */
+  if (
+    item.pressure === targetPressure &&
+    item.dedicatedNeed > targetDedicatedNeed
+  ) {
+
+    targetDedicatedNeed =
+      item.dedicatedNeed;
+
+    targetPosition =
+      item.position;
+
+  }
+
+});
 
 
   /*
