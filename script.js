@@ -8931,6 +8931,86 @@ if (scored) {
 
   }
 );
+
+    test.equal(
+  'Recommendation: strong advantage drafts',
+  calculateRecommendationDecision(
+    {
+      finalScore: 95,
+      vorpScore: 100,
+      tierScore: 100
+    },
+    {
+      finalScore: 70,
+      nextPickSurvivalScore: 80,
+      survivalAdjustedScore: 56
+    },
+    25,
+    85,
+    {}
+  ).recommendation,
+  'DRAFT'
+);
+
+test.equal(
+  'Recommendation: safe alternative waits',
+  calculateRecommendationDecision(
+    {
+      finalScore: 75,
+      vorpScore: 65,
+      tierScore: 78
+    },
+    {
+      finalScore: 74,
+      nextPickSurvivalScore: 90,
+      survivalAdjustedScore: 72
+    },
+    1,
+    45,
+    {}
+  ).recommendation,
+  'WAIT'
+);
+
+test.equal(
+  'Recommendation: close uncertain case considers',
+  calculateRecommendationDecision(
+    {
+      finalScore: 75,
+      vorpScore: 70,
+      tierScore: 78
+    },
+    {
+      finalScore: 73,
+      nextPickSurvivalScore: 50,
+      survivalAdjustedScore: 55
+    },
+    2,
+    40,
+    {}
+  ).recommendation,
+  'CONSIDER'
+);
+
+test.equal(
+  'Recommendation: clearly inferior player passes',
+  calculateRecommendationDecision(
+    {
+      finalScore: 60,
+      vorpScore: 50,
+      tierScore: 62
+    },
+    {
+      finalScore: 75,
+      nextPickSurvivalScore: 70,
+      survivalAdjustedScore: 65
+    },
+    -15,
+    60,
+    {}
+  ).recommendation,
+  'PASS'
+);
   });
 
   var scenarios = [
