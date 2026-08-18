@@ -8364,7 +8364,7 @@ player.explanation.primaryReason +
 }
 
 /* =========================================================
-   DEVELOPER-ONLY DRAFT ENGINE TEST HARNESS
+   DEVELOPER-ONLY DRAFT ENGINE TEST HARNESS Tester
    ========================================================= */
 
 function draftEngineTestCreateRunner() {
@@ -8936,7 +8936,6 @@ test.equal(
   ).recommendation,
   'PASS'
 );
-  });
 
   test.equal(
   'Scenario recommendation: elite player with weak future option drafts',
@@ -9045,6 +9044,7 @@ test.equal(
   ).recommendation,
   'PASS'
 );
+  });
 
   var scenarios = [
     { name: 'empty-roster', roster: [], expectedNeed: 'RB' },
