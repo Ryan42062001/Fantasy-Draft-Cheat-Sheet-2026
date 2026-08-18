@@ -8938,6 +8938,114 @@ test.equal(
 );
   });
 
+  test.equal(
+  'Scenario recommendation: elite player with weak future option drafts',
+  calculateRecommendationDecision(
+    {
+      name: 'Elite RB',
+      finalScore: 96,
+      vorpScore: 100,
+      tierScore: 100,
+      timingScore: 0,
+      tierCliffOpportunityScore: 0,
+      runOpportunityScore: 0,
+      draftAwareVorpOpportunityScore: 2.5,
+      strategyScore: 4
+    },
+    {
+      name: 'Future RB',
+      finalScore: 68,
+      nextPickSurvivalScore: 90,
+      survivalAdjustedScore: 61
+    },
+    28,
+    83,
+    {}
+  ).recommendation,
+  'DRAFT'
+);
+
+test.equal(
+  'Scenario recommendation: close safe alternative waits',
+  calculateRecommendationDecision(
+    {
+      name: 'Current WR',
+      finalScore: 74,
+      vorpScore: 70,
+      tierScore: 78,
+      timingScore: 0,
+      tierCliffOpportunityScore: 0,
+      runOpportunityScore: 0,
+      draftAwareVorpOpportunityScore: 1,
+      strategyScore: 0
+    },
+    {
+      name: 'Future WR',
+      finalScore: 73,
+      nextPickSurvivalScore: 90,
+      survivalAdjustedScore: 70
+    },
+    1,
+    45,
+    {}
+  ).recommendation,
+  'WAIT'
+);
+
+test.equal(
+  'Scenario recommendation: tier cliff can prevent waiting',
+  calculateRecommendationDecision(
+    {
+      name: 'Cliff Player',
+      finalScore: 76,
+      vorpScore: 75,
+      tierScore: 85,
+      timingScore: 20,
+      tierCliffOpportunityScore: 5,
+      runOpportunityScore: 0,
+      draftAwareVorpOpportunityScore: 2,
+      strategyScore: 0
+    },
+    {
+      name: 'Future Player',
+      finalScore: 74,
+      nextPickSurvivalScore: 85,
+      survivalAdjustedScore: 70
+    },
+    2,
+    55,
+    {}
+  ).recommendation,
+  'CONSIDER'
+);
+
+test.equal(
+  'Scenario recommendation: poor player passes despite roster need',
+  calculateRecommendationDecision(
+    {
+      name: 'Weak Need Player',
+      finalScore: 58,
+      vorpScore: 45,
+      tierScore: 62,
+      timingScore: 0,
+      tierCliffOpportunityScore: 0,
+      runOpportunityScore: 0,
+      draftAwareVorpOpportunityScore: 0,
+      strategyScore: 4
+    },
+    {
+      name: 'Strong Alternative',
+      finalScore: 72,
+      nextPickSurvivalScore: 75,
+      survivalAdjustedScore: 65
+    },
+    -14,
+    60,
+    {}
+  ).recommendation,
+  'PASS'
+);
+
   var scenarios = [
     { name: 'empty-roster', roster: [], expectedNeed: 'RB' },
     { name: 'rb-need', roster: ['QB', 'WR', 'WR', 'TE'], expectedNeed: 'RB' },
