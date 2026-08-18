@@ -9786,20 +9786,35 @@ function runLiveDraftScenario(pick) {
      * -------------------------------------------------------
      */
 
-    liveResult =
-      runLiveDraftRecommendationTests();
+var simulatedOutput =
+  draftEngineWithSimulatedPriorPicks(
+    pick,
+    function() {
 
+      var result =
+        runLiveDraftRecommendationTests();
 
-    /*
-     * -------------------------------------------------------
-     * SANITY ANALYSIS
-     * -------------------------------------------------------
-     */
+      var resultWarnings =
+        analyzeLiveDraftRecommendations(
+          result
+        );
 
-    warnings =
-      analyzeLiveDraftRecommendations(
-        liveResult
-      );
+      return {
+        liveResult:
+          result,
+
+        warnings:
+          resultWarnings
+      };
+
+    }
+  );
+
+liveResult =
+  simulatedOutput.liveResult;
+
+warnings =
+  simulatedOutput.warnings;
 
 
     /*
@@ -10221,10 +10236,17 @@ function testDraftPlayerAtPick(
       pick
     );
 
-    result =
-      testDraftPlayer(
+result =
+  draftEngineWithSimulatedPriorPicks(
+    pick,
+    function() {
+
+      return testDraftPlayer(
         playerName
       );
+
+    }
+  );
 
     console.groupEnd();
 
@@ -10236,4 +10258,121 @@ function testDraftPlayerAtPick(
   }
 
   return result;
+}
+
+function draftEngineWithSimulatedPriorPicks(
+  pick,
+  fn
+) {
+
+  pick =
+    Number(pick) || 0;
+
+  if (pick <= 0) {
+    return fn();
+  }
+
+  var rows =
+    Array.prototype.slice.call(
+      document.querySelectorAll('tr.draftrow')
+    );
+
+  var originalClasses =
+    rows.map(function(row) {
+      return row.className;
+    });
+
+
+  /*
+   * -------------------------------------------------------
+   * RESET TEMPORARY DRAFT MARKERS
+   * -------------------------------------------------------
+   */
+
+  rows.forEach(function(row) {
+
+    row.classList.remove(
+      'drafted-mine',
+      'drafted-other'
+    );
+
+  });
+
+
+  /*
+   * -------------------------------------------------------
+   * BUILD RANKED PLAYER LIST
+   * -------------------------------------------------------
+   */
+
+  var players =
+    getDraftAssistantPlayers()
+      .filter(function(player) {
+
+        return player &&
+          player.row &&
+          player.rank;
+
+      })
+      .slice()
+      .sort(function(a, b) {
+
+        return (
+          Number(a.rank) -
+          Number(b.rank)
+        );
+
+      });
+
+
+  /*
+   * -------------------------------------------------------
+   * SIMULATE PICKS BEFORE CURRENT PICK
+   * -------------------------------------------------------
+   *
+   * Pick 11 means picks 1–10 have already happened.
+   */
+
+  var playersToRemove =
+    Math.max(
+      0,
+      pick - 1
+    );
+
+
+  players
+    .slice(0, playersToRemove)
+    .forEach(function(player) {
+
+      if (player.row) {
+
+        player.row.classList.add(
+          'drafted-other'
+        );
+
+      }
+
+    });
+
+
+  try {
+
+    return fn();
+
+  } finally {
+
+    /*
+     * -------------------------------------------------------
+     * ALWAYS RESTORE REAL BOARD
+     * -------------------------------------------------------
+     */
+
+    rows.forEach(function(row, index) {
+
+      row.className =
+        originalClasses[index];
+
+    });
+
+  }
 }
