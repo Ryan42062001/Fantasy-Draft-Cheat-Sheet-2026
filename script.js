@@ -10160,3 +10160,80 @@ function testDraftPlayer(playerName) {
       state
   };
 }
+
+function testDraftPlayerAtPick(
+  playerName,
+  pick
+) {
+
+  pick =
+    Number(pick) || 0;
+
+  if (!playerName || pick <= 0) {
+    console.warn(
+      'PLAYER PICK TEST: Invalid player or pick.'
+    );
+    return null;
+  }
+
+  var originalGetDraftAssistantState =
+    getDraftAssistantState;
+
+  var realState =
+    originalGetDraftAssistantState();
+
+  var teams =
+    Number(realState.teams) || 10;
+
+  getDraftAssistantState =
+    function() {
+
+      var simulatedState =
+        Object.assign(
+          {},
+          realState
+        );
+
+      simulatedState.currentPick =
+        pick;
+
+      simulatedState.myNextPick =
+        pick;
+
+      simulatedState.onClock =
+        true;
+
+      simulatedState.picksUntilMyTurn =
+        0;
+
+      return simulatedState;
+
+    };
+
+  var result = null;
+
+  try {
+
+    console.group(
+      'PLAYER PICK TEST — ' +
+      playerName +
+      ' @ PICK ' +
+      pick
+    );
+
+    result =
+      testDraftPlayer(
+        playerName
+      );
+
+    console.groupEnd();
+
+  } finally {
+
+    getDraftAssistantState =
+      originalGetDraftAssistantState;
+
+  }
+
+  return result;
+}
