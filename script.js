@@ -377,8 +377,11 @@ function updateBestAvailable() {
 }
 function calculateMyNextDraftPick(currentPick, teams) {
 
-  currentPick = Number(currentPick) || 0;
-  teams = Number(teams) || 10;
+  currentPick =
+    Number(currentPick) || 0;
+
+  teams =
+    Number(teams) || 10;
 
   if (!currentPick || !teams) {
     return {
@@ -388,32 +391,64 @@ function calculateMyNextDraftPick(currentPick, teams) {
   }
 
   var currentRound =
-    Math.ceil(currentPick / teams);
+    Math.ceil(
+      currentPick / teams
+    );
 
   var pickInRound =
     ((currentPick - 1) % teams) + 1;
 
-  var nextRound =
-    currentRound + 1;
+  var draftSlot;
 
-  var nextPick;
-
+  /*
+   * Convert the current pick back into the user's
+   * original draft slot.
+   *
+   * Odd rounds:
+   * slot 1 picks first, slot 10 picks last.
+   *
+   * Even rounds:
+   * slot 10 picks first, slot 1 picks last.
+   */
   if (currentRound % 2 === 1) {
 
-    // Odd round → next round reverses
-    nextPick =
-      (nextRound * teams) -
-      pickInRound +
-      1;
+    draftSlot =
+      pickInRound;
 
   } else {
 
-    // Even round → next round reverses
-    nextPick =
-      (nextRound * teams) -
-      (teams - pickInRound);
+    draftSlot =
+      teams - pickInRound + 1;
 
   }
+
+
+  /*
+   * Calculate that same draft slot's pick
+   * in the next round.
+   */
+
+  var nextRound =
+    currentRound + 1;
+
+  var nextPickInRound;
+
+  if (nextRound % 2 === 1) {
+
+    nextPickInRound =
+      draftSlot;
+
+  } else {
+
+    nextPickInRound =
+      teams - draftSlot + 1;
+
+  }
+
+  var nextPick =
+    ((nextRound - 1) * teams) +
+    nextPickInRound;
+
 
   var picksBetween =
     Math.max(
@@ -421,12 +456,12 @@ function calculateMyNextDraftPick(currentPick, teams) {
       nextPick - currentPick - 1
     );
 
+
   return {
     nextPick: nextPick,
     picksBetween: picksBetween
   };
 }
-
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 
 // ==== REAL-TIME DRAFT POSITION & PICK COUNTER ====
