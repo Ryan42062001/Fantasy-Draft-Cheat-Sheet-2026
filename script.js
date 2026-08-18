@@ -561,6 +561,81 @@ function getSnakeDraftTeamForPick(
   };
 }
 
+function getTeamsPickingBeforeMyNextTurn(
+  currentPick,
+  nextPick,
+  teams
+) {
+
+  currentPick =
+    Number(currentPick) || 0;
+
+  nextPick =
+    Number(nextPick) || 0;
+
+  teams =
+    Number(teams) || 10;
+
+  if (
+    currentPick <= 0 ||
+    nextPick <= currentPick ||
+    teams <= 0
+  ) {
+
+    return {
+      picks: [],
+      teamPickCounts: {}
+    };
+
+  }
+
+  var picks = [];
+
+  var teamPickCounts = {};
+
+
+  /*
+   * -------------------------------------------------------
+   * PICKS BETWEEN OUR CURRENT PICK AND NEXT PICK
+   * -------------------------------------------------------
+   */
+
+  for (
+    var pick = currentPick + 1;
+    pick < nextPick;
+    pick++
+  ) {
+
+    var mapping =
+      getSnakeDraftTeamForPick(
+        pick,
+        teams
+      );
+
+    if (!mapping) {
+      continue;
+    }
+
+    picks.push(mapping);
+
+    var teamSlot =
+      mapping.teamSlot;
+
+    teamPickCounts[teamSlot] =
+      (teamPickCounts[teamSlot] || 0) + 1;
+
+  }
+
+
+  return {
+    picks:
+      picks,
+
+    teamPickCounts:
+      teamPickCounts
+  };
+}
+
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 
 // ==== REAL-TIME DRAFT POSITION & PICK COUNTER ====
@@ -8804,6 +8879,51 @@ test.equal(
     10
   ).teamSlot,
   10
+);
+
+    var pick21ThreatWindow =
+  getTeamsPickingBeforeMyNextTurn(
+    21,
+    40,
+    10
+  );
+
+test.equal(
+  'Opponent window: pick 21 to 40 has 18 picks',
+  pick21ThreatWindow.picks.length,
+  18
+);
+
+test.equal(
+  'Opponent window: team 2 picks twice before pick 40',
+  pick21ThreatWindow.teamPickCounts[2],
+  2
+);
+
+test.equal(
+  'Opponent window: team 10 picks twice before pick 40',
+  pick21ThreatWindow.teamPickCounts[10],
+  2
+);
+
+test.equal(
+  'Opponent window: team 1 does not pick before pick 40',
+  pick21ThreatWindow.teamPickCounts[1] || 0,
+  0
+);
+
+
+var turnThreatWindow =
+  getTeamsPickingBeforeMyNextTurn(
+    20,
+    21,
+    10
+  );
+
+test.equal(
+  'Opponent window: pick 20 to 21 has 0 picks',
+  turnThreatWindow.picks.length,
+  0
 );
 
     test.equal(
