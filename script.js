@@ -6362,55 +6362,64 @@ survival =
     )
   );
 
+  if (
+  typeof DRAFT_DEBUG !== 'undefined' &&
+  DRAFT_DEBUG &&
+  typeof DRAFT_DEBUG.add === 'function'
+) {
+
   DRAFT_DEBUG.add(
-  'SURVIVAL',
-  {
-    player:
-      candidate.name,
+    'SURVIVAL',
+    {
+      player:
+        candidate.name,
 
-    currentPick:
-      currentPick,
+      currentPick:
+        currentPick,
 
-    nextPick:
-      nextPick,
+      nextPick:
+        nextPick,
 
-    picksUntilNext:
-      picksUntilNext,
+      picksUntilNext:
+        picksUntilNext,
 
-    candidateRank:
-      rank,
+      candidateRank:
+        rank,
 
-    timingScore:
-      timing,
+      timingScore:
+        timing,
 
-    startingSurvival:
-      startingSurvival,
+      startingSurvival:
+        startingSurvival,
 
-    rankPressure:
-      rankPressure,
+      rankPressure:
+        rankPressure,
 
-    rankPenalty:
-      rankPenalty,
+      rankPenalty:
+        rankPenalty,
 
-    timingPenalty:
-      timingPenalty,
+      timingPenalty:
+        timingPenalty,
 
-    rankDistance:
-      rankDistance,
+      rankDistance:
+        rankDistance,
 
-    rankDistancePenalty:
-      rankDistancePenalty,
+      rankDistancePenalty:
+        rankDistancePenalty,
 
-    pickDistancePenalty:
-      pickDistancePenalty,
+      pickDistancePenalty:
+        pickDistancePenalty,
 
-    finalSurvival:
-      survival
-  }
-);
+      finalSurvival:
+        survival
+    }
+  );
+
+}
 
   return survival;
 }
+
 function calculateRecommendationConfidence(
   player,
   nextPlayer,
