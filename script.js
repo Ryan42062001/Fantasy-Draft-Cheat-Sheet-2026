@@ -9388,3 +9388,309 @@ function runLiveDraftRecommendationTests() {
       rows
   };
 }
+
+function analyzeLiveDraftRecommendations(liveResult) {
+
+  if (
+    !liveResult ||
+    !Array.isArray(liveResult.recommendations)
+  ) {
+
+    console.warn(
+      'LIVE DRAFT WARNING ANALYZER: No recommendation data.'
+    );
+
+    return [];
+  }
+
+  var recommendations =
+    liveResult.recommendations;
+
+  var warnings = [];
+
+
+  /*
+   * -------------------------------------------------------
+   * 1. MISSING / INVALID SCORES
+   * -------------------------------------------------------
+   */
+
+  recommendations.forEach(function(row) {
+
+    var score =
+      Number(row.score);
+
+    var confidence =
+      Number(row.confidenceScore);
+
+    var gap =
+      Number(row.scoreGap);
+
+
+    if (!Number.isFinite(score)) {
+
+      warnings.push({
+        player: row.name,
+        type: 'INVALID SCORE',
+        message:
+          'Final decision score is missing or invalid.'
+      });
+
+    }
+
+
+    if (
+      !Number.isFinite(confidence) ||
+      confidence < 0 ||
+      confidence > 100
+    ) {
+
+      warnings.push({
+        player: row.name,
+        type: 'INVALID CONFIDENCE',
+        message:
+          'Confidence score is outside 0–100.'
+      });
+
+    }
+
+
+    if (!Number.isFinite(gap)) {
+
+      warnings.push({
+        player: row.name,
+        type: 'INVALID GAP',
+        message:
+          'Recommendation score gap is invalid.'
+      });
+
+    }
+
+  });
+
+
+  /*
+   * -------------------------------------------------------
+   * 2. ELITE PLAYER PASS / WAIT
+   * -------------------------------------------------------
+   *
+   * Top-ranked players should rarely receive PASS.
+   */
+
+  recommendations.forEach(function(row) {
+
+    var rank =
+      Number(row.rank) || 999;
+
+    if (
+      rank <= 10 &&
+      (
+        row.recommendation === 'PASS' ||
+        row.recommendation === 'WAIT'
+      )
+    ) {
+
+      warnings.push({
+        player: row.name,
+        type: 'ELITE PLAYER WARNING',
+        message:
+          'Top-10 player received ' +
+          row.recommendation +
+          '. Review recommendation logic.'
+      });
+
+    }
+
+  });
+
+
+  /*
+   * -------------------------------------------------------
+   * 3. WAIT WITHOUT ALTERNATIVE
+   * -------------------------------------------------------
+   */
+
+  recommendations.forEach(function(row) {
+
+    if (
+      row.recommendation === 'WAIT' &&
+      !row.nextBest
+    ) {
+
+      warnings.push({
+        player: row.name,
+        type: 'WAIT WITHOUT ALTERNATIVE',
+        message:
+          'Player was told to WAIT but no next-pick alternative exists.'
+      });
+
+    }
+
+  });
+
+
+  /*
+   * -------------------------------------------------------
+   * 4. PASS DESPITE LARGE POSITIVE GAP
+   * -------------------------------------------------------
+   */
+
+  recommendations.forEach(function(row) {
+
+    var gap =
+      Number(row.scoreGap) || 0;
+
+    if (
+      row.recommendation === 'PASS' &&
+      gap >= 5
+    ) {
+
+      warnings.push({
+        player: row.name,
+        type: 'PASS/GAP CONFLICT',
+        message:
+          'PASS recommendation conflicts with a +' +
+          gap.toFixed(1) +
+          ' score advantage.'
+      });
+
+    }
+
+  });
+
+
+  /*
+   * -------------------------------------------------------
+   * 5. DRAFT DESPITE NEGATIVE GAP
+   * -------------------------------------------------------
+   */
+
+  recommendations.forEach(function(row) {
+
+    var gap =
+      Number(row.scoreGap) || 0;
+
+    if (
+      row.recommendation === 'DRAFT' &&
+      gap < 0
+    ) {
+
+      warnings.push({
+        player: row.name,
+        type: 'DRAFT/GAP CONFLICT',
+        message:
+          'DRAFT recommendation has a negative score gap.'
+      });
+
+    }
+
+  });
+
+
+  /*
+   * -------------------------------------------------------
+   * 6. SAME NEXT-BEST PLAYER DOMINATING
+   * -------------------------------------------------------
+   *
+   * This is not automatically wrong.
+   *
+   * But if nearly every candidate points to the exact
+   * same next-pick alternative, we want to inspect it.
+   */
+
+  var nextBestCounts = {};
+
+  recommendations.forEach(function(row) {
+
+    if (!row.nextBest) {
+      return;
+    }
+
+    nextBestCounts[row.nextBest] =
+      (nextBestCounts[row.nextBest] || 0) + 1;
+
+  });
+
+
+  Object.keys(nextBestCounts)
+    .forEach(function(name) {
+
+      var count =
+        nextBestCounts[name];
+
+      if (
+        recommendations.length >= 5 &&
+        count / recommendations.length >= 0.8
+      ) {
+
+        warnings.push({
+          player: name,
+          type: 'ALTERNATIVE CONCENTRATION',
+          message:
+            name +
+            ' is the next-best alternative for ' +
+            count +
+            ' of ' +
+            recommendations.length +
+            ' top candidates.'
+        });
+
+      }
+
+    });
+
+
+  /*
+   * -------------------------------------------------------
+   * 7. EVERYONE IS DRAFT
+   * -------------------------------------------------------
+   */
+
+  var draftCount =
+    recommendations.filter(function(row) {
+      return row.recommendation === 'DRAFT';
+    }).length;
+
+  if (
+    recommendations.length >= 5 &&
+    draftCount === recommendations.length
+  ) {
+
+    warnings.push({
+      player: 'ALL',
+      type: 'RECOMMENDATION CONCENTRATION',
+      message:
+        'Every displayed player received DRAFT. ' +
+        'This may indicate overly aggressive thresholds.'
+    });
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * OUTPUT
+   * -------------------------------------------------------
+   */
+
+  console.group(
+    'LIVE DRAFT SANITY WARNINGS'
+  );
+
+  if (!warnings.length) {
+
+    console.log(
+      '✓ No sanity warnings detected.'
+    );
+
+  } else {
+
+    console.table(warnings);
+
+  }
+
+  console.groupEnd();
+
+
+  return warnings;
+}
