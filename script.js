@@ -703,6 +703,59 @@ function getDraftedRosterByTeam(
   return rosters;
 }
 
+function calculateOpponentRosterNeeds(
+  roster
+) {
+
+  roster =
+    roster || {};
+
+  var qbSlots =
+    Number(ROSTER_SLOTS.QB) || 1;
+
+  var rbSlots =
+    Number(ROSTER_SLOTS.RB) || 2;
+
+  var wrSlots =
+    Number(ROSTER_SLOTS.WR) || 2;
+
+  var teSlots =
+    Number(ROSTER_SLOTS.TE) || 1;
+
+
+  return {
+
+    QB:
+      Math.max(
+        0,
+        qbSlots -
+        (Number(roster.QB) || 0)
+      ),
+
+    RB:
+      Math.max(
+        0,
+        rbSlots -
+        (Number(roster.RB) || 0)
+      ),
+
+    WR:
+      Math.max(
+        0,
+        wrSlots -
+        (Number(roster.WR) || 0)
+      ),
+
+    TE:
+      Math.max(
+        0,
+        teSlots -
+        (Number(roster.TE) || 0)
+      )
+
+  };
+}
+
 function getDraftedRosterByTeam(
   teams
 ) {
@@ -806,6 +859,39 @@ function getDraftedRosterByTeam(
 
 
   return rosters;
+}
+
+function getOpponentNeedsByTeam(
+  teams
+) {
+
+  teams =
+    Number(teams) || 10;
+
+  var rosters =
+    getDraftedRosterByTeam(
+      teams
+    );
+
+  var needs = {};
+
+  Object.keys(rosters)
+    .forEach(function(teamSlot) {
+
+      needs[teamSlot] =
+        calculateOpponentRosterNeeds(
+          rosters[teamSlot]
+        );
+
+    });
+
+  return {
+    rosters:
+      rosters,
+
+    needs:
+      needs
+  };
 }
 
 function updateRemaining() { safeCall('updateRemainingCustom'); }
