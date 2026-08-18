@@ -9282,3 +9282,109 @@ function buildLiveDraftDebugState() {
       scored
   };
 }
+
+function runLiveDraftRecommendationTests() {
+
+  var state =
+    buildLiveDraftDebugState();
+
+  var context =
+    state.context;
+
+  var scored =
+    state.scored;
+
+  var rows = [];
+
+  scored
+    .slice(0, 10)
+    .forEach(function(player) {
+
+      context.currentRank =
+        Number(player.rank) || 999;
+
+      var recommendation =
+        calculateDraftRecommendation(
+          player,
+          scored,
+          context
+        );
+
+      rows.push({
+        name:
+          player.name,
+
+        position:
+          player.position,
+
+        rank:
+          player.rank,
+
+        score:
+          Number(player.finalScore || 0)
+            .toFixed(1),
+
+        recommendation:
+          recommendation
+            ? recommendation.recommendation
+            : 'N/A',
+
+        confidence:
+          recommendation
+            ? recommendation.confidence
+            : 'N/A',
+
+        confidenceScore:
+          recommendation
+            ? recommendation.confidenceScore
+            : 0,
+
+        nextBest:
+          recommendation
+            ? recommendation.nextBest
+            : null,
+
+        nextBestScore:
+          recommendation
+            ? Number(
+                recommendation.nextBestScore || 0
+              ).toFixed(1)
+            : '0.0',
+
+        scoreGap:
+          recommendation
+            ? Number(
+                recommendation.scoreGap || 0
+              ).toFixed(1)
+            : '0.0'
+      });
+
+    });
+
+
+  console.group(
+    'LIVE DRAFT RECOMMENDATIONS'
+  );
+
+  console.log(
+    'Current Pick:',
+    state.draftState.currentPick,
+    'Next Pick:',
+    state.draftWindow.nextPick,
+    'Picks Between:',
+    state.draftWindow.picksBetween
+  );
+
+  console.table(rows);
+
+  console.groupEnd();
+
+
+  return {
+    state:
+      state,
+
+    recommendations:
+      rows
+  };
+}
