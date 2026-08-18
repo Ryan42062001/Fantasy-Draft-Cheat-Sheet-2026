@@ -807,25 +807,32 @@ function calculateOpponentPositionDemand(
 
 
   /*
-   * -------------------------------------------------------
-   * QB
-   * -------------------------------------------------------
-   *
-   * QB does not normally qualify for FLEX.
+ * -------------------------------------------------------
+ * QB
+ * -------------------------------------------------------
+ *
+ * In a 1-QB league, an empty QB starter is a real need,
+ * but it should not create the same draft pressure as
+ * multiple open RB/WR starter spots.
+ */
+
+if (position === 'QB') {
+
+  if (counts.QB < qbSlots) {
+    return 1.5;
+  }
+
+  /*
+   * Once the starting QB is filled, backup-QB demand
+   * should be very low.
    */
 
-  if (position === 'QB') {
-
-    if (counts.QB < qbSlots) {
-      return 3;
-    }
-
-    if (counts.QB === qbSlots) {
-      return 0;
-    }
-
-    return 0;
+  if (counts.QB === qbSlots) {
+    return 0.25;
   }
+
+  return 0;
+}
 
 
   /*
@@ -854,15 +861,19 @@ function calculateOpponentPositionDemand(
      * = strongest demand.
      */
 
-    if (missing >= 2) {
-      return 3;
-    }
+    if (position === 'TE') {
 
-    /*
-     * Missing one dedicated starter.
-     */
+  if (missing >= 1) {
+    return 1.5;
+  }
 
-    return 2;
+}
+
+if (missing >= 2) {
+  return 3;
+}
+
+return 2;
   }
 
 
