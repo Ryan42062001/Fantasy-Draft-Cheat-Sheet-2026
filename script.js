@@ -9928,3 +9928,235 @@ function runLiveDraftScenario(pick) {
 
   };
 }
+
+function testDraftPlayer(playerName) {
+
+  if (!playerName) {
+    console.warn(
+      'PLAYER TEST: No player name provided.'
+    );
+    return null;
+  }
+
+  var state =
+    buildLiveDraftDebugState();
+
+  var scored =
+    state.scored;
+
+  var context =
+    state.context;
+
+  var player =
+    scored.find(function(candidate) {
+
+      return candidate &&
+        candidate.name &&
+        candidate.name.toLowerCase() ===
+          String(playerName).toLowerCase();
+
+    });
+
+
+  if (!player) {
+
+    console.warn(
+      'PLAYER TEST: Player not found:',
+      playerName
+    );
+
+    return null;
+
+  }
+
+
+  context.currentRank =
+    Number(player.rank) || 999;
+
+
+  var alternatives =
+    calculateNextPickAlternatives(
+      player,
+      scored,
+      context
+    );
+
+
+  alternatives.forEach(function(candidate) {
+
+    candidate.nextPickSurvivalScore =
+      calculateNextPickSurvival(
+        candidate,
+        context
+      );
+
+    candidate.survivalAdjustedScore =
+      (
+        Number(candidate.finalScore) || 0
+      ) *
+      (
+        Number(
+          candidate.nextPickSurvivalScore
+        ) || 0
+      ) / 100;
+
+  });
+
+
+  alternatives.sort(function(a, b) {
+
+    return (
+      Number(
+        b.survivalAdjustedScore || 0
+      ) -
+      Number(
+        a.survivalAdjustedScore || 0
+      )
+    );
+
+  });
+
+
+  var recommendation =
+    calculateDraftRecommendation(
+      player,
+      scored,
+      context
+    );
+
+
+  console.group(
+    'PLAYER DRAFT TEST — ' +
+    player.name
+  );
+
+
+  console.log(
+    'Draft Window:',
+    {
+      currentPick:
+        state.draftState.currentPick,
+
+      nextPick:
+        state.draftWindow.nextPick,
+
+      picksBetween:
+        state.draftWindow.picksBetween
+    }
+  );
+
+
+  console.table([
+    {
+      name:
+        player.name,
+
+      position:
+        player.position,
+
+      rank:
+        player.rank,
+
+      finalScore:
+        Number(
+          player.finalScore || 0
+        ).toFixed(1),
+
+      tier:
+        Number(
+          player.tierScore || 0
+        ).toFixed(1),
+
+      vorp:
+        Number(
+          player.vorpScore || 0
+        ).toFixed(1),
+
+      scarcity:
+        Number(
+          player.scarcityScore || 0
+        ).toFixed(1),
+
+      need:
+        Number(
+          player.rosterNeedScore || 0
+        ).toFixed(1),
+
+      timing:
+        Number(
+          player.timingScore || 0
+        ).toFixed(1),
+
+      draftAware:
+        Number(
+          player.draftAwareVorpOpportunityScore || 0
+        ).toFixed(1)
+    }
+  ]);
+
+
+  console.log(
+    'Recommendation:',
+    recommendation
+  );
+
+
+  console.log(
+    'Top Next-Pick Alternatives:'
+  );
+
+
+  console.table(
+    alternatives
+      .slice(0, 8)
+      .map(function(candidate) {
+
+        return {
+
+          name:
+            candidate.name,
+
+          position:
+            candidate.position,
+
+          rank:
+            candidate.rank,
+
+          score:
+            Number(
+              candidate.finalScore || 0
+            ).toFixed(1),
+
+          survival:
+            Number(
+              candidate.nextPickSurvivalScore || 0
+            ).toFixed(1),
+
+          adjusted:
+            Number(
+              candidate.survivalAdjustedScore || 0
+            ).toFixed(1)
+
+        };
+
+      })
+  );
+
+
+  console.groupEnd();
+
+
+  return {
+    player:
+      player,
+
+    recommendation:
+      recommendation,
+
+    alternatives:
+      alternatives,
+
+    state:
+      state
+  };
+}
