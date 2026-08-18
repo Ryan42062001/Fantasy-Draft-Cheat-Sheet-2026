@@ -5869,6 +5869,13 @@ function calculateNextPickAlternatives(
   context =
     context || {};
 
+
+  /*
+   * -------------------------------------------------------
+   * AVAILABLE ALTERNATIVES
+   * -------------------------------------------------------
+   */
+
   var availablePlayers =
     scoredPlayers.filter(function(candidate) {
 
@@ -5881,7 +5888,7 @@ function calculateNextPickAlternatives(
 
   /*
    * -------------------------------------------------------
-   * DETERMINE CURRENT PICK
+   * CURRENT DRAFT STATE
    * -------------------------------------------------------
    */
 
@@ -5891,184 +5898,67 @@ function calculateNextPickAlternatives(
   var teams =
     Number(context.teams) || 10;
 
-  var currentRound =
-    currentPick
-      ? Math.ceil(currentPick / teams)
-      : 0;
-
-  var pickInRound =
-    currentPick
-      ? ((currentPick - 1) % teams) + 1
-      : 0;
-
 
   /*
    * -------------------------------------------------------
-   * CALCULATE OUR ACTUAL NEXT PICK
+   * CALCULATE ACTUAL NEXT PICK
    * -------------------------------------------------------
    *
-   * IMPORTANT:
+   * Use the centralized, tested snake-draft helper.
    *
-   * context.nextPick may equal currentPick when we are
-   * currently on the clock.
+   * This avoids maintaining duplicate snake math
+   * in multiple functions.
+   */
+
+  var draftWindow =
+    calculateMyNextDraftPick(
+      currentPick,
+      teams
+    );
+
+  var calculatedNextPick =
+    Number(draftWindow.nextPick) || 0;
+
+  var calculatedPicksBetween =
+    Number(draftWindow.picksBetween) || 0;
+
+
+  /*
+   * context.nextPick may already contain a valid
+   * future pick.
    *
-   * Example:
+   * However, when we are currently on the clock,
+   * context.nextPick may equal currentPick.
    *
-   * 10 teams:
-   *
-   * Pick 1  -> Pick 20
-   * Pick 2  -> Pick 19
-   * Pick 10 -> Pick 11
-   * Pick 11 -> Pick 30
-   *
+   * In that case we must use the calculated
+   * snake-draft next pick instead.
    */
 
   var suppliedNextPick =
     Number(context.nextPick) || 0;
 
   var nextPick =
-    0;
-
-
- /*
- * -------------------------------------------------------
- * DETERMINE NEXT PICK
- * -------------------------------------------------------
- *
- * When we are currently on the clock, context.nextPick
- * may still contain the CURRENT pick rather than our
- * actual next selection.
- *
- * Therefore:
- *
- * currentPick = 1
- * suppliedNextPick = 1
- *
- * means we must calculate the actual next pick = 20.
- *
- * If suppliedNextPick is genuinely different from
- * currentPick, we can trust it.
- */
-
-if (
-  suppliedNextPick &&
-  suppliedNextPick !== currentPick
-) {
-
-  nextPick =
-    suppliedNextPick;
-
-} else {
-
-  /*
-   * Supplied next pick is either missing or is actually
-   * the current pick. Calculate the next pick ourselves.
-   */
-
-  var currentRound =
-    Math.ceil(
-      currentPick / teams
-    );
-
-  var pickInRound =
-    ((currentPick - 1) % teams) + 1;
-
-  var nextRound =
-    currentRound + 1;
-
-  if (currentRound % 2 === 1) {
-
-    /*
-     * Odd round -> next round reverses.
-     */
-
-    nextPick =
-      (nextRound * teams) -
-      pickInRound +
-      1;
-
-  } else {
-
-    /*
-     * Even round -> next round reverses.
-     */
-
-    nextPick =
-      (nextRound * teams) -
-      (teams - pickInRound);
-
-  }
-
-}
-
-
-  /*
-   * Otherwise calculate the next time we draft
-   * using snake-draft mathematics.
-   */
-
-  if (
-    !nextPick &&
-    currentPick
-  ) {
-
-    /*
-     * Odd-numbered rounds:
-     * We pick from low slot -> high slot.
-     *
-     * The next round reverses direction.
-     */
-
-    if (currentRound % 2 === 1) {
-
-      nextPick =
-        (
-          (currentRound + 1) *
-          teams
-        ) -
-        pickInRound +
-        1;
-
-    } else {
-
-      /*
-       * Even-numbered rounds:
-       * We pick from high slot -> low slot.
-       */
-
-      nextPick =
-        (
-          (currentRound + 1) *
-          teams
-        ) -
-        (
-          teams -
-          pickInRound
-        );
-
-    }
-
-  }
+    (
+      suppliedNextPick &&
+      suppliedNextPick !== currentPick
+    )
+      ? suppliedNextPick
+      : calculatedNextPick;
 
 
   /*
    * -------------------------------------------------------
-   * PICKS BETWEEN NOW AND OUR NEXT TURN
+   * PICKS BETWEEN NOW AND NEXT TURN
    * -------------------------------------------------------
-   *
-   * Pick 1 -> Pick 20:
-   *
-   * 18 other selections happen between them.
-   *
    */
 
   var picksBetween =
-    nextPick && currentPick
-      ? Math.max(
+    nextPick === calculatedNextPick
+      ? calculatedPicksBetween
+      : Math.max(
           0,
           nextPick - currentPick - 1
-        )
-      : 0;
+        );
 
 
   /*
@@ -6103,48 +5993,53 @@ if (
    */
 
   var alternatives =
-    availablePlayers
-      .filter(function(candidate) {
+    availablePlayers.filter(function(candidate) {
 
-        var candidateRank =
-          Number(candidate.rank) || 999;
-
-        /*
-         * Never consider someone ranked above/equal to
-         * the player we're currently evaluating.
-         */
-
-        if (
-          candidateRank <= currentRank
-        ) {
-
-          return false;
-
-        }
+      var candidateRank =
+        Number(candidate.rank) || 999;
 
 
-        /*
-         * Look around the actual next pick.
-         */
+      /*
+       * Never consider someone ranked above or equal
+       * to the player currently being evaluated.
+       */
 
-        var distanceFromNextPick =
-          Math.abs(
-            candidateRank -
-            nextPick
-          );
+      if (
+        candidateRank <= currentRank
+      ) {
 
-        return (
-          distanceFromNextPick <=
-          rankWindow
+        return false;
+
+      }
+
+
+      /*
+       * Look around the actual next-pick range.
+       */
+
+      var distanceFromNextPick =
+        Math.abs(
+          candidateRank -
+          nextPick
         );
 
-      });
+      return (
+        distanceFromNextPick <=
+        rankWindow
+      );
+
+    });
 
 
   /*
    * -------------------------------------------------------
-   * NEXT PICK SURVIVAL
+   * INITIAL NEXT-PICK SURVIVAL ESTIMATE
    * -------------------------------------------------------
+   *
+   * This provides an initial estimate.
+   *
+   * calculateDraftRecommendation() later applies the
+   * more complete calculateNextPickSurvival() model.
    */
 
   alternatives.forEach(function(candidate) {
@@ -6159,8 +6054,8 @@ if (
     if (nextPick) {
 
       /*
-       * Players ranked ahead of our next pick
-       * are increasingly likely to disappear.
+       * Players ranked before our next pick become
+       * increasingly unlikely to survive.
        */
 
       var distance =
@@ -6176,13 +6071,12 @@ if (
 
 
       /*
-       * Players ranked at or after our next pick
-       * are more likely to survive.
+       * Players ranked at or beyond our next pick
+       * receive a small survival boost.
        */
 
       if (
-        candidateRank >=
-        nextPick
+        candidateRank >= nextPick
       ) {
 
         survivalScore += 15;
@@ -6206,7 +6100,7 @@ if (
 
   /*
    * -------------------------------------------------------
-   * SORT BY FINAL SCORE
+   * SORT BY CURRENT DECISION SCORE
    * -------------------------------------------------------
    */
 
@@ -6221,15 +6115,19 @@ if (
 
 
   /*
-   * Keep strongest alternatives.
+   * Keep only the strongest realistic alternatives.
    */
 
   alternatives =
     alternatives.slice(0, 8);
 
+
   /*
-   * Store the calculated values in context so the
-   * survival function can use the actual next turn.
+   * -------------------------------------------------------
+   * HAND OFF NEXT-PICK WINDOW
+   * -------------------------------------------------------
+   *
+   * calculateNextPickSurvival() uses these values.
    */
 
   context.calculatedNextPick =
@@ -6238,45 +6136,49 @@ if (
   context.calculatedPicksUntilNext =
     picksBetween;
 
- if (
-  typeof DRAFT_DEBUG !== 'undefined' &&
-  DRAFT_DEBUG &&
-  typeof DRAFT_DEBUG.add === 'function'
-) {
 
-  DRAFT_DEBUG.add(
-    'NEXT PICK',
-    {
-      player:
-        player.name,
+  /*
+   * -------------------------------------------------------
+   * DEBUG
+   * -------------------------------------------------------
+   */
 
-      teams:
-        teams,
+  if (
+    typeof DRAFT_DEBUG !== 'undefined' &&
+    DRAFT_DEBUG &&
+    typeof DRAFT_DEBUG.add === 'function'
+  ) {
 
-      currentPick:
-        currentPick,
+    DRAFT_DEBUG.add(
+      'NEXT PICK',
+      {
+        player:
+          player.name,
 
-      currentRound:
-        currentRound,
+        teams:
+          teams,
 
-      pickInRound:
-        pickInRound,
+        currentPick:
+          currentPick,
 
-      suppliedNextPick:
-        suppliedNextPick,
+        suppliedNextPick:
+          suppliedNextPick,
 
-      calculatedNextPick:
-        nextPick,
+        calculatedNextPick:
+          calculatedNextPick,
 
-      picksBetween:
-        picksBetween,
+        nextPick:
+          nextPick,
 
-      rankWindow:
-        rankWindow
-    }
-  );
+        picksBetween:
+          picksBetween,
 
-}
+        rankWindow:
+          rankWindow
+      }
+    );
+
+  }
 
 
   return alternatives;
