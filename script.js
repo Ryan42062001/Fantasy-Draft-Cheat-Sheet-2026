@@ -8629,9 +8629,14 @@ function runDraftEngineTests(options) {
     );
 
     var riskySurvival = calculateNextPickSurvival(
-      { name: 'Early Player', rank: 1, timingScore: 100 },
-      { currentPick: 1, calculatedNextPick: 20, currentRank: 1 }
-    );
+  { name: 'Early Player', rank: 1, timingScore: 100 },
+  {
+    currentPick: 1,
+    calculatedNextPick: 20,
+    calculatedPicksUntilNext: 18,
+    currentRank: 1
+  }
+);
 
     test.between('Late-player survival is 0–100', safeSurvival, 0, 100);
     test.between('Early-player survival is 0–100', riskySurvival, 0, 100);
@@ -8674,10 +8679,35 @@ var scored =
       )
     : null;
 
-    test.assert('Decision score returns a result', !!scored);
-    test.between('Decision final score is finite', scored.finalScore, -1000, 1000);
-    test.between('Decision tier score is 0–100', scored.tierScore, 0, 100);
-    test.between('Decision rank score is 0–100', scored.rankScore, 0, 100);
+    test.assert(
+  'Decision score returns a result',
+  !!scored
+);
+
+if (scored) {
+
+  test.between(
+    'Decision final score is finite',
+    scored.finalScore,
+    -1000,
+    1000
+  );
+
+  test.between(
+    'Decision tier score is 0–100',
+    scored.tierScore,
+    0,
+    100
+  );
+
+  test.between(
+    'Decision rank score is 0–100',
+    scored.rankScore,
+    0,
+    100
+  );
+
+}
 
     var recommendationPlayers = [
       {
@@ -8706,26 +8736,42 @@ var scored =
       }
     ];
 
-    var recommendation = calculateDraftRecommendation(
-      recommendationPlayers[0],
-      recommendationPlayers,
-      {
-        teams: 10,
-        currentPick: 1,
-        nextPick: 20,
-        currentRank: 1
-      }
-    );
+    test.run(
+  'Recommendation integration',
+  function() {
+
+    var recommendation =
+      calculateDraftRecommendation(
+        recommendationPlayers[0],
+        recommendationPlayers,
+        {
+          teams: 10,
+          currentPick: 1,
+          nextPick: 20,
+          calculatedNextPick: 20,
+          calculatedPicksUntilNext: 18,
+          currentRank: 1
+        }
+      );
 
     test.assert(
       'Recommendation returns decision text',
-      !!(recommendation && recommendation.recommendation)
+      !!(
+        recommendation &&
+        recommendation.recommendation
+      )
     );
 
     test.assert(
       'Recommendation returns finite confidence',
-      Number.isFinite(recommendation && recommendation.confidenceScore)
+      Number.isFinite(
+        recommendation &&
+        recommendation.confidenceScore
+      )
     );
+
+  }
+);
   });
 
   var scenarios = [
