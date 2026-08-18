@@ -1502,6 +1502,168 @@ function debugOpponentDraftThreat(
   return details;
 }
 
+function debugOpponentThreatAtPick(
+  playerName,
+  pick
+) {
+
+  pick =
+    Number(pick) || 0;
+
+  if (!playerName || pick <= 0) {
+
+    console.warn(
+      'OPPONENT THREAT AT PICK: Invalid player or pick.'
+    );
+
+    return null;
+  }
+
+
+  var originalGetDraftAssistantState =
+    getDraftAssistantState;
+
+  var realState =
+    originalGetDraftAssistantState();
+
+  var teams =
+    Number(realState.teams) || 10;
+
+
+  /*
+   * Temporarily simulate the requested current pick.
+   */
+
+  getDraftAssistantState =
+    function() {
+
+      var simulatedState =
+        Object.assign(
+          {},
+          realState
+        );
+
+      simulatedState.currentPick =
+        pick;
+
+      simulatedState.myNextPick =
+        pick;
+
+      simulatedState.onClock =
+        true;
+
+      simulatedState.picksUntilMyTurn =
+        0;
+
+      return simulatedState;
+
+    };
+
+
+  var result = null;
+
+
+  try {
+
+    result =
+      draftEngineWithSimulatedPriorPicks(
+        pick,
+        function() {
+
+          var state =
+            buildLiveDraftDebugState();
+
+          var player =
+            state.players.find(function(candidate) {
+
+              return candidate &&
+                candidate.name &&
+                candidate.name.toLowerCase() ===
+                  String(playerName).toLowerCase();
+
+            });
+
+
+          if (!player) {
+
+            console.warn(
+              'OPPONENT THREAT AT PICK: Player not found:',
+              playerName
+            );
+
+            return null;
+          }
+
+
+          var details =
+            getOpponentDraftThreatDetails(
+              player,
+              state.context
+            );
+
+
+          console.group(
+            'OPPONENT THREAT AT PICK ' +
+            pick +
+            ' — ' +
+            player.name
+          );
+
+
+          console.log(
+            'Window:',
+            {
+              currentPick:
+                details.currentPick,
+
+              nextPick:
+                details.nextPick,
+
+              picksBetween:
+                details.picksBetween,
+
+              position:
+                details.position,
+
+              overallThreat:
+                details.overallThreat
+            }
+          );
+
+
+          console.table(
+            details.teams
+          );
+
+
+          console.groupEnd();
+
+
+          return {
+            state:
+              state,
+
+            player:
+              player,
+
+            details:
+              details
+          };
+
+        }
+      );
+
+  } finally {
+
+    getDraftAssistantState =
+      originalGetDraftAssistantState;
+
+  }
+
+
+  return result;
+}
+
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 
 // ==== REAL-TIME DRAFT POSITION & PICK COUNTER ====
