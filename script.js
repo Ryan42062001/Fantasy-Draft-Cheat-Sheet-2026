@@ -9695,12 +9695,236 @@ function analyzeLiveDraftRecommendations(liveResult) {
   return warnings;
 }
 
-LIVE DRAFT SANITY WARNINGS
-script.js:9688 
-(index)
-player
-type
-message
-0	'omarion hampton'	'ALTERNATIVE CONCENTRATION'	'omarion hampton is the next-best alternative for 10 of 10 top candidates.'
-1	'ALL'	'RECOMMENDATION CONCENTRATION'	'Every displayed player received DRAFT. This may indicate overly aggressive thresholds.'
-Array(2)
+function runLiveDraftScenario(pick) {
+
+  pick =
+    Number(pick) || 0;
+
+  if (pick <= 0) {
+
+    console.warn(
+      'LIVE DRAFT SCENARIO: Invalid pick.',
+      pick
+    );
+
+    return null;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * SAVE CURRENT DRAFT STATE
+   * -------------------------------------------------------
+   *
+   * We temporarily simulate another current pick,
+   * run the live engine, then restore the real state.
+   */
+
+  var originalGetDraftAssistantState =
+    getDraftAssistantState;
+
+
+  /*
+   * -------------------------------------------------------
+   * BUILD SIMULATED STATE
+   * -------------------------------------------------------
+   */
+
+  var realState =
+    originalGetDraftAssistantState();
+
+  var teams =
+    Number(realState.teams) || 10;
+
+  var draftWindow =
+    calculateMyNextDraftPick(
+      pick,
+      teams
+    );
+
+
+  /*
+   * Temporarily override the state getter so every
+   * draft-aware function sees the simulated pick.
+   */
+
+  getDraftAssistantState =
+    function() {
+
+      var simulatedState =
+        Object.assign(
+          {},
+          realState
+        );
+
+      simulatedState.currentPick =
+        pick;
+
+      simulatedState.myNextPick =
+        pick;
+
+      simulatedState.onClock =
+        true;
+
+      simulatedState.picksUntilMyTurn =
+        0;
+
+      return simulatedState;
+
+    };
+
+
+  var liveResult = null;
+  var warnings = [];
+
+
+  try {
+
+    /*
+     * -------------------------------------------------------
+     * RUN REAL LIVE ENGINE
+     * -------------------------------------------------------
+     */
+
+    liveResult =
+      runLiveDraftRecommendationTests();
+
+
+    /*
+     * -------------------------------------------------------
+     * SANITY ANALYSIS
+     * -------------------------------------------------------
+     */
+
+    warnings =
+      analyzeLiveDraftRecommendations(
+        liveResult
+      );
+
+
+    /*
+     * -------------------------------------------------------
+     * SCENARIO SUMMARY
+     * -------------------------------------------------------
+     */
+
+    console.group(
+      'LIVE DRAFT SCENARIO — PICK ' + pick
+    );
+
+    console.log(
+      'Teams:',
+      teams
+    );
+
+    console.log(
+      'Current Pick:',
+      pick
+    );
+
+    console.log(
+      'Next Pick:',
+      draftWindow.nextPick
+    );
+
+    console.log(
+      'Picks Between:',
+      draftWindow.picksBetween
+    );
+
+
+    if (
+      liveResult &&
+      Array.isArray(
+        liveResult.recommendations
+      )
+    ) {
+
+      console.table(
+        liveResult.recommendations
+          .slice(0, 10)
+          .map(function(row) {
+
+            return {
+
+              name:
+                row.name,
+
+              position:
+                row.position,
+
+              rank:
+                row.rank,
+
+              score:
+                row.score,
+
+              recommendation:
+                row.recommendation,
+
+              confidence:
+                row.confidence,
+
+              nextBest:
+                row.nextBest,
+
+              scoreGap:
+                row.scoreGap
+
+            };
+
+          })
+      );
+
+    }
+
+
+    console.log(
+      'Warnings:',
+      warnings.length
+    );
+
+    console.groupEnd();
+
+  } finally {
+
+    /*
+     * -------------------------------------------------------
+     * ALWAYS RESTORE REAL DRAFT STATE
+     * -------------------------------------------------------
+     */
+
+    getDraftAssistantState =
+      originalGetDraftAssistantState;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * RETURN
+   * -------------------------------------------------------
+   */
+
+  return {
+
+    pick:
+      pick,
+
+    teams:
+      teams,
+
+    nextPick:
+      draftWindow.nextPick,
+
+    picksBetween:
+      draftWindow.picksBetween,
+
+    liveResult:
+      liveResult,
+
+    warnings:
+      warnings
+
+  };
+}
