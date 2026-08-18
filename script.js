@@ -8495,6 +8495,8 @@ function draftEngineTestDecisionContext(players, overrides) {
     replacements: replacements,
     teams: 10,
     currentPick: 1,
+    calculatedNextPick: 20,
+calculatedPicksUntilNext: 18,
     nextPick: 20,
     currentRank: 1,
     vorpMax: 100,
@@ -8618,7 +8620,12 @@ function runDraftEngineTests(options) {
 
     var safeSurvival = calculateNextPickSurvival(
       { name: 'Late Player', rank: 200, timingScore: 0 },
-      { currentPick: 1, calculatedNextPick: 20, currentRank: 1 }
+      {
+  currentPick: 1,
+  calculatedNextPick: 20,
+  calculatedPicksUntilNext: 18,
+  currentRank: 1
+}
     );
 
     var riskySurvival = calculateNextPickSurvival(
@@ -8634,13 +8641,38 @@ function runDraftEngineTests(options) {
       safeSurvival >= riskySurvival
     );
 
-    var scored = calculateDraftDecisionScore(
-      Object.assign({}, rbOne, {
-        vorp: 50,
-        scarcity: 40
-      }),
-      context
-    );
+    var realPlayers =
+  getDraftAssistantPlayers();
+
+var realRb =
+  realPlayers.find(function(player) {
+    return player &&
+      player.available &&
+      player.position === 'RB' &&
+      player.row;
+  });
+
+var scored =
+  realRb
+    ? calculateDraftDecisionScore(
+        Object.assign(
+          {},
+          realRb,
+          {
+            vorp: 50,
+            scarcity: 40
+          }
+        ),
+        Object.assign(
+          {},
+          context,
+          {
+            players:
+              realPlayers
+          }
+        )
+      )
+    : null;
 
     test.assert('Decision score returns a result', !!scored);
     test.between('Decision final score is finite', scored.finalScore, -1000, 1000);
