@@ -5524,8 +5524,10 @@ function calculateRecommendationDecision(
     };
   }
 
-  context =
-    context || {};
+  context = context || {};
+
+  var playerScore =
+    Number(player.finalScore) || 0;
 
   var gap =
     Number(scoreGap) || 0;
@@ -5536,11 +5538,8 @@ function calculateRecommendationDecision(
 
   /*
    * -------------------------------------------------------
-   * 1. PLAYER STRENGTH
+   * PLAYER STRENGTH
    * -------------------------------------------------------
-   *
-   * Strong underlying player metrics can justify
-   * a recommendation even when the score gap is modest.
    */
 
   var vorp =
@@ -5562,10 +5561,46 @@ function calculateRecommendationDecision(
       player.runOpportunityScore
     ) || 0;
 
+  var draftAware =
+    Number(
+      player.draftAwareVorpOpportunityScore
+    ) || 0;
+
+  var strategy =
+    Number(
+      player.strategyScore
+    ) || 0;
+
 
   /*
    * -------------------------------------------------------
-   * 2. DETERMINE WHETHER THIS IS A STRONG VALUE
+   * ALTERNATIVE VALUE
+   * -------------------------------------------------------
+   */
+
+  var alternativeRawScore =
+    alternative
+      ? Number(alternative.finalScore) || 0
+      : 0;
+
+  var alternativeSurvival =
+    alternative
+      ? Number(
+          alternative.nextPickSurvivalScore
+        ) || 0
+      : 0;
+
+  var alternativeAdjustedScore =
+    alternative
+      ? Number(
+          alternative.survivalAdjustedScore
+        ) || 0
+      : 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * VALUE / URGENCY FLAGS
    * -------------------------------------------------------
    */
 
@@ -5575,134 +5610,183 @@ function calculateRecommendationDecision(
       tier >= 90
     );
 
-
-  /*
-   * -------------------------------------------------------
-   * 3. DETERMINE WHETHER THERE IS URGENCY
-   * -------------------------------------------------------
-   */
+  var eliteValue =
+    (
+      vorp >= 90 &&
+      tier >= 90
+    );
 
   var urgent =
     (
       timing >= 70 ||
       cliff >= 5 ||
-      run >= 3
+      run >= 3 ||
+      draftAware >= 3
+    );
+
+  var strategicNeed =
+    strategy >= 3;
+
+
+  /*
+   * -------------------------------------------------------
+   * WAIT SAFETY
+   * -------------------------------------------------------
+   *
+   * A strong surviving alternative makes waiting safer.
+   */
+
+  var safeToWait =
+    (
+      alternative &&
+      alternativeSurvival >= 75 &&
+      alternativeAdjustedScore >=
+        (playerScore - 8)
     );
 
 
   /*
- * -------------------------------------------------------
- * 
- * -------------------------------------------------------
- */
+   * -------------------------------------------------------
+   * DRAFT URGENCY
+   * -------------------------------------------------------
+   *
+   * Waiting is dangerous when the alternative is weak
+   * or unlikely to survive.
+   */
 
-var recommendation =
-  'CONSIDER';
-
-
-/*
- * -------------------------------------------------------
- * PASS
- * -------------------------------------------------------
- *
- * A large negative score gap means the selected player
- * is clearly worse than the best available alternative.
- *
- * This takes priority over all positive player traits.
- */
-
-if (
-  gap <= -8
-) {
-
-  recommendation =
-    'PASS';
+  var dangerousToWait =
+    (
+      !alternative ||
+      alternativeSurvival <= 40 ||
+      alternativeAdjustedScore <=
+        (playerScore - 15)
+    );
 
 
-/*
- * Moderate negative gap.
- */
+  /*
+   * -------------------------------------------------------
+   * RECOMMENDATION
+   * -------------------------------------------------------
+   */
 
-} else if (
-  gap <= -4 &&
-  confidence >= 40
-) {
-
-  recommendation =
-    'PASS';
-
-
-/*
- * -------------------------------------------------------
- * DRAFT
- * -------------------------------------------------------
- */
-
-} else if (
-  gap >= 8 &&
-  confidence >= 70
-) {
-
-  recommendation =
-    'DRAFT';
-
-
-} else if (
-  gap >= 5 &&
-  confidence >= 60
-) {
-
-  recommendation =
-    'DRAFT';
-
-
-/*
- * -------------------------------------------------------
- * LEAN DRAFT
- * -------------------------------------------------------
- */
-
-} else if (
-  gap >= 3 &&
-  confidence >= 45
-) {
-
-  recommendation =
-    'LEAN DRAFT';
-
-
-} else if (
-  gap >= 2 &&
-  confidence >= 40 &&
-  urgent
-) {
-
-  recommendation =
-    'LEAN DRAFT';
-
-
-} else if (
-  gap >= 2 &&
-  strongValue &&
-  confidence >= 40
-) {
-
-  recommendation =
-    'LEAN DRAFT';
-
-
-/*
- * -------------------------------------------------------
- * CLOSE DECISION
- * -------------------------------------------------------
- */
-
-} else {
-
-  recommendation =
+  var recommendation =
     'CONSIDER';
 
-}
+
+  /*
+   * PASS
+   *
+   * Current player is clearly inferior.
+   */
+
+  if (
+    gap <= -8
+  ) {
+
+    recommendation =
+      'PASS';
+
+
+  } else if (
+    gap <= -4 &&
+    confidence >= 40 &&
+    !urgent
+  ) {
+
+    recommendation =
+      'PASS';
+
+
+  /*
+   * DRAFT
+   *
+   * Strong advantage or dangerous to wait.
+   */
+
+  } else if (
+    gap >= 8 &&
+    confidence >= 65
+  ) {
+
+    recommendation =
+      'DRAFT';
+
+
+  } else if (
+    gap >= 5 &&
+    confidence >= 55 &&
+    (
+      strongValue ||
+      urgent ||
+      dangerousToWait
+    )
+  ) {
+
+    recommendation =
+      'DRAFT';
+
+
+  } else if (
+    eliteValue &&
+    dangerousToWait &&
+    confidence >= 50
+  ) {
+
+    recommendation =
+      'DRAFT';
+
+
+  } else if (
+    strategicNeed &&
+    gap >= 3 &&
+    confidence >= 45
+  ) {
+
+    recommendation =
+      'DRAFT';
+
+
+  /*
+   * WAIT
+   *
+   * Current player is fine, but the next-pick option is
+   * good enough and likely enough to survive that forcing
+   * the pick is unnecessary.
+   */
+
+  } else if (
+    gap <= 3 &&
+    safeToWait &&
+    !urgent
+  ) {
+
+    recommendation =
+      'WAIT';
+
+
+  } else if (
+    gap < 0 &&
+    alternativeSurvival >= 65 &&
+    !urgent
+  ) {
+
+    recommendation =
+      'WAIT';
+
+
+  /*
+   * CONSIDER
+   *
+   * Close / ambiguous case.
+   */
+
+  } else {
+
+    recommendation =
+      'CONSIDER';
+
+  }
+
 
   return {
 
@@ -5718,47 +5802,32 @@ if (
     strongValue:
       strongValue,
 
+    eliteValue:
+      eliteValue,
+
     urgent:
-      urgent
+      urgent,
+
+    strategicNeed:
+      strategicNeed,
+
+    safeToWait:
+      safeToWait,
+
+    dangerousToWait:
+      dangerousToWait,
+
+    alternativeRawScore:
+      alternativeRawScore,
+
+    alternativeSurvival:
+      alternativeSurvival,
+
+    alternativeAdjustedScore:
+      alternativeAdjustedScore
 
   };
 }
-
-var DRAFT_DEBUG = {
-  sections: {},
-
-  reset: function() {
-    this.sections = {};
-  },
-
-  add: function(section, data) {
-    if (!this.sections[section]) {
-      this.sections[section] = [];
-    }
-
-    this.sections[section].push(data);
-  },
-
-  print: function() {
-
-    console.group(
-      '[DRAFT ENGINE DEBUG]'
-    );
-
-    Object.keys(this.sections).forEach(
-      function(section) {
-
-        console.log(
-          section,
-          this.sections[section]
-        );
-
-      }.bind(this)
-    );
-
-    console.groupEnd();
-  }
-};
 
 function draftDebugSection(title, data) {
 
