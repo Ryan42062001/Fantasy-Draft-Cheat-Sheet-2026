@@ -663,6 +663,73 @@ function getDraftedRosterByTeam(
   }
 
 
+  document
+    .querySelectorAll(
+      'tr.draftrow.drafted-other, ' +
+      'tr.draftrow.drafted-mine'
+    )
+    .forEach(function(row) {
+
+      var position =
+        row.getAttribute(
+          'data-pos'
+        );
+
+      var teamSlot =
+        Number(
+          row.getAttribute(
+            'data-team-slot'
+          )
+        ) || 0;
+
+
+      if (
+        !position ||
+        !teamSlot ||
+        !rosters[teamSlot] ||
+        rosters[teamSlot][position] === undefined
+      ) {
+        return;
+      }
+
+
+      rosters[
+        teamSlot
+      ][position]++;
+
+    });
+
+
+  return rosters;
+}
+
+function getDraftedRosterByTeam(
+  teams
+) {
+
+  teams =
+    Number(teams) || 10;
+
+  var rosters = {};
+
+  for (
+    var team = 1;
+    team <= teams;
+    team++
+  ) {
+
+    rosters[team] = {
+      QB: 0,
+      RB: 0,
+      WR: 0,
+      TE: 0,
+      K: 0,
+      DST: 0
+    };
+
+  }
+
+
   /*
    * Look at every drafted player row.
    *
