@@ -8333,3 +8333,434 @@ player.explanation.primaryReason +
   panel.innerHTML =
     html;
 }
+
+/* =========================================================
+   DEVELOPER-ONLY DRAFT ENGINE TEST HARNESS
+   ========================================================= */
+
+function draftEngineTestCreateRunner() {
+  var results = [];
+
+  function add(name, passed, error) {
+    results.push({
+      name: name,
+      passed: !!passed,
+      error: error || ''
+    });
+  }
+
+  return {
+    assert: function(name, condition, error) {
+      add(name, condition, condition ? '' : (error || 'Assertion returned false.'));
+    },
+
+    equal: function(name, actual, expected) {
+      add(
+        name,
+        actual === expected,
+        'Expected ' + expected + ', received ' + actual + '.'
+      );
+    },
+
+    between: function(name, value, min, max) {
+      add(
+        name,
+        Number.isFinite(value) && value >= min && value <= max,
+        'Expected ' + min + '–' + max + ', received ' + value + '.'
+      );
+    },
+
+    run: function(name, fn) {
+      try {
+        fn();
+      } catch (error) {
+        add(
+          name,
+          false,
+          error && error.message ? error.message : String(error)
+        );
+      }
+    },
+
+    summary: function() {
+      var passed = results.filter(function(result) {
+        return result.passed;
+      }).length;
+
+      return {
+        results: results,
+        passed: passed,
+        failed: results.length - passed,
+        total: results.length
+      };
+    }
+  };
+}
+
+function draftEngineTestWithQuietConsole(fn) {
+  var originalLog = console.log;
+  var originalGroup = console.group;
+  var originalGroupEnd = console.groupEnd;
+  var originalTable = console.table;
+
+  console.log = console.group = console.groupEnd = console.table = function() {};
+
+  try {
+    return fn();
+  } finally {
+    console.log = originalLog;
+    console.group = originalGroup;
+    console.groupEnd = originalGroupEnd;
+    console.table = originalTable;
+  }
+}
+
+function draftEngineTestPlayers() {
+  var players = [];
+
+  ['RB', 'WR', 'TE', 'QB'].forEach(function(position, positionIndex) {
+    for (var index = 1; index <= 30; index++) {
+      players.push({
+        name: position + ' Test ' + index,
+        position: position,
+        rank: (index * 4) + positionIndex,
+        available: true,
+        tier: index <= 5 ? 'Sp' : (index <= 12 ? 'S' : 'A')
+      });
+    }
+  });
+
+  return players.sort(function(a, b) {
+    return a.rank - b.rank;
+  });
+}
+
+function draftEngineTestWithRoster(positions, fn) {
+  var rows = Array.prototype.slice.call(
+    document.querySelectorAll('tr.draftrow')
+  );
+
+  var originalClasses = rows.map(function(row) {
+    return row.className;
+  });
+
+  var byPosition = {};
+
+  rows.forEach(function(row) {
+    var position = row.getAttribute('data-pos');
+
+    if (!byPosition[position]) {
+      byPosition[position] = [];
+    }
+
+    byPosition[position].push(row);
+    row.classList.remove('drafted-mine', 'drafted-other');
+  });
+
+  try {
+    (positions || []).forEach(function(position) {
+      var row = (byPosition[position] || []).shift();
+
+      if (row) {
+        row.classList.add('drafted-mine');
+      }
+    });
+
+    return fn();
+  } finally {
+    rows.forEach(function(row, index) {
+      row.className = originalClasses[index];
+    });
+  }
+}
+
+function draftEngineTestDecisionContext(players, overrides) {
+  var available = players.filter(function(player) {
+    return player.available !== false;
+  });
+
+  var replacements = {};
+
+  ['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
+    replacements[position] = available
+      .filter(function(player) {
+        return player.position === position;
+      })
+      .slice(-1)[0];
+  });
+
+  return Object.assign({
+    players: available,
+    availablePlayers: available,
+    replacements: replacements,
+    teams: 10,
+    currentPick: 1,
+    nextPick: 20,
+    currentRank: 1,
+    vorpMax: 100,
+    rosterNeeds: {
+      QB: 1,
+      RB: 2,
+      WR: 2,
+      TE: 1,
+      FLEX: 1
+    },
+    strategy: {
+      targetPosition: 'RB'
+    },
+    draftRuns: {
+      isRun: false
+    },
+    tierCliffs: {}
+  }, overrides || {});
+}
+
+function runDraftEngineTests(options) {
+  options = options || {};
+
+  var test = draftEngineTestCreateRunner();
+  var players = draftEngineTestPlayers();
+
+  var rbPlayers = players.filter(function(player) {
+    return player.position === 'RB';
+  });
+
+  var rbOne = rbPlayers[0];
+  var rbReplacement = rbPlayers[12];
+
+  var context = draftEngineTestDecisionContext(players, {
+    replacements: {
+      RB: rbReplacement,
+      WR: players.filter(function(player) {
+        return player.position === 'WR';
+      })[12],
+      TE: players.filter(function(player) {
+        return player.position === 'TE';
+      })[12],
+      QB: players.filter(function(player) {
+        return player.position === 'QB';
+      })[12]
+    }
+  });
+
+  draftEngineTestWithQuietConsole(function() {
+    test.equal(
+      'Tier cliff: missing context returns 0',
+      calculateTierCliffOpportunity(rbOne, {}),
+      0
+    );
+
+    var cliff = {
+      RB: {
+        severity: 'HIGH',
+        beforePlayer: rbOne,
+        afterPlayer: rbReplacement
+      }
+    };
+
+    test.equal(
+      'Tier cliff: high cliff awards 5',
+      calculateTierCliffOpportunity(rbOne, { tierCliffs: cliff }),
+      5
+    );
+
+    test.equal(
+      'Tier cliff: non-cliff player awards 0',
+      calculateTierCliffOpportunity(rbReplacement, { tierCliffs: cliff }),
+      0
+    );
+
+    var runContext = {
+      draftRuns: {
+        isRun: true,
+        position: 'WR',
+        strength: 'STRONG'
+      },
+      rosterNeeds: {
+        RB: 1,
+        WR: 1,
+        FLEX: 0
+      }
+    };
+
+    test.equal(
+      'Draft run: same-position player awards 0',
+      calculateDraftRunOpportunity({ position: 'WR' }, runContext),
+      0
+    );
+
+    test.equal(
+      'Draft run: needed alternate position awards 3',
+      calculateDraftRunOpportunity({ position: 'RB' }, runContext),
+      3
+    );
+
+    var draftAware = calculateDraftAwareVorpOpportunity(rbOne, context);
+
+    test.between(
+      'Draft-aware VORP stays in range',
+      draftAware,
+      0,
+      5
+    );
+
+    test.assert(
+      'Draft-aware VORP rewards player above replacement',
+      draftAware > 0,
+      'Expected a positive wait-risk bonus.'
+    );
+
+    test.equal(
+      'Draft-aware VORP: missing replacements returns 0',
+      calculateDraftAwareVorpOpportunity(rbOne, { players: players }),
+      0
+    );
+
+    var safeSurvival = calculateNextPickSurvival(
+      { name: 'Late Player', rank: 200, timingScore: 0 },
+      { currentPick: 1, calculatedNextPick: 20, currentRank: 1 }
+    );
+
+    var riskySurvival = calculateNextPickSurvival(
+      { name: 'Early Player', rank: 1, timingScore: 100 },
+      { currentPick: 1, calculatedNextPick: 20, currentRank: 1 }
+    );
+
+    test.between('Late-player survival is 0–100', safeSurvival, 0, 100);
+    test.between('Early-player survival is 0–100', riskySurvival, 0, 100);
+
+    test.assert(
+      'Late player is no less likely to survive',
+      safeSurvival >= riskySurvival
+    );
+
+    var scored = calculateDraftDecisionScore(
+      Object.assign({}, rbOne, {
+        vorp: 50,
+        scarcity: 40
+      }),
+      context
+    );
+
+    test.assert('Decision score returns a result', !!scored);
+    test.between('Decision final score is finite', scored.finalScore, -1000, 1000);
+    test.between('Decision tier score is 0–100', scored.tierScore, 0, 100);
+    test.between('Decision rank score is 0–100', scored.rankScore, 0, 100);
+
+    var recommendationPlayers = [
+      {
+        name: 'Alpha',
+        position: 'RB',
+        rank: 1,
+        finalScore: 90,
+        tierScore: 95,
+        vorpScore: 90,
+        timingScore: 10,
+        scarcityScore: 30,
+        rosterNeedScore: 2,
+        available: true
+      },
+      {
+        name: 'Beta',
+        position: 'WR',
+        rank: 8,
+        finalScore: 85,
+        tierScore: 80,
+        vorpScore: 70,
+        timingScore: 10,
+        scarcityScore: 30,
+        rosterNeedScore: 2,
+        available: true
+      }
+    ];
+
+    var recommendation = calculateDraftRecommendation(
+      recommendationPlayers[0],
+      recommendationPlayers,
+      {
+        teams: 10,
+        currentPick: 1,
+        nextPick: 20,
+        currentRank: 1
+      }
+    );
+
+    test.assert(
+      'Recommendation returns decision text',
+      !!(recommendation && recommendation.recommendation)
+    );
+
+    test.assert(
+      'Recommendation returns finite confidence',
+      Number.isFinite(recommendation && recommendation.confidenceScore)
+    );
+  });
+
+  var scenarios = [
+    { name: 'empty-roster', roster: [], expectedNeed: 'RB' },
+    { name: 'rb-need', roster: ['QB', 'WR', 'WR', 'TE'], expectedNeed: 'RB' },
+    { name: 'wr-need', roster: ['QB', 'RB', 'RB', 'TE'], expectedNeed: 'WR' },
+    {
+      name: 'balanced-roster',
+      roster: ['QB', 'RB', 'RB', 'RB', 'WR', 'WR', 'TE'],
+      expectedNeed: null
+    }
+  ];
+
+  scenarios
+    .filter(function(scenario) {
+      return !options.scenario || options.scenario === scenario.name;
+    })
+    .forEach(function(scenario) {
+      draftEngineTestWithRoster(scenario.roster, function() {
+        var strategy = calculateDraftStrategy();
+
+        if (scenario.expectedNeed) {
+          test.assert(
+            'Scenario: ' + scenario.name + ' targets ' + scenario.expectedNeed,
+            strategy.targetPosition === scenario.expectedNeed,
+            'Received ' + strategy.targetPosition + '.'
+          );
+        } else {
+          test.assert(
+            'Scenario: balanced roster fills dedicated starters',
+            strategy.needs.QB === 0 &&
+            strategy.needs.RB === 0 &&
+            strategy.needs.WR === 0 &&
+            strategy.needs.TE === 0
+          );
+        }
+      });
+    });
+
+  var summary = test.summary();
+
+  console.group('DRAFT ENGINE TEST SUITE');
+  console.log(
+    'Result: ' +
+    summary.passed +
+    ' passed, ' +
+    summary.failed +
+    ' failed (' +
+    summary.total +
+    ' total)'
+  );
+
+  summary.results.forEach(function(result) {
+    console.log(
+      (result.passed ? '✓ ' : '✗ ') +
+      result.name +
+      (result.error ? ' — ' + result.error : '')
+    );
+  });
+
+  console.groupEnd();
+
+  return summary;
+}
+
+function runDraftEngineScenario(name) {
+  return runDraftEngineTests({
+    scenario: name
+  });
+}
