@@ -756,6 +756,216 @@ function calculateOpponentRosterNeeds(
   };
 }
 
+function calculateOpponentPositionDemand(
+  roster,
+  position
+) {
+
+  roster =
+    roster || {};
+
+  position =
+    position || null;
+
+  if (
+    !position ||
+    !['QB', 'RB', 'WR', 'TE'].includes(position)
+  ) {
+    return 0;
+  }
+
+
+  var qbSlots =
+    Number(ROSTER_SLOTS.QB) || 1;
+
+  var rbSlots =
+    Number(ROSTER_SLOTS.RB) || 2;
+
+  var wrSlots =
+    Number(ROSTER_SLOTS.WR) || 2;
+
+  var teSlots =
+    Number(ROSTER_SLOTS.TE) || 1;
+
+  var flexSlots =
+    Number(ROSTER_SLOTS.FLEX) || 1;
+
+
+  var counts = {
+    QB:
+      Number(roster.QB) || 0,
+
+    RB:
+      Number(roster.RB) || 0,
+
+    WR:
+      Number(roster.WR) || 0,
+
+    TE:
+      Number(roster.TE) || 0
+  };
+
+
+  /*
+   * -------------------------------------------------------
+   * QB
+   * -------------------------------------------------------
+   *
+   * QB does not normally qualify for FLEX.
+   */
+
+  if (position === 'QB') {
+
+    if (counts.QB < qbSlots) {
+      return 3;
+    }
+
+    if (counts.QB === qbSlots) {
+      return 0;
+    }
+
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * DEDICATED STARTER NEED
+   * -------------------------------------------------------
+   */
+
+  var requiredSlots = {
+    RB: rbSlots,
+    WR: wrSlots,
+    TE: teSlots
+  };
+
+  if (
+    counts[position] <
+    requiredSlots[position]
+  ) {
+
+    var missing =
+      requiredSlots[position] -
+      counts[position];
+
+    /*
+     * Missing multiple dedicated starters
+     * = strongest demand.
+     */
+
+    if (missing >= 2) {
+      return 3;
+    }
+
+    /*
+     * Missing one dedicated starter.
+     */
+
+    return 2;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * FLEX / DEPTH DEMAND
+   * -------------------------------------------------------
+   *
+   * Once dedicated starters are filled, RB/WR/TE
+   * can still be attractive for FLEX.
+   */
+
+  var dedicatedRB =
+    Math.min(
+      counts.RB,
+      rbSlots
+    );
+
+  var dedicatedWR =
+    Math.min(
+      counts.WR,
+      wrSlots
+    );
+
+  var dedicatedTE =
+    Math.min(
+      counts.TE,
+      teSlots
+    );
+
+  var dedicatedEligible =
+    dedicatedRB +
+    dedicatedWR +
+    dedicatedTE;
+
+  var totalEligible =
+    counts.RB +
+    counts.WR +
+    counts.TE;
+
+  var flexFilled =
+    Math.max(
+      0,
+      totalEligible -
+      dedicatedEligible
+    );
+
+  var flexNeed =
+    Math.max(
+      0,
+      flexSlots -
+      flexFilled
+    );
+
+
+  if (flexNeed > 0) {
+
+    /*
+     * RB and WR should get stronger FLEX demand
+     * than TE because they are usually deeper
+     * and more commonly used in FLEX.
+     */
+
+    if (
+      position === 'RB' ||
+      position === 'WR'
+    ) {
+      return 1;
+    }
+
+    if (position === 'TE') {
+      return 0.5;
+    }
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * BENCH / DEPTH DEMAND
+   * -------------------------------------------------------
+   *
+   * Keep this low. This is only a soft threat.
+   */
+
+  if (
+    position === 'RB' ||
+    position === 'WR'
+  ) {
+
+    if (
+      counts[position] <=
+      requiredSlots[position] + 1
+    ) {
+      return 0.5;
+    }
+
+  }
+
+
+  return 0;
+}
+
 function getDraftedRosterByTeam(
   teams
 ) {
@@ -971,8 +1181,14 @@ function calculateOpponentDraftThreat(
       return;
     }
 
-    var positionNeed =
-      Number(needs[position]) || 0;
+var roster =
+  opponentData.rosters[teamSlot] || {};
+
+var positionDemand =
+  calculateOpponentPositionDemand(
+    roster,
+    position
+  );
 
 
     /*
@@ -981,7 +1197,7 @@ function calculateOpponentDraftThreat(
      */
 
     maxThreatPoints +=
-      pickCount * 2;
+      pickCount * 3;
 
 
     /*
@@ -992,17 +1208,9 @@ function calculateOpponentDraftThreat(
      * Need 0 = low direct threat
      */
 
-    if (positionNeed >= 2) {
-
-      threatPoints +=
-        pickCount * 2;
-
-    } else if (positionNeed === 1) {
-
-      threatPoints +=
-        pickCount * 1;
-
-    }
+threatPoints +=
+  pickCount *
+  positionDemand;
 
   });
 
