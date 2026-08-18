@@ -894,6 +894,150 @@ function getOpponentNeedsByTeam(
   };
 }
 
+function calculateOpponentDraftThreat(
+  player,
+  context
+) {
+
+  if (!player) {
+    return 0;
+  }
+
+  context =
+    context || {};
+
+  var position =
+    player.position ||
+    player.pos ||
+    null;
+
+  if (
+    !position ||
+    !['QB', 'RB', 'WR', 'TE'].includes(position)
+  ) {
+    return 0;
+  }
+
+  var teams =
+    Number(context.teams) || 10;
+
+  var currentPick =
+    Number(context.currentPick) || 0;
+
+  var nextPick =
+    Number(
+      context.calculatedNextPick ||
+      context.nextPick
+    ) || 0;
+
+  if (
+    currentPick <= 0 ||
+    nextPick <= currentPick
+  ) {
+    return 0;
+  }
+
+
+  var window =
+    getTeamsPickingBeforeMyNextTurn(
+      currentPick,
+      nextPick,
+      teams
+    );
+
+  var opponentData =
+    getOpponentNeedsByTeam(
+      teams
+    );
+
+
+  var threatPoints = 0;
+  var maxThreatPoints = 0;
+
+
+  Object.keys(
+    window.teamPickCounts
+  ).forEach(function(teamSlot) {
+
+    var pickCount =
+      Number(
+        window.teamPickCounts[teamSlot]
+      ) || 0;
+
+    var needs =
+      opponentData.needs[teamSlot];
+
+    if (!needs) {
+      return;
+    }
+
+    var positionNeed =
+      Number(needs[position]) || 0;
+
+
+    /*
+     * Each opportunity that opponent has to draft
+     * before our next turn adds exposure.
+     */
+
+    maxThreatPoints +=
+      pickCount * 2;
+
+
+    /*
+     * Dedicated need:
+     *
+     * Need 2 = strong threat
+     * Need 1 = moderate threat
+     * Need 0 = low direct threat
+     */
+
+    if (positionNeed >= 2) {
+
+      threatPoints +=
+        pickCount * 2;
+
+    } else if (positionNeed === 1) {
+
+      threatPoints +=
+        pickCount * 1;
+
+    }
+
+  });
+
+
+  if (maxThreatPoints <= 0) {
+    return 0;
+  }
+
+
+  /*
+   * Convert to 0–100.
+   */
+
+  var threatScore =
+    (
+      threatPoints /
+      maxThreatPoints
+    ) * 100;
+
+
+  threatScore =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        threatScore
+      )
+    );
+
+
+  return Math.round(
+    threatScore
+  );
+}
+
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 
 // ==== REAL-TIME DRAFT POSITION & PICK COUNTER ====
