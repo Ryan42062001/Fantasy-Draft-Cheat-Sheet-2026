@@ -10140,6 +10140,11 @@ liveResult =
 warnings =
   simulatedOutput.warnings;
 
+var primaryRecommendation =
+  getPrimaryDraftRecommendation(
+    liveResult
+  );
+
 
     /*
      * -------------------------------------------------------
@@ -10264,6 +10269,9 @@ warnings =
 
     warnings:
       warnings
+
+    primaryRecommendation:
+  primaryRecommendation,
 
   };
 }
