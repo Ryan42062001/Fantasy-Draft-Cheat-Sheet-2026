@@ -5831,7 +5831,13 @@ function calculateRecommendationDecision(
 
 function draftDebugSection(title, data) {
 
-  DRAFT_DEBUG.reset();
+  if (
+    typeof DRAFT_DEBUG !== 'undefined' &&
+    DRAFT_DEBUG &&
+    typeof DRAFT_DEBUG.reset === 'function'
+  ) {
+    DRAFT_DEBUG.reset();
+  }
 
   console.group('[DRAFT ENGINE] ' + title);
 
