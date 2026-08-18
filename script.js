@@ -9695,6 +9695,330 @@ function analyzeLiveDraftRecommendations(liveResult) {
   return warnings;
 }
 
+function getPrimaryDraftRecommendation(
+  liveResult
+) {
+
+  if (
+    !liveResult ||
+    !liveResult.state ||
+    !Array.isArray(liveResult.state.scored) ||
+    !liveResult.state.scored.length
+  ) {
+
+    console.warn(
+      'PRIMARY PICK: No scored players available.'
+    );
+
+    return null;
+  }
+
+  var state =
+    liveResult.state;
+
+  var scored =
+    state.scored;
+
+  var context =
+    state.context;
+
+
+  /*
+   * -------------------------------------------------------
+   * TOP CURRENT PLAYERS
+   * -------------------------------------------------------
+   */
+
+  var primaryPlayer =
+    scored[0] || null;
+
+  var secondPlayer =
+    scored[1] || null;
+
+  var thirdPlayer =
+    scored[2] || null;
+
+
+  if (!primaryPlayer) {
+    return null;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT-PLAYER GAPS
+   * -------------------------------------------------------
+   *
+   * These are different from the next-pick score gap.
+   *
+   * This answers:
+   *
+   * "How much better is my #1 option RIGHT NOW
+   * than my #2 option RIGHT NOW?"
+   */
+
+  var primaryScore =
+    Number(
+      primaryPlayer.finalScore
+    ) || 0;
+
+  var secondScore =
+    secondPlayer
+      ? Number(
+          secondPlayer.finalScore
+        ) || 0
+      : 0;
+
+  var thirdScore =
+    thirdPlayer
+      ? Number(
+          thirdPlayer.finalScore
+        ) || 0
+      : 0;
+
+  var gapToSecond =
+    secondPlayer
+      ? primaryScore - secondScore
+      : 0;
+
+  var gapToThird =
+    thirdPlayer
+      ? primaryScore - thirdScore
+      : 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * GET PRIMARY PLAYER'S WAITING DECISION
+   * -------------------------------------------------------
+   */
+
+  context.currentRank =
+    Number(
+      primaryPlayer.rank
+    ) || 999;
+
+  var recommendation =
+    calculateDraftRecommendation(
+      primaryPlayer,
+      scored,
+      context
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * DETERMINE HOW CLOSE #2 IS
+   * -------------------------------------------------------
+   */
+
+  var alternativeLabel =
+    'CLEAR SECOND';
+
+  if (gapToSecond <= 1) {
+
+    alternativeLabel =
+      'NEAR TIE';
+
+  } else if (gapToSecond <= 3) {
+
+    alternativeLabel =
+      'CLOSE ALTERNATIVE';
+
+  } else if (gapToSecond <= 6) {
+
+    alternativeLabel =
+      'SECONDARY OPTION';
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * PRIMARY PICK CONFIDENCE
+   * -------------------------------------------------------
+   *
+   * This measures confidence in WHO to draft,
+   * not merely whether the player should be drafted now.
+   */
+
+  var pickConfidence =
+    'LOW';
+
+  if (gapToSecond >= 8) {
+
+    pickConfidence =
+      'VERY HIGH';
+
+  } else if (gapToSecond >= 5) {
+
+    pickConfidence =
+      'HIGH';
+
+  } else if (gapToSecond >= 2) {
+
+    pickConfidence =
+      'MODERATE';
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * OUTPUT
+   * -------------------------------------------------------
+   */
+
+  console.group(
+    'PRIMARY DRAFT RECOMMENDATION'
+  );
+
+  console.log(
+    'Draft Window:',
+    {
+      currentPick:
+        state.draftState.currentPick,
+
+      nextPick:
+        state.draftWindow.nextPick,
+
+      picksBetween:
+        state.draftWindow.picksBetween
+    }
+  );
+
+
+  console.table([
+    {
+      role:
+        'PRIMARY',
+
+      name:
+        primaryPlayer.name,
+
+      position:
+        primaryPlayer.position,
+
+      rank:
+        primaryPlayer.rank,
+
+      score:
+        primaryScore.toFixed(1),
+
+      recommendation:
+        recommendation
+          ? recommendation.recommendation
+          : 'N/A'
+    },
+
+    secondPlayer
+      ? {
+          role:
+            alternativeLabel,
+
+          name:
+            secondPlayer.name,
+
+          position:
+            secondPlayer.position,
+
+          rank:
+            secondPlayer.rank,
+
+          score:
+            secondScore.toFixed(1),
+
+          recommendation:
+            ''
+        }
+      : null,
+
+    thirdPlayer
+      ? {
+          role:
+            'THIRD',
+
+          name:
+            thirdPlayer.name,
+
+          position:
+            thirdPlayer.position,
+
+          rank:
+            thirdPlayer.rank,
+
+          score:
+            thirdScore.toFixed(1),
+
+          recommendation:
+            ''
+        }
+      : null
+
+  ].filter(Boolean));
+
+
+  console.log(
+    'Gap to #2:',
+    gapToSecond.toFixed(1)
+  );
+
+  console.log(
+    'Gap to #3:',
+    gapToThird.toFixed(1)
+  );
+
+  console.log(
+    'Primary Pick Confidence:',
+    pickConfidence
+  );
+
+  console.log(
+    'Wait-vs-Draft Recommendation:',
+    recommendation
+      ? recommendation.recommendation
+      : 'N/A'
+  );
+
+  console.log(
+    'Best projected next-pick option:',
+    recommendation
+      ? recommendation.nextBest
+      : null
+  );
+
+  console.groupEnd();
+
+
+  return {
+
+    primary:
+      primaryPlayer,
+
+    second:
+      secondPlayer,
+
+    third:
+      thirdPlayer,
+
+    gapToSecond:
+      gapToSecond,
+
+    gapToThird:
+      gapToThird,
+
+    alternativeLabel:
+      alternativeLabel,
+
+    pickConfidence:
+      pickConfidence,
+
+    recommendation:
+      recommendation
+
+  };
+}
+
 function runLiveDraftScenario(pick) {
 
   pick =
