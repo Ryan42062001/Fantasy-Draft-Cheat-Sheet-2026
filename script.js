@@ -12222,6 +12222,19 @@ function draftEngineWithSimulatedPriorPicks(
       return row.className;
     });
 
+  var originalPickAttributes =
+  rows.map(function(row) {
+
+    return {
+      pick:
+        row.getAttribute('data-pick'),
+
+      teamSlot:
+        row.getAttribute('data-team-slot')
+    };
+
+  });
+
 
   /*
    * -------------------------------------------------------
@@ -12273,26 +12286,56 @@ function draftEngineWithSimulatedPriorPicks(
    * Pick 11 means picks 1–10 have already happened.
    */
 
-  var playersToRemove =
-    Math.max(
-      0,
-      pick - 1
+ var playersToRemove =
+  Math.max(
+    0,
+    pick - 1
+  );
+
+var teams =
+  Number(
+    getDraftAssistantState().teams
+  ) || 10;
+
+players
+  .slice(0, playersToRemove)
+  .forEach(function(player, index) {
+
+    if (!player.row) {
+      return;
+    }
+
+    var simulatedPick =
+      index + 1;
+
+    var mapping =
+      getSnakeDraftTeamForPick(
+        simulatedPick,
+        teams
+      );
+
+    player.row.classList.add(
+      'drafted-other'
     );
 
+    player.row.setAttribute(
+      'data-pick',
+      simulatedPick
+    );
 
-  players
-    .slice(0, playersToRemove)
-    .forEach(function(player) {
+    if (
+      mapping &&
+      mapping.teamSlot
+    ) {
 
-      if (player.row) {
+      player.row.setAttribute(
+        'data-team-slot',
+        mapping.teamSlot
+      );
 
-        player.row.classList.add(
-          'drafted-other'
-        );
+    }
 
-      }
-
-    });
+  });
 
 
   try {
@@ -12311,6 +12354,40 @@ function draftEngineWithSimulatedPriorPicks(
 
       row.className =
         originalClasses[index];
+
+      var original =
+  originalPickAttributes[index];
+
+if (original.pick !== null) {
+
+  row.setAttribute(
+    'data-pick',
+    original.pick
+  );
+
+} else {
+
+  row.removeAttribute(
+    'data-pick'
+  );
+
+}
+
+
+if (original.teamSlot !== null) {
+
+  row.setAttribute(
+    'data-team-slot',
+    original.teamSlot
+  );
+
+} else {
+
+  row.removeAttribute(
+    'data-team-slot'
+  );
+
+}
 
     });
 
