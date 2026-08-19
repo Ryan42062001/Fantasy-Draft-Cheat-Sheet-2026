@@ -7496,6 +7496,214 @@ function calculateNextPickAlternatives(
   return alternatives;
 }
 
+function calculateFuturePositionDepth(
+  player,
+  context
+) {
+
+  if (!player) {
+    return 0;
+  }
+
+  context =
+    context || {};
+
+  var position =
+    player.position ||
+    player.pos ||
+    null;
+
+  if (
+    !position ||
+    !['QB', 'RB', 'WR', 'TE'].includes(position)
+  ) {
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * PLAYER POOL
+   * -------------------------------------------------------
+   */
+
+  var players =
+    context.players ||
+    context.availablePlayers ||
+    [];
+
+  if (!players.length) {
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * NEXT PICK WINDOW
+   * -------------------------------------------------------
+   */
+
+  var currentPick =
+    Number(context.currentPick) || 0;
+
+  var teams =
+    Number(context.teams) || 10;
+
+  var draftWindow =
+    calculateMyNextDraftPick(
+      currentPick,
+      teams
+    );
+
+  var nextPick =
+    Number(
+      context.calculatedNextPick ||
+      context.nextPick ||
+      draftWindow.nextPick
+    ) || 0;
+
+  if (!nextPick) {
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * AVAILABLE PLAYERS AT THIS POSITION
+   * -------------------------------------------------------
+   */
+
+  var positionPool =
+    players
+      .filter(function(candidate) {
+
+        return candidate &&
+          candidate.available !== false &&
+          (
+            candidate.position ||
+            candidate.pos
+          ) === position &&
+          candidate.name !== player.name &&
+          candidate.rank;
+
+      })
+      .slice()
+      .sort(function(a, b) {
+
+        return (
+          Number(a.rank) -
+          Number(b.rank)
+        );
+
+      });
+
+
+  if (!positionPool.length) {
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * PROJECT LIKELY SURVIVORS
+   * -------------------------------------------------------
+   *
+   * Run the existing survival model against players
+   * from the same position.
+   */
+
+  var projected =
+    positionPool.map(function(candidate) {
+
+      var candidateForSurvival =
+        Object.assign(
+          {},
+          candidate
+        );
+
+      var survival =
+        calculateNextPickSurvival(
+          candidateForSurvival,
+          Object.assign(
+            {},
+            context,
+            {
+              calculatedNextPick:
+                nextPick,
+
+              currentRank:
+                Number(player.rank) || 999
+            }
+          )
+        );
+
+      return {
+        player:
+          candidate,
+
+        survival:
+          survival
+      };
+
+    });
+
+
+  /*
+   * Players with at least a 50% chance to make it back
+   * count as realistic future depth.
+   */
+
+  var likelySurvivors =
+    projected.filter(function(item) {
+
+      return (
+        Number(item.survival) >= 50
+      );
+
+    });
+
+
+  /*
+   * -------------------------------------------------------
+   * DEPTH SCORE
+   * -------------------------------------------------------
+   *
+   * 0  = almost nothing usable likely survives
+   * 100 = several viable options should remain
+   */
+
+  var depthScore = 0;
+
+  if (likelySurvivors.length >= 5) {
+
+    depthScore = 100;
+
+  } else if (likelySurvivors.length === 4) {
+
+    depthScore = 85;
+
+  } else if (likelySurvivors.length === 3) {
+
+    depthScore = 70;
+
+  } else if (likelySurvivors.length === 2) {
+
+    depthScore = 50;
+
+  } else if (likelySurvivors.length === 1) {
+
+    depthScore = 25;
+
+  } else {
+
+    depthScore = 0;
+
+  }
+
+
+  return depthScore;
+}
+
 function calculateNextPickSurvival(
   candidate,
   context
@@ -10195,6 +10403,37 @@ test.equal(
     'RB'
   ),
   0.5
+);
+
+    test.between(
+  'Future depth: result stays 0–100',
+  calculateFuturePositionDepth(
+    rbOne,
+    context
+  ),
+  0,
+  100
+);
+
+test.equal(
+  'Future depth: missing player returns 0',
+  calculateFuturePositionDepth(
+    null,
+    context
+  ),
+  0
+);
+
+test.equal(
+  'Future depth: missing player pool returns 0',
+  calculateFuturePositionDepth(
+    rbOne,
+    {
+      teams: 10,
+      currentPick: 1
+    }
+  ),
+  0
 );
 
     test.equal(
