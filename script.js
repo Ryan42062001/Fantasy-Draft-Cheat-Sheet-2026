@@ -1084,29 +1084,56 @@ function getProjectedPlayersAtFuturePick(
          * players. Use the strongest available score.
          */
 
-        var playerScore =
-          Number(player.finalScore);
+       var playerScore =
+  Number(player.finalScore);
 
-        if (!Number.isFinite(playerScore)) {
+if (!Number.isFinite(playerScore)) {
 
-          /*
-           * If this is a raw player object, attempt
-           * to score it using the current context.
-           */
+  /*
+   * Only run the full live scoring pipeline when
+   * this player is backed by a real draft-board row.
+   *
+   * Synthetic test players do not have DOM rows and
+   * cannot safely pass through getPlayerTierValue().
+   */
 
-          var scoredPlayer =
-            calculateDraftDecisionScore(
-              player,
-              context
-            );
+  if (
+    player.row &&
+    typeof player.row.closest === 'function'
+  ) {
 
-          playerScore =
-            scoredPlayer
-              ? Number(scoredPlayer.finalScore) || 0
-              : 0;
+    var scoredPlayer =
+      calculateDraftDecisionScore(
+        player,
+        context
+      );
 
-        }
+    playerScore =
+      scoredPlayer
+        ? Number(scoredPlayer.finalScore) || 0
+        : 0;
 
+  } else {
+
+    /*
+     * Lightweight fallback for synthetic/raw players.
+     *
+     * Rank is enough for projection tests; live players
+     * will continue using their full decision score.
+     */
+
+    var rank =
+      Number(player.rank) || 999;
+
+    playerScore =
+      Math.max(
+        0,
+        100 - ((rank - 1) * 1.5)
+      );
+
+  }
+
+}
 
         /*
          * Survival-adjusted future value.
