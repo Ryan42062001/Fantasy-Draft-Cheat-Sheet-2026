@@ -7833,6 +7833,65 @@ return Math.round(
 
 }
 
+function calculateFutureDepthOpportunity(
+  player,
+  context
+) {
+
+  var depth =
+    calculateFuturePositionDepth(
+      player,
+      context
+    );
+
+  /*
+   * -------------------------------------------------------
+   * FUTURE DEPTH OPPORTUNITY
+   * -------------------------------------------------------
+   *
+   * Low future depth:
+   *   stronger reason to draft now.
+   *
+   * High future depth:
+   *   safer to wait.
+   *
+   * Keep this intentionally small so it does not
+   * overpower VORP, tiers, scarcity, or roster need.
+   */
+
+  var score = 0;
+
+
+  if (depth <= 25) {
+
+    score = 2.5;
+
+  } else if (depth <= 40) {
+
+    score = 1.75;
+
+  } else if (depth <= 55) {
+
+    score = 1;
+
+  } else if (depth <= 70) {
+
+    score = 0.25;
+
+  } else if (depth <= 85) {
+
+    score = -0.5;
+
+  } else {
+
+    score = -1;
+
+  }
+
+
+  return score;
+}
+
 function calculateNextPickSurvival(
   candidate,
   context
@@ -10518,6 +10577,16 @@ test.equal(
     'RB'
   ),
   1
+);
+
+test.between(
+  'Future depth opportunity stays in safe range',
+  calculateFutureDepthOpportunity(
+    rbOne,
+    context
+  ),
+  -1,
+  2.5
 );
 
 test.equal(
