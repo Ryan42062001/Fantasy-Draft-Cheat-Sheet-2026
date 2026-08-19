@@ -8286,6 +8286,12 @@ var phaseWeights =
     draftPhase.phase
   );
 
+  var endgameRosterRequirementScore =
+  calculateEndgameRosterRequirement(
+    player,
+    context
+  );
+
 var rosterSaturationPenalty =
   calculateRosterSaturationPenalty(
     player,
@@ -8648,6 +8654,9 @@ finalScore +=
   runOpportunityScore;
 
 finalScore +=
+  endgameRosterRequirementScore;
+
+finalScore +=
   phaseAdjustedDraftAwareVorpScore;
 
 finalScore +=
@@ -8710,6 +8719,9 @@ phaseCoreRosterNeedAdjustment:
 
     rosterSaturationPenalty:
   rosterSaturationPenalty,
+
+  endgameRosterRequirementScore:
+  endgameRosterRequirementScore,
 
     scarcityScore:
       scarcityScore,
