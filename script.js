@@ -11507,6 +11507,303 @@ function calculateRosterSaturationPenalty(
   return penalty;
 }
 
+function calculateEndgameRosterRequirement(
+  player,
+  context
+) {
+
+  if (!player) {
+    return 0;
+  }
+
+  context =
+    context || {};
+
+  var position =
+    player.position ||
+    player.pos ||
+    null;
+
+  var currentPick =
+    Number(context.currentPick) || 0;
+
+  var teams =
+    Number(context.teams) || 10;
+
+  var rounds =
+    Number(context.rounds) ||
+    Number(
+      getDraftAssistantState().rounds
+    ) ||
+    16;
+
+
+  if (
+    !position ||
+    currentPick <= 0 ||
+    teams <= 0 ||
+    rounds <= 0
+  ) {
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT ROUND
+   * -------------------------------------------------------
+   */
+
+  var round =
+    Math.ceil(
+      currentPick / teams
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT ROSTER COUNTS
+   * -------------------------------------------------------
+   */
+
+  var counts = {
+    K: 0,
+    DST: 0
+  };
+
+
+  document
+    .querySelectorAll(
+      'tr.draftrow.drafted-mine'
+    )
+    .forEach(function(row) {
+
+      var pos =
+        row.getAttribute(
+          'data-pos'
+        );
+
+      if (
+        pos === 'K' ||
+        pos === 'DST'
+      ) {
+
+        counts[pos]++;
+
+      }
+
+    });
+
+
+  var kNeeded =
+    counts.K <= 0;
+
+  var dstNeeded =
+    counts.DST <= 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * ENDGAME TIMING
+   * -------------------------------------------------------
+   *
+   * We want K/DST late, not early.
+   */
+
+  var finalRound =
+    rounds;
+
+  var secondLastRound =
+    Math.max(
+      1,
+      rounds - 1
+    );
+
+  var thirdLastRound =
+    Math.max(
+      1,
+      rounds - 2
+    );
+
+
+  var adjustment = 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * TOO EARLY
+   * -------------------------------------------------------
+   *
+   * Strongly discourage K/DST before the final
+   * few rounds.
+   */
+
+  if (
+    round < thirdLastRound
+  ) {
+
+    if (
+      position === 'K' ||
+      position === 'DST'
+    ) {
+
+      adjustment -= 15;
+
+    }
+
+    return adjustment;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * THIRD-LAST ROUND
+   * -------------------------------------------------------
+   *
+   * They may begin entering consideration, but should
+   * not dominate yet.
+   */
+
+  if (
+    round === thirdLastRound
+  ) {
+
+    if (
+      position === 'K' &&
+      kNeeded
+    ) {
+      adjustment += 2;
+    }
+
+    if (
+      position === 'DST' &&
+      dstNeeded
+    ) {
+      adjustment += 2;
+    }
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * SECOND-LAST ROUND
+   * -------------------------------------------------------
+   *
+   * Missing K/DST now becomes important.
+   */
+
+  if (
+    round === secondLastRound
+  ) {
+
+    if (
+      position === 'K' &&
+      kNeeded
+    ) {
+      adjustment += 12;
+    }
+
+    if (
+      position === 'DST' &&
+      dstNeeded
+    ) {
+      adjustment += 12;
+    }
+
+
+    /*
+     * Discourage another bench skill player while
+     * both required endgame positions are still empty.
+     */
+
+    if (
+      kNeeded &&
+      dstNeeded &&
+      position !== 'K' &&
+      position !== 'DST'
+    ) {
+
+      adjustment -= 8;
+
+    }
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * FINAL ROUND
+   * -------------------------------------------------------
+   */
+
+  if (
+    round >= finalRound
+  ) {
+
+    if (
+      kNeeded &&
+      position === 'K'
+    ) {
+
+      adjustment += 25;
+
+    }
+
+    if (
+      dstNeeded &&
+      position === 'DST'
+    ) {
+
+      adjustment += 25;
+
+    }
+
+
+    /*
+     * If one required position remains unfilled,
+     * heavily penalize unrelated selections.
+     */
+
+    if (
+      (kNeeded || dstNeeded) &&
+      position !== 'K' &&
+      position !== 'DST'
+    ) {
+
+      adjustment -= 20;
+
+    }
+
+
+    /*
+     * Do not reward duplicate K/DST.
+     */
+
+    if (
+      position === 'K' &&
+      !kNeeded
+    ) {
+
+      adjustment -= 20;
+
+    }
+
+    if (
+      position === 'DST' &&
+      !dstNeeded
+    ) {
+
+      adjustment -= 20;
+
+    }
+
+  }
+
+
+  return adjustment;
+}
+
 function calculateDraftStrategy() {
 
   var counts = {
@@ -13619,6 +13916,54 @@ if (scored) {
   'Full draft math: 10 teams x 16 rounds = 160 picks',
   10 * 16,
   160
+);
+
+test.assert(
+  'Endgame: early K is strongly discouraged',
+  calculateEndgameRosterRequirement(
+    { position: 'K' },
+    {
+      currentPick: 50,
+      teams: 10,
+      rounds: 16
+    }
+  ) < 0
+);
+
+test.assert(
+  'Endgame: early DST is strongly discouraged',
+  calculateEndgameRosterRequirement(
+    { position: 'DST' },
+    {
+      currentPick: 50,
+      teams: 10,
+      rounds: 16
+    }
+  ) < 0
+);
+
+test.assert(
+  'Endgame: round 15 rewards missing K',
+  calculateEndgameRosterRequirement(
+    { position: 'K' },
+    {
+      currentPick: 141,
+      teams: 10,
+      rounds: 16
+    }
+  ) > 0
+);
+
+test.assert(
+  'Endgame: final round penalizes unrelated player when K/DST missing',
+  calculateEndgameRosterRequirement(
+    { position: 'RB' },
+    {
+      currentPick: 151,
+      teams: 10,
+      rounds: 16
+    }
+  ) < 0
 );
 
 test.equal(
