@@ -12393,23 +12393,6 @@ function runDraftEngineTests(options) {
   2
 );
 
-  if (scored) {
-
-  test.equal(
-    'Decision score exposes FOUNDATION phase at pick 1',
-    scored.draftPhase,
-    'FOUNDATION'
-  );
-
-  test.assert(
-    'Decision score returns phase-adjusted roster construction',
-    Number.isFinite(
-      scored.phaseAdjustedRosterConstructionScore
-    )
-  );
-
-}
-
     test.equal(
   'Draft phase: pick 1 is FOUNDATION',
   getDraftPhase(
@@ -13244,6 +13227,19 @@ if (scored) {
     scored.rankScore,
     0,
     100
+  );
+
+  test.equal(
+    'Decision score exposes FOUNDATION phase at pick 1',
+    scored.draftPhase,
+    'FOUNDATION'
+  );
+
+  test.assert(
+    'Decision score returns phase-adjusted roster construction',
+    Number.isFinite(
+      scored.phaseAdjustedRosterConstructionScore
+    )
   );
 
 }
