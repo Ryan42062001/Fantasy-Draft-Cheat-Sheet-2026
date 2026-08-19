@@ -4555,6 +4555,120 @@ function getDraftPhaseWeights(
   return weights;
 }
 
+function calculatePhaseCoreAdjustment(
+  vorpScore,
+  scarcityScore,
+  rosterNeedScore,
+  phaseWeights
+) {
+
+  phaseWeights =
+    phaseWeights || {};
+
+  vorpScore =
+    Number(vorpScore) || 0;
+
+  scarcityScore =
+    Number(scarcityScore) || 0;
+
+  rosterNeedScore =
+    Number(rosterNeedScore) || 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * PHASE CORE ADJUSTMENT
+   * -------------------------------------------------------
+   *
+   * Important:
+   *
+   * Do NOT directly multiply the full score.
+   *
+   * Instead, only apply the amount that differs
+   * from a neutral 1.00 multiplier.
+   *
+   * This keeps draft phase as a nudge rather than
+   * allowing it to overwhelm the core engine.
+   */
+
+
+  var vorpAdjustment =
+    vorpScore *
+    (
+      (Number(phaseWeights.vorp) || 1) -
+      1
+    ) *
+    0.20;
+
+
+  var scarcityAdjustment =
+    scarcityScore *
+    (
+      (Number(phaseWeights.scarcity) || 1) -
+      1
+    ) *
+    0.20;
+
+
+  /*
+   * Roster need is usually already a smaller score,
+   * so give it slightly more sensitivity.
+   */
+
+  var rosterNeedAdjustment =
+    rosterNeedScore *
+    (
+      (Number(phaseWeights.rosterNeed) || 1) -
+      1
+    ) *
+    0.50;
+
+
+  var totalAdjustment =
+    vorpAdjustment +
+    scarcityAdjustment +
+    rosterNeedAdjustment;
+
+
+  /*
+   * -------------------------------------------------------
+   * SAFETY CLAMP
+   * -------------------------------------------------------
+   */
+
+  totalAdjustment =
+    Math.max(
+      -3,
+      Math.min(
+        3,
+        totalAdjustment
+      )
+    );
+
+
+  return {
+    total:
+      Number(
+        totalAdjustment.toFixed(2)
+      ),
+
+    vorp:
+      Number(
+        vorpAdjustment.toFixed(2)
+      ),
+
+    scarcity:
+      Number(
+        scarcityAdjustment.toFixed(2)
+      ),
+
+    rosterNeed:
+      Number(
+        rosterNeedAdjustment.toFixed(2)
+      )
+  };
+}
+
 
 /* ---------------------------------------------------------
    ROSTER STATE
@@ -12826,6 +12940,57 @@ test.equal(
       currentPick: 1
     }
   ),
+  0
+);
+
+    test.between(
+  'Phase core adjustment stays in safe range',
+  calculatePhaseCoreAdjustment(
+    100,
+    100,
+    4,
+    getDraftPhaseWeights(
+      'FOUNDATION'
+    )
+  ).total,
+  -3,
+  3
+);
+
+test.assert(
+  'Phase core adjustment: FOUNDATION rewards elite value',
+  calculatePhaseCoreAdjustment(
+    100,
+    100,
+    0,
+    getDraftPhaseWeights(
+      'FOUNDATION'
+    )
+  ).total > 0
+);
+
+test.assert(
+  'Phase core adjustment: STARTER BUILD rewards roster need',
+  calculatePhaseCoreAdjustment(
+    0,
+    0,
+    4,
+    getDraftPhaseWeights(
+      'STARTER BUILD'
+    )
+  ).rosterNeed > 0
+);
+
+test.equal(
+  'Phase core adjustment: neutral weights return 0',
+  calculatePhaseCoreAdjustment(
+    80,
+    70,
+    3,
+    getDraftPhaseWeights(
+      'UNKNOWN'
+    )
+  ).total,
   0
 );
 
