@@ -7648,61 +7648,170 @@ function calculateFuturePositionDepth(
     });
 
 
-  /*
-   * Players with at least a 50% chance to make it back
-   * count as realistic future depth.
-   */
+ /*
+ * -------------------------------------------------------
+ * QUALITY-WEIGHTED FUTURE DEPTH
+ * -------------------------------------------------------
+ *
+ * Count alone is not enough.
+ *
+ * Five mediocre players surviving should not equal
+ * five high-quality alternatives.
+ */
 
-  var likelySurvivors =
-    projected.filter(function(item) {
+var realisticOptions =
+  projected
+    .filter(function(item) {
 
       return (
-        Number(item.survival) >= 50
+        Number(item.survival) >= 35
+      );
+
+    })
+    .map(function(item) {
+
+      var candidateRank =
+        Number(item.player.rank) || 999;
+
+      var currentRank =
+        Number(player.rank) || 999;
+
+
+      /*
+       * Rank quality relative to the player being
+       * considered now.
+       *
+       * Small rank drop = strong future quality.
+       */
+
+      var rankDrop =
+        Math.max(
+          0,
+          candidateRank - currentRank
+        );
+
+
+      var rankQuality =
+        Math.max(
+          0,
+          100 - (rankDrop * 3)
+        );
+
+
+      /*
+       * Combine player quality and probability
+       * of actually surviving.
+       */
+
+      var futureValue =
+        (
+          rankQuality * 0.60
+        ) +
+        (
+          Number(item.survival) * 0.40
+        );
+
+
+      return {
+        player:
+          item.player,
+
+        survival:
+          item.survival,
+
+        rankDrop:
+          rankDrop,
+
+        rankQuality:
+          rankQuality,
+
+        futureValue:
+          futureValue
+      };
+
+    })
+    .sort(function(a, b) {
+
+      return (
+        Number(b.futureValue) -
+        Number(a.futureValue)
       );
 
     });
 
 
-  /*
-   * -------------------------------------------------------
-   * DEPTH SCORE
-   * -------------------------------------------------------
-   *
-   * 0  = almost nothing usable likely survives
-   * 100 = several viable options should remain
-   */
-
-  var depthScore = 0;
-
-  if (likelySurvivors.length >= 5) {
-
-    depthScore = 100;
-
-  } else if (likelySurvivors.length === 4) {
-
-    depthScore = 85;
-
-  } else if (likelySurvivors.length === 3) {
-
-    depthScore = 70;
-
-  } else if (likelySurvivors.length === 2) {
-
-    depthScore = 50;
-
-  } else if (likelySurvivors.length === 1) {
-
-    depthScore = 25;
-
-  } else {
-
-    depthScore = 0;
-
-  }
-
-
-  return depthScore;
+if (!realisticOptions.length) {
+  return 0;
 }
+
+
+/*
+ * -------------------------------------------------------
+ * USE THE BEST THREE FUTURE OPTIONS
+ * -------------------------------------------------------
+ *
+ * We care much more about the quality of the first few
+ * alternatives than whether 10 mediocre players survive.
+ */
+
+var topOptions =
+  realisticOptions.slice(0, 3);
+
+var totalFutureValue =
+  topOptions.reduce(
+    function(total, item) {
+
+      return (
+        total +
+        Number(item.futureValue || 0)
+      );
+
+    },
+    0
+  );
+
+
+var averageFutureValue =
+  totalFutureValue /
+  topOptions.length;
+
+
+/*
+ * Small bonus for having multiple realistic options.
+ */
+
+var depthBonus =
+  Math.min(
+    10,
+    Math.max(
+      0,
+      realisticOptions.length - 1
+    ) * 2
+  );
+
+
+var depthScore =
+  averageFutureValue +
+  depthBonus;
+
+
+/*
+ * Clamp 0–100.
+ */
+
+depthScore =
+  Math.max(
+    0,
+    Math.min(
+      100,
+      depthScore
+    )
+  );
+
+
+return Math.round(
+  depthScore
+);
 
 function calculateNextPickSurvival(
   candidate,
