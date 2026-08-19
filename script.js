@@ -7344,6 +7344,12 @@ console.log(
     context
   );
 
+  var multiPickPlanningScore =
+  calculateMultiPickPlanningScore(
+    player,
+    context
+  );
+
 
 /*
  * -------------------------------------------------------
@@ -7371,6 +7377,7 @@ finalScore += tierCliffOpportunityScore;
 finalScore += runOpportunityScore;
 finalScore += draftAwareVorpOpportunityScore;
 finalScore += rosterConstructionScore;
+finalScore += multiPickPlanningScore;
 finalScore += futureDepthOpportunityScore;
 
   console.log(
@@ -7427,6 +7434,9 @@ tierCliffOpportunityScore:
 
 draftAwareVorpOpportunityScore:
   draftAwareVorpOpportunityScore,
+
+    multiPickPlanningScore:
+  multiPickPlanningScore,
 
     futureDepthOpportunityScore:
   futureDepthOpportunityScore,
