@@ -7573,18 +7573,48 @@ function calculateFuturePositionDepth(
    * -------------------------------------------------------
    */
 
-  var positionPool =
-    players
-      .filter(function(candidate) {
+ var currentPlayerRank =
+  Number(player.rank) || 999;
 
-        return candidate &&
-          candidate.available !== false &&
-          (
-            candidate.position ||
-            candidate.pos
-          ) === position &&
-          candidate.name !== player.name &&
-          candidate.rank;
+var positionPool =
+  players
+    .filter(function(candidate) {
+
+      if (
+        !candidate ||
+        candidate.available === false ||
+        (
+          candidate.position ||
+          candidate.pos
+        ) !== position ||
+        candidate.name === player.name ||
+        !candidate.rank
+      ) {
+        return false;
+      }
+
+      /*
+       * Future alternatives must be ranked AFTER
+       * the player we're considering now.
+       *
+       * A player ranked ahead of Burrow cannot be
+       * treated as a future Burrow alternative.
+       */
+      return (
+        Number(candidate.rank) >
+        currentPlayerRank
+      );
+
+    })
+    .slice()
+    .sort(function(a, b) {
+
+      return (
+        Number(a.rank) -
+        Number(b.rank)
+      );
+
+    });
 
       })
       .slice()
