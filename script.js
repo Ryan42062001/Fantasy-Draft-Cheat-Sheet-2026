@@ -1217,6 +1217,232 @@ if (!Number.isFinite(playerScore)) {
   return candidates.slice(0, 5);
 }
 
+function calculateProjectedDraftPackage(
+  player,
+  context
+) {
+
+  if (!player) {
+    return null;
+  }
+
+  context =
+    context || {};
+
+  var path =
+    calculateMultiPickPositionPath(
+      player,
+      context
+    );
+
+  if (!path) {
+    return null;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT PLAYER VALUE
+   * -------------------------------------------------------
+   */
+
+  var currentScore =
+    Number(player.finalScore);
+
+  if (!Number.isFinite(currentScore)) {
+
+    var scoredCurrent =
+      calculateDraftDecisionScore(
+        player,
+        context
+      );
+
+    currentScore =
+      scoredCurrent
+        ? Number(scoredCurrent.finalScore) || 0
+        : 0;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * FIRST FUTURE PICK
+   * -------------------------------------------------------
+   */
+
+  var firstOptions =
+    getProjectedPlayersAtFuturePick(
+      path.firstFuturePosition,
+      path.firstNextPick,
+      context
+    );
+
+  var firstPlayer =
+    firstOptions.length
+      ? firstOptions[0]
+      : null;
+
+
+  /*
+   * -------------------------------------------------------
+   * SECOND FUTURE PICK
+   * -------------------------------------------------------
+   */
+
+  var secondOptions =
+    getProjectedPlayersAtFuturePick(
+      path.secondFuturePosition,
+      path.secondNextPick,
+      context
+    );
+
+
+  /*
+   * The player selected at the first future pick
+   * cannot also be selected at the second future pick.
+   */
+
+  if (firstPlayer) {
+
+    secondOptions =
+      secondOptions.filter(function(option) {
+
+        return (
+          option.name !==
+          firstPlayer.name
+        );
+
+      });
+
+  }
+
+
+  var secondPlayer =
+    secondOptions.length
+      ? secondOptions[0]
+      : null;
+
+
+  /*
+   * -------------------------------------------------------
+   * PACKAGE VALUES
+   * -------------------------------------------------------
+   */
+
+  var firstProjectedValue =
+    firstPlayer
+      ? Number(
+          firstPlayer.projectedValue
+        ) || 0
+      : 0;
+
+  var secondProjectedValue =
+    secondPlayer
+      ? Number(
+          secondPlayer.projectedValue
+        ) || 0
+      : 0;
+
+
+  var packageValue =
+    currentScore +
+    firstProjectedValue +
+    secondProjectedValue;
+
+
+  /*
+   * -------------------------------------------------------
+   * PACKAGE COMPLETENESS
+   * -------------------------------------------------------
+   *
+   * Missing a realistic player at a future selection
+   * should reduce our confidence in the path.
+   */
+
+  var completeFuturePicks = 0;
+
+  if (firstPlayer) {
+    completeFuturePicks++;
+  }
+
+  if (secondPlayer) {
+    completeFuturePicks++;
+  }
+
+
+  return {
+
+    currentPlayer:
+      player.name,
+
+    currentPosition:
+      player.position ||
+      player.pos,
+
+    currentScore:
+      currentScore,
+
+    firstPick:
+      path.firstNextPick,
+
+    firstPosition:
+      path.firstFuturePosition,
+
+    firstPlayer:
+      firstPlayer
+        ? firstPlayer.name
+        : null,
+
+    firstPlayerScore:
+      firstPlayer
+        ? firstPlayer.score
+        : 0,
+
+    firstSurvival:
+      firstPlayer
+        ? firstPlayer.survival
+        : 0,
+
+    firstProjectedValue:
+      firstProjectedValue,
+
+    secondPick:
+      path.secondNextPick,
+
+    secondPosition:
+      path.secondFuturePosition,
+
+    secondPlayer:
+      secondPlayer
+        ? secondPlayer.name
+        : null,
+
+    secondPlayerScore:
+      secondPlayer
+        ? secondPlayer.score
+        : 0,
+
+    secondSurvival:
+      secondPlayer
+        ? secondPlayer.survival
+        : 0,
+
+    secondProjectedValue:
+      secondProjectedValue,
+
+    completeFuturePicks:
+      completeFuturePicks,
+
+    packageValue:
+      packageValue,
+
+    path:
+      path
+
+  };
+}
+
 function calculateMultiPickPlanningScore(
   player,
   context
@@ -11551,6 +11777,34 @@ test.equal(
   'Multi-pick: pick 21 first future pick is 40',
   multiPick21.firstNextPick,
   40
+);
+
+    test.assert(
+  'Projected package returns result',
+  !!calculateProjectedDraftPackage(
+    rbOne,
+    context
+  )
+);
+
+test.between(
+  'Projected package has finite value',
+  calculateProjectedDraftPackage(
+    rbOne,
+    context
+  ).packageValue,
+  0,
+  1000
+);
+
+test.between(
+  'Projected package future-pick count stays 0–2',
+  calculateProjectedDraftPackage(
+    rbOne,
+    context
+  ).completeFuturePicks,
+  0,
+  2
 );
 
     test.assert(
