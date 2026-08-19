@@ -8286,6 +8286,12 @@ var phaseWeights =
     draftPhase.phase
   );
 
+var rosterSaturationPenalty =
+  calculateRosterSaturationPenalty(
+    player,
+    context
+  );
+
   var position =
     player.position ||
     player.pos ||
@@ -8648,6 +8654,9 @@ finalScore +=
   phaseAdjustedRosterConstructionScore;
 
 finalScore +=
+  rosterSaturationPenalty;
+
+finalScore +=
   phaseAdjustedFutureDepthScore;
 
 finalScore +=
@@ -8698,6 +8707,9 @@ phaseCoreScarcityAdjustment:
 
 phaseCoreRosterNeedAdjustment:
   phaseCoreAdjustment.rosterNeed,
+
+    rosterSaturationPenalty:
+  rosterSaturationPenalty,
 
     scarcityScore:
       scarcityScore,
