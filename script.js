@@ -8161,6 +8161,17 @@ function calculateDraftDecisionScore(player, context){
 
   context = context || {};
 
+  var draftPhase =
+  getDraftPhase(
+    Number(context.currentPick) || 0,
+    Number(context.teams) || 10
+  );
+
+var phaseWeights =
+  getDraftPhaseWeights(
+    draftPhase.phase
+  );
+
   var position =
     player.position ||
     player.pos ||
@@ -8445,6 +8456,35 @@ console.log(
     context
   );
 
+  /*
+ * -------------------------------------------------------
+ * DRAFT-PHASE ADJUSTMENTS
+ * -------------------------------------------------------
+ *
+ * Apply phase multipliers to supporting signals.
+ * Keep the underlying raw scores intact for debugging.
+ */
+
+var phaseAdjustedRosterConstructionScore =
+  rosterConstructionScore *
+  phaseWeights.rosterConstruction;
+
+var phaseAdjustedFutureDepthScore =
+  futureDepthOpportunityScore *
+  phaseWeights.futureDepth;
+
+var phaseAdjustedMultiPickScore =
+  multiPickPlanningScore *
+  phaseWeights.multiPick;
+
+var phaseAdjustedTierCliffScore =
+  tierCliffOpportunityScore *
+  phaseWeights.tierCliff;
+
+var phaseAdjustedDraftAwareVorpScore =
+  draftAwareVorpOpportunityScore *
+  phaseWeights.draftAwareVorp;
+
 
 /*
  * -------------------------------------------------------
@@ -8467,13 +8507,26 @@ var finalScore =
  * -------------------------------------------------------
  */
 
-finalScore += strategyScore;
-finalScore += tierCliffOpportunityScore;
-finalScore += runOpportunityScore;
-finalScore += draftAwareVorpOpportunityScore;
-finalScore += rosterConstructionScore;
-finalScore += multiPickPlanningScore;
-finalScore += futureDepthOpportunityScore;
+finalScore +=
+  strategyScore;
+
+finalScore +=
+  phaseAdjustedTierCliffScore;
+
+finalScore +=
+  runOpportunityScore;
+
+finalScore +=
+  phaseAdjustedDraftAwareVorpScore;
+
+finalScore +=
+  phaseAdjustedRosterConstructionScore;
+
+finalScore +=
+  phaseAdjustedFutureDepthScore;
+
+finalScore +=
+  phaseAdjustedMultiPickScore;
 
   console.log(
   'STRATEGY SCORE DEBUG:',
@@ -8514,6 +8567,30 @@ finalScore += futureDepthOpportunityScore;
 
     rosterNeedScore:
       rosterNeedScore,
+
+    draftPhase:
+  draftPhase.phase,
+
+draftRound:
+  draftPhase.round,
+
+phaseWeights:
+  phaseWeights,
+
+phaseAdjustedRosterConstructionScore:
+  phaseAdjustedRosterConstructionScore,
+
+phaseAdjustedFutureDepthScore:
+  phaseAdjustedFutureDepthScore,
+
+phaseAdjustedMultiPickScore:
+  phaseAdjustedMultiPickScore,
+
+phaseAdjustedTierCliffScore:
+  phaseAdjustedTierCliffScore,
+
+phaseAdjustedDraftAwareVorpScore:
+  phaseAdjustedDraftAwareVorpScore,
 
     timingScore:
       timingScore,
@@ -12314,6 +12391,53 @@ function runDraftEngineTests(options) {
   ),
   -2,
   2
+);
+
+    test.equal(
+  'Decision score exposes FOUNDATION phase at pick 1',
+  calculateDraftDecisionScore(
+    Object.assign(
+      {},
+      realRb,
+      {
+        vorp: 50,
+        scarcity: 40
+      }
+    ),
+    Object.assign(
+      {},
+      context,
+      {
+        currentPick: 1,
+        players: realPlayers
+      }
+    )
+  ).draftPhase,
+  'FOUNDATION'
+);
+
+test.assert(
+  'Decision score returns phase-adjusted roster construction',
+  Number.isFinite(
+    calculateDraftDecisionScore(
+      Object.assign(
+        {},
+        realRb,
+        {
+          vorp: 50,
+          scarcity: 40
+        }
+      ),
+      Object.assign(
+        {},
+        context,
+        {
+          currentPick: 41,
+          players: realPlayers
+        }
+      )
+    ).phaseAdjustedRosterConstructionScore
+  )
 );
 
     test.equal(
