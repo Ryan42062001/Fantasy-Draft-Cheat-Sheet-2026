@@ -1084,54 +1084,61 @@ function getProjectedPlayersAtFuturePick(
          * players. Use the strongest available score.
          */
 
-       var playerScore =
+  var playerScore =
   Number(player.finalScore);
 
-if (!Number.isFinite(playerScore)) {
 
-  /*
-   * Only run the full live scoring pipeline when
-   * this player is backed by a real draft-board row.
-   *
-   * Synthetic test players do not have DOM rows and
-   * cannot safely pass through getPlayerTierValue().
-   */
+/*
+ * -------------------------------------------------------
+ * REUSE EXISTING ENGINE SCORE
+ * -------------------------------------------------------
+ */
 
-  if (
-    player.row &&
-    typeof player.row.closest === 'function'
-  ) {
+if (
+  !Number.isFinite(playerScore) &&
+  context.scoredByName &&
+  player.name
+) {
 
-    var scoredPlayer =
-      calculateDraftDecisionScore(
-        player,
-        context
-      );
+  var cachedScoredPlayer =
+    context.scoredByName[
+      String(player.name).toLowerCase()
+    ];
 
-    playerScore =
-      scoredPlayer
-        ? Number(scoredPlayer.finalScore) || 0
-        : 0;
-
-  } else {
-
-    /*
-     * Lightweight fallback for synthetic/raw players.
-     *
-     * Rank is enough for projection tests; live players
-     * will continue using their full decision score.
-     */
-
-    var rank =
-      Number(player.rank) || 999;
+  if (cachedScoredPlayer) {
 
     playerScore =
-      Math.max(
-        0,
-        100 - ((rank - 1) * 1.5)
+      Number(
+        cachedScoredPlayer.finalScore
       );
 
   }
+
+}
+
+
+/*
+ * -------------------------------------------------------
+ * LIGHTWEIGHT FALLBACK
+ * -------------------------------------------------------
+ *
+ * Do NOT run the full decision engine here.
+ *
+ * If a scored version isn't available, use rank as a
+ * cheap fallback. This prevents future projections from
+ * recursively invoking large parts of the engine.
+ */
+
+if (!Number.isFinite(playerScore)) {
+
+  var rank =
+    Number(player.rank) || 999;
+
+  playerScore =
+    Math.max(
+      0,
+      100 - ((rank - 1) * 1.5)
+    );
 
 }
 
@@ -13154,6 +13161,37 @@ function buildLiveDraftDebugState() {
       Number(a.finalScore || 0)
     );
   });
+
+  /*
+ * -------------------------------------------------------
+ * CACHE SCORED PLAYERS FOR FUTURE PROJECTIONS
+ * -------------------------------------------------------
+ *
+ * Future-pick and package projections should reuse
+ * scores already calculated during this engine pass
+ * instead of running calculateDraftDecisionScore()
+ * repeatedly.
+ */
+
+context.scoredPlayers =
+  scored;
+
+context.scoredByName = {};
+
+scored.forEach(function(player) {
+
+  if (
+    !player ||
+    !player.name
+  ) {
+    return;
+  }
+
+  context.scoredByName[
+    String(player.name).toLowerCase()
+  ] = player;
+
+});
 
   return {
     players:
