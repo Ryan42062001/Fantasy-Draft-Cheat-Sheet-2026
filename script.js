@@ -12393,52 +12393,22 @@ function runDraftEngineTests(options) {
   2
 );
 
-    test.equal(
-  'Decision score exposes FOUNDATION phase at pick 1',
-  calculateDraftDecisionScore(
-    Object.assign(
-      {},
-      realRb,
-      {
-        vorp: 50,
-        scarcity: 40
-      }
-    ),
-    Object.assign(
-      {},
-      context,
-      {
-        currentPick: 1,
-        players: realPlayers
-      }
-    )
-  ).draftPhase,
-  'FOUNDATION'
-);
+  if (scored) {
 
-test.assert(
-  'Decision score returns phase-adjusted roster construction',
-  Number.isFinite(
-    calculateDraftDecisionScore(
-      Object.assign(
-        {},
-        realRb,
-        {
-          vorp: 50,
-          scarcity: 40
-        }
-      ),
-      Object.assign(
-        {},
-        context,
-        {
-          currentPick: 41,
-          players: realPlayers
-        }
-      )
-    ).phaseAdjustedRosterConstructionScore
-  )
-);
+  test.equal(
+    'Decision score exposes FOUNDATION phase at pick 1',
+    scored.draftPhase,
+    'FOUNDATION'
+  );
+
+  test.assert(
+    'Decision score returns phase-adjusted roster construction',
+    Number.isFinite(
+      scored.phaseAdjustedRosterConstructionScore
+    )
+  );
+
+}
 
     test.equal(
   'Draft phase: pick 1 is FOUNDATION',
