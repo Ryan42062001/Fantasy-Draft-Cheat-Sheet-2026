@@ -14258,6 +14258,53 @@ test.equal(
   'CONSIDER'
 );
 
+    test.assert(
+  'Draft grade returns result',
+  !!gradeSimulatedDraft({
+    roster: {
+      QB: ['QB1'],
+      RB: ['RB1', 'RB2', 'RB3', 'RB4', 'RB5'],
+      WR: ['WR1', 'WR2', 'WR3', 'WR4', 'WR5'],
+      TE: ['TE1'],
+      K: ['K1'],
+      DST: ['DST1']
+    },
+    myDraft: []
+  })
+);
+
+test.equal(
+  'Draft grade: complete roster gets 100 starter completion',
+  gradeSimulatedDraft({
+    roster: {
+      QB: ['QB1'],
+      RB: ['RB1', 'RB2'],
+      WR: ['WR1', 'WR2'],
+      TE: ['TE1'],
+      K: ['K1'],
+      DST: ['DST1']
+    },
+    myDraft: []
+  }).starterCompletion,
+  100
+);
+
+test.equal(
+  'Draft grade: missing K reduces endgame completion',
+  gradeSimulatedDraft({
+    roster: {
+      QB: ['QB1'],
+      RB: ['RB1', 'RB2'],
+      WR: ['WR1', 'WR2'],
+      TE: ['TE1'],
+      K: [],
+      DST: ['DST1']
+    },
+    myDraft: []
+  }).endgameCompletion,
+  50
+);
+
 test.equal(
   'Recommendation: clearly inferior player passes',
   calculateRecommendationDecision(
@@ -16951,6 +16998,537 @@ function simulateFullDraft(options) {
     });
 
   }
+}
+
+function gradeSimulatedDraft(
+  simulation
+) {
+
+  if (
+    !simulation ||
+    !simulation.myDraft ||
+    !simulation.roster
+  ) {
+    return null;
+  }
+
+
+  var roster =
+    simulation.roster;
+
+
+  var counts = {
+    QB:
+      (roster.QB || []).length,
+
+    RB:
+      (roster.RB || []).length,
+
+    WR:
+      (roster.WR || []).length,
+
+    TE:
+      (roster.TE || []).length,
+
+    K:
+      (roster.K || []).length,
+
+    DST:
+      (roster.DST || []).length
+  };
+
+
+  /*
+   * -------------------------------------------------------
+   * 1. STARTER COMPLETION
+   * -------------------------------------------------------
+   */
+
+  var starterTargets = {
+    QB: 1,
+    RB: 2,
+    WR: 2,
+    TE: 1,
+    K: 1,
+    DST: 1
+  };
+
+
+  var starterFilled = 0;
+  var starterRequired = 0;
+
+
+  Object.keys(
+    starterTargets
+  ).forEach(function(position) {
+
+    var required =
+      starterTargets[position];
+
+    starterRequired +=
+      required;
+
+    starterFilled +=
+      Math.min(
+        counts[position] || 0,
+        required
+      );
+
+  });
+
+
+  var starterCompletionScore =
+    starterRequired
+      ? (
+          starterFilled /
+          starterRequired
+        ) * 100
+      : 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * 2. FLEX COMPLETION
+   * -------------------------------------------------------
+   */
+
+  var dedicatedRB =
+    Math.min(
+      counts.RB,
+      2
+    );
+
+  var dedicatedWR =
+    Math.min(
+      counts.WR,
+      2
+    );
+
+  var dedicatedTE =
+    Math.min(
+      counts.TE,
+      1
+    );
+
+
+  var totalFlexEligible =
+    counts.RB +
+    counts.WR +
+    counts.TE;
+
+
+  var dedicatedFlexEligible =
+    dedicatedRB +
+    dedicatedWR +
+    dedicatedTE;
+
+
+  var extraFlexPlayers =
+    Math.max(
+      0,
+      totalFlexEligible -
+      dedicatedFlexEligible
+    );
+
+
+  var flexCompletionScore =
+    extraFlexPlayers >= 1
+      ? 100
+      : 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * 3. RB / WR DEPTH BALANCE
+   * -------------------------------------------------------
+   */
+
+  var skillDepth =
+    counts.RB +
+    counts.WR;
+
+
+  var rbShare =
+    skillDepth
+      ? counts.RB /
+        skillDepth
+      : 0;
+
+
+  /*
+   * Ideal range is roughly balanced,
+   * but allows moderate RB/WR lean.
+   */
+
+  var depthBalanceScore = 100;
+
+
+  if (
+    rbShare < 0.35 ||
+    rbShare > 0.65
+  ) {
+
+    depthBalanceScore = 70;
+
+  }
+
+
+  if (
+    rbShare < 0.25 ||
+    rbShare > 0.75
+  ) {
+
+    depthBalanceScore = 40;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 4. POSITION SATURATION
+   * -------------------------------------------------------
+   */
+
+  var saturationScore = 100;
+
+
+  if (counts.RB > 6) {
+
+    saturationScore -=
+      (counts.RB - 6) * 15;
+
+  }
+
+
+  if (counts.WR > 6) {
+
+    saturationScore -=
+      (counts.WR - 6) * 12;
+
+  }
+
+
+  if (counts.QB > 2) {
+
+    saturationScore -=
+      (counts.QB - 2) * 20;
+
+  }
+
+
+  if (counts.TE > 2) {
+
+    saturationScore -=
+      (counts.TE - 2) * 20;
+
+  }
+
+
+  saturationScore =
+    Math.max(
+      0,
+      saturationScore
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * 5. DUPLICATION / BENCH EFFICIENCY
+   * -------------------------------------------------------
+   */
+
+  var benchEfficiencyScore =
+    100;
+
+
+  if (counts.QB > 1) {
+
+    benchEfficiencyScore -=
+      (counts.QB - 1) * 10;
+
+  }
+
+
+  if (counts.TE > 2) {
+
+    benchEfficiencyScore -=
+      (counts.TE - 2) * 15;
+
+  }
+
+
+  if (counts.K > 1) {
+
+    benchEfficiencyScore -=
+      (counts.K - 1) * 25;
+
+  }
+
+
+  if (counts.DST > 1) {
+
+    benchEfficiencyScore -=
+      (counts.DST - 1) * 25;
+
+  }
+
+
+  benchEfficiencyScore =
+    Math.max(
+      0,
+      benchEfficiencyScore
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * 6. K / DST COMPLETION
+   * -------------------------------------------------------
+   */
+
+  var endgameCompletionScore = 0;
+
+
+  if (counts.K >= 1) {
+
+    endgameCompletionScore +=
+      50;
+
+  }
+
+
+  if (counts.DST >= 1) {
+
+    endgameCompletionScore +=
+      50;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 7. VALUE / REACH EFFICIENCY
+   * -------------------------------------------------------
+   *
+   * Compare where we drafted each player with
+   * their overall rank.
+   *
+   * Positive value = drafted later than rank.
+   * Negative value = reached ahead of rank.
+   */
+
+  var totalReach = 0;
+  var reachCount = 0;
+
+
+  simulation.myDraft
+    .forEach(function(player) {
+
+      var pick =
+        Number(player.pick) || 0;
+
+      var rank =
+        Number(player.rank) || 0;
+
+
+      if (
+        pick <= 0 ||
+        rank <= 0
+      ) {
+        return;
+      }
+
+
+      var reach =
+        rank - pick;
+
+
+      /*
+       * Only penalize true reaches.
+       *
+       * Waiting beyond rank is not bad.
+       */
+
+      if (reach > 0) {
+
+        totalReach +=
+          reach;
+
+      }
+
+
+      reachCount++;
+
+    });
+
+
+  var averageReach =
+    reachCount
+      ? totalReach /
+        reachCount
+      : 0;
+
+
+  var valueEfficiencyScore =
+    Math.max(
+      0,
+      100 -
+      (
+        averageReach * 3
+      )
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * OVERALL SCORE
+   * -------------------------------------------------------
+   */
+
+  var overallScore =
+    (
+      starterCompletionScore *
+      0.25
+    ) +
+    (
+      flexCompletionScore *
+      0.10
+    ) +
+    (
+      depthBalanceScore *
+      0.15
+    ) +
+    (
+      saturationScore *
+      0.15
+    ) +
+    (
+      benchEfficiencyScore *
+      0.10
+    ) +
+    (
+      endgameCompletionScore *
+      0.10
+    ) +
+    (
+      valueEfficiencyScore *
+      0.15
+    );
+
+
+  overallScore =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        overallScore
+      )
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * LETTER GRADE
+   * -------------------------------------------------------
+   */
+
+  var grade;
+
+
+  if (overallScore >= 93) {
+
+    grade = 'A';
+
+  } else if (overallScore >= 90) {
+
+    grade = 'A-';
+
+  } else if (overallScore >= 87) {
+
+    grade = 'B+';
+
+  } else if (overallScore >= 83) {
+
+    grade = 'B';
+
+  } else if (overallScore >= 80) {
+
+    grade = 'B-';
+
+  } else if (overallScore >= 77) {
+
+    grade = 'C+';
+
+  } else if (overallScore >= 73) {
+
+    grade = 'C';
+
+  } else if (overallScore >= 70) {
+
+    grade = 'C-';
+
+  } else {
+
+    grade = 'D';
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * RETURN REPORT
+   * -------------------------------------------------------
+   */
+
+  return {
+
+    grade:
+      grade,
+
+    overallScore:
+      Number(
+        overallScore.toFixed(1)
+      ),
+
+    counts:
+      counts,
+
+    starterCompletion:
+      Number(
+        starterCompletionScore.toFixed(1)
+      ),
+
+    flexCompletion:
+      flexCompletionScore,
+
+    depthBalance:
+      Number(
+        depthBalanceScore.toFixed(1)
+      ),
+
+    saturation:
+      Number(
+        saturationScore.toFixed(1)
+      ),
+
+    benchEfficiency:
+      Number(
+        benchEfficiencyScore.toFixed(1)
+      ),
+
+    endgameCompletion:
+      endgameCompletionScore,
+
+    valueEfficiency:
+      Number(
+        valueEfficiencyScore.toFixed(1)
+      ),
+
+    averageReach:
+      Number(
+        averageReach.toFixed(2)
+      )
+
+  };
 }
 
 function draftEngineWithSimulatedRoster(
