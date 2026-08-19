@@ -1246,10 +1246,20 @@ function calculateProjectedDraftPackage(
    * -------------------------------------------------------
    */
 
-  var currentScore =
-    Number(player.finalScore);
+ var currentScore =
+  Number(player.finalScore);
 
-  if (!Number.isFinite(currentScore)) {
+if (!Number.isFinite(currentScore)) {
+
+  /*
+   * Real live player:
+   * use the full decision engine.
+   */
+
+  if (
+    player.row &&
+    typeof player.row.closest === 'function'
+  ) {
 
     var scoredCurrent =
       calculateDraftDecisionScore(
@@ -1262,7 +1272,25 @@ function calculateProjectedDraftPackage(
         ? Number(scoredCurrent.finalScore) || 0
         : 0;
 
+  } else {
+
+    /*
+     * Synthetic/test player:
+     * use a lightweight rank-based fallback.
+     */
+
+    var currentRank =
+      Number(player.rank) || 999;
+
+    currentScore =
+      Math.max(
+        0,
+        100 - ((currentRank - 1) * 1.5)
+      );
+
   }
+
+}
 
 
   /*
