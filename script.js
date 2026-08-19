@@ -7616,18 +7616,6 @@ var positionPool =
 
     });
 
-      })
-      .slice()
-      .sort(function(a, b) {
-
-        return (
-          Number(a.rank) -
-          Number(b.rank)
-        );
-
-      });
-
-
   if (!positionPool.length) {
     return 0;
   }
