@@ -17378,6 +17378,143 @@ function gradeSimulatedDraft(
       )
     );
 
+  /*
+ * -------------------------------------------------------
+ * 8. DRAFT-CAPITAL EFFICIENCY
+ * -------------------------------------------------------
+ *
+ * Penalize using premium-round picks on redundant
+ * positions when the starter at that position has
+ * already been secured.
+ */
+
+var draftCapitalScore = 100;
+
+var positionSeen = {
+  QB: 0,
+  RB: 0,
+  WR: 0,
+  TE: 0,
+  K: 0,
+  DST: 0
+};
+
+
+simulation.myDraft.forEach(function(player) {
+
+  var position =
+    player.position;
+
+  var round =
+    Number(player.round) || 0;
+
+
+  if (
+    positionSeen[position] === undefined
+  ) {
+    return;
+  }
+
+
+  positionSeen[position]++;
+
+
+  /*
+   * Early QB2.
+   */
+
+  if (
+    position === 'QB' &&
+    positionSeen.QB >= 2 &&
+    round <= 7
+  ) {
+
+    draftCapitalScore -= 15;
+
+  }
+
+
+  /*
+   * Early TE2.
+   *
+   * TE2 in the first 7 rounds should require
+   * exceptional value.
+   */
+
+  if (
+    position === 'TE' &&
+    positionSeen.TE >= 2 &&
+    round <= 4
+  ) {
+
+    draftCapitalScore -= 10;
+
+  } else if (
+    position === 'TE' &&
+    positionSeen.TE >= 2 &&
+    round <= 7
+  ) {
+
+    draftCapitalScore -= 5;
+
+  }
+
+
+  /*
+   * Excessive early RB depth.
+   */
+
+  if (
+    position === 'RB' &&
+    positionSeen.RB >= 5 &&
+    round <= 8
+  ) {
+
+    draftCapitalScore -= 5;
+
+  }
+
+
+  /*
+   * Excessive early WR depth.
+   */
+
+  if (
+    position === 'WR' &&
+    positionSeen.WR >= 5 &&
+    round <= 8
+  ) {
+
+    draftCapitalScore -= 5;
+
+  }
+
+
+  /*
+   * K / DST should be endgame picks.
+   */
+
+  if (
+    (
+      position === 'K' ||
+      position === 'DST'
+    ) &&
+    round < 14
+  ) {
+
+    draftCapitalScore -= 15;
+
+  }
+
+});
+
+
+draftCapitalScore =
+  Math.max(
+    0,
+    draftCapitalScore
+  );
+
 
   /*
    * -------------------------------------------------------
@@ -17385,35 +17522,39 @@ function gradeSimulatedDraft(
    * -------------------------------------------------------
    */
 
-  var overallScore =
-    (
-      starterCompletionScore *
-      0.25
-    ) +
-    (
-      flexCompletionScore *
-      0.10
-    ) +
-    (
-      depthBalanceScore *
-      0.15
-    ) +
-    (
-      saturationScore *
-      0.15
-    ) +
-    (
-      benchEfficiencyScore *
-      0.10
-    ) +
-    (
-      endgameCompletionScore *
-      0.10
-    ) +
-    (
-      valueEfficiencyScore *
-      0.15
-    );
+var overallScore =
+  (
+    starterCompletionScore *
+    0.20
+  ) +
+  (
+    flexCompletionScore *
+    0.10
+  ) +
+  (
+    depthBalanceScore *
+    0.15
+  ) +
+  (
+    saturationScore *
+    0.15
+  ) +
+  (
+    benchEfficiencyScore *
+    0.10
+  ) +
+  (
+    endgameCompletionScore *
+    0.10
+  ) +
+  (
+    valueEfficiencyScore *
+    0.15
+  ) +
+  (
+    draftCapitalScore *
+    0.05
+  );
 
 
   overallScore =
@@ -17517,6 +17658,11 @@ function gradeSimulatedDraft(
 
     endgameCompletion:
       endgameCompletionScore,
+
+    draftCapitalEfficiency:
+  Number(
+    draftCapitalScore.toFixed(1)
+  ),
 
     valueEfficiency:
       Number(
