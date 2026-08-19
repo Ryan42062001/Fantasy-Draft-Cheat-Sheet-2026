@@ -962,6 +962,234 @@ return {
 
 }
 
+function getProjectedPlayersAtFuturePick(
+  position,
+  futurePick,
+  context
+) {
+
+  context =
+    context || {};
+
+  position =
+    position || null;
+
+  futurePick =
+    Number(futurePick) || 0;
+
+
+  if (
+    !position ||
+    !['QB', 'RB', 'WR', 'TE'].includes(position) ||
+    futurePick <= 0
+  ) {
+
+    return [];
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * PLAYER POOL
+   * -------------------------------------------------------
+   */
+
+  var players =
+    context.players ||
+    context.availablePlayers ||
+    [];
+
+  if (!Array.isArray(players)) {
+    return [];
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT DRAFT STATE
+   * -------------------------------------------------------
+   */
+
+  var currentPick =
+    Number(context.currentPick) || 0;
+
+  var currentRank =
+    Number(context.currentRank) || 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * CANDIDATES AT POSITION
+   * -------------------------------------------------------
+   */
+
+  var candidates =
+    players
+      .filter(function(player) {
+
+        if (!player) {
+          return false;
+        }
+
+        var playerPosition =
+          player.position ||
+          player.pos;
+
+        return (
+          player.available !== false &&
+          playerPosition === position &&
+          Number(player.rank) > 0
+        );
+
+      })
+      .map(function(player) {
+
+        /*
+         * Reuse the survival engine.
+         *
+         * We temporarily tell it that the requested
+         * futurePick is our next selection.
+         */
+
+        var survivalContext =
+          Object.assign(
+            {},
+            context,
+            {
+              currentPick:
+                currentPick,
+
+              calculatedNextPick:
+                futurePick,
+
+              nextPick:
+                futurePick,
+
+              currentRank:
+                currentRank
+            }
+          );
+
+
+        var survival =
+          calculateNextPickSurvival(
+            player,
+            survivalContext
+          );
+
+
+        /*
+         * We may receive raw players or already-scored
+         * players. Use the strongest available score.
+         */
+
+        var playerScore =
+          Number(player.finalScore);
+
+        if (!Number.isFinite(playerScore)) {
+
+          /*
+           * If this is a raw player object, attempt
+           * to score it using the current context.
+           */
+
+          var scoredPlayer =
+            calculateDraftDecisionScore(
+              player,
+              context
+            );
+
+          playerScore =
+            scoredPlayer
+              ? Number(scoredPlayer.finalScore) || 0
+              : 0;
+
+        }
+
+
+        /*
+         * Survival-adjusted future value.
+         */
+
+        var projectedValue =
+          playerScore *
+          (
+            Number(survival) || 0
+          ) /
+          100;
+
+
+        return {
+
+          name:
+            player.name,
+
+          position:
+            position,
+
+          rank:
+            Number(player.rank) || 999,
+
+          score:
+            playerScore,
+
+          survival:
+            survival,
+
+          projectedValue:
+            projectedValue,
+
+          player:
+            player
+
+        };
+
+      });
+
+
+  /*
+   * -------------------------------------------------------
+   * REALISTIC FUTURE OPTIONS
+   * -------------------------------------------------------
+   *
+   * Extremely unlikely survivors should not be treated
+   * as meaningful future options.
+   */
+
+  candidates =
+    candidates.filter(function(candidate) {
+
+      return (
+        Number(candidate.survival) >= 20
+      );
+
+    });
+
+
+  /*
+   * -------------------------------------------------------
+   * SORT BY PROJECTED FUTURE VALUE
+   * -------------------------------------------------------
+   */
+
+  candidates.sort(function(a, b) {
+
+    return (
+      Number(b.projectedValue) -
+      Number(a.projectedValue)
+    );
+
+  });
+
+
+  /*
+   * Keep the strongest few.
+   */
+
+  return candidates.slice(0, 5);
+}
+
 function calculateMultiPickPlanningScore(
   player,
   context
@@ -11258,6 +11486,35 @@ test.equal(
   'Multi-pick: pick 21 first future pick is 40',
   multiPick21.firstNextPick,
   40
+);
+
+    test.assert(
+  'Future player projection returns an array',
+  Array.isArray(
+    getProjectedPlayersAtFuturePick(
+      'RB',
+      20,
+      context
+    )
+  )
+);
+
+test.assert(
+  'Future player projection returns no more than 5',
+  getProjectedPlayersAtFuturePick(
+    'RB',
+    20,
+    context
+  ).length <= 5
+);
+
+test.assert(
+  'Future player projection rejects invalid position',
+  getProjectedPlayersAtFuturePick(
+    'XYZ',
+    20,
+    context
+  ).length === 0
 );
 
     test.assert(
