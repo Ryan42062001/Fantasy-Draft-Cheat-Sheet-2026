@@ -1674,6 +1674,87 @@ var pkg =
   );
 }
 
+function applyPackagePathAdjustments(
+  scoredPlayers,
+  context,
+  limit
+) {
+
+  scoredPlayers =
+    Array.isArray(scoredPlayers)
+      ? scoredPlayers
+      : [];
+
+  context =
+    context || {};
+
+  limit =
+    Number(limit) || 8;
+
+
+  /*
+   * -------------------------------------------------------
+   * ONLY DEEP-PLAN REALISTIC CURRENT PICKS
+   * -------------------------------------------------------
+   *
+   * There is no reason to run expensive package planning
+   * for every player on the board.
+   */
+
+  scoredPlayers.forEach(function(player, index) {
+
+    /*
+     * Default for players outside the planning window.
+     */
+
+    player.packagePathAdvantageScore =
+      0;
+
+
+    if (index >= limit) {
+      return;
+    }
+
+
+    var advantage =
+      calculatePackagePathAdvantage(
+        player,
+        scoredPlayers,
+        context
+      );
+
+
+    player.packagePathAdvantageScore =
+      advantage;
+
+
+    /*
+     * Small bounded adjustment.
+     */
+
+    player.finalScore +=
+      advantage;
+
+  });
+
+
+  /*
+   * Re-sort after package adjustments.
+   */
+
+  scoredPlayers.sort(function(a, b) {
+
+    return (
+      Number(b.finalScore || 0) -
+      Number(a.finalScore || 0)
+    );
+
+  });
+
+
+  return scoredPlayers;
+}
+
 function calculateMultiPickPlanningScore(
   player,
   context
@@ -12022,6 +12103,52 @@ test.equal(
 );
 
     test.assert(
+  'Package adjustment returns player array',
+  Array.isArray(
+    applyPackagePathAdjustments(
+      [
+        {
+          name: 'Test RB',
+          position: 'RB',
+          rank: 1,
+          finalScore: 90,
+          available: true
+        }
+      ],
+      context,
+      1
+    )
+  )
+);
+
+    test.assert(
+  'Package adjustment leaves players with finite scores',
+  (function() {
+
+    var testPlayers = [
+      {
+        name: 'Test RB',
+        position: 'RB',
+        rank: 1,
+        finalScore: 90,
+        available: true
+      }
+    ];
+
+    applyPackagePathAdjustments(
+      testPlayers,
+      context,
+      1
+    );
+
+    return Number.isFinite(
+      testPlayers[0].finalScore
+    );
+
+  })()
+);
+
+    test.assert(
   'Projected package returns result',
   !!calculateProjectedDraftPackage(
     rbOne,
@@ -13155,22 +13282,18 @@ function buildLiveDraftDebugState() {
 
       });
 
-  scored.sort(function(a, b) {
-    return (
-      Number(b.finalScore || 0) -
-      Number(a.finalScore || 0)
-    );
-  });
+scored.sort(function(a, b) {
 
-  /*
- * -------------------------------------------------------
- * CACHE SCORED PLAYERS FOR FUTURE PROJECTIONS
- * -------------------------------------------------------
- *
- * Future-pick and package projections should reuse
- * scores already calculated during this engine pass
- * instead of running calculateDraftDecisionScore()
- * repeatedly.
+  return (
+    Number(b.finalScore || 0) -
+    Number(a.finalScore || 0)
+  );
+
+});
+
+
+/*
+ * Cache base scored players for projection lookup.
  */
 
 context.scoredPlayers =
@@ -13192,6 +13315,19 @@ scored.forEach(function(player) {
   ] = player;
 
 });
+
+
+/*
+ * -------------------------------------------------------
+ * MULTI-PICK PACKAGE SECOND PASS
+ * -------------------------------------------------------
+ */
+
+applyPackagePathAdjustments(
+  scored,
+  context,
+  8
+);
 
   return {
     players:
