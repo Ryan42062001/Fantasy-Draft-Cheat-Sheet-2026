@@ -6729,6 +6729,12 @@ console.log(
     context
   );
 
+  var futureDepthOpportunityScore =
+  calculateFutureDepthOpportunity(
+    player,
+    context
+  );
+
 
 /*
  * -------------------------------------------------------
@@ -6756,6 +6762,7 @@ finalScore += tierCliffOpportunityScore;
 finalScore += runOpportunityScore;
 finalScore += draftAwareVorpOpportunityScore;
 finalScore += rosterConstructionScore;
+finalScore += futureDepthOpportunityScore;
 
   console.log(
   'STRATEGY SCORE DEBUG:',
@@ -6811,6 +6818,9 @@ tierCliffOpportunityScore:
 
 draftAwareVorpOpportunityScore:
   draftAwareVorpOpportunityScore,
+
+    futureDepthOpportunityScore:
+  futureDepthOpportunityScore,
 
     rosterConstructionScore:
   rosterConstructionScore,
