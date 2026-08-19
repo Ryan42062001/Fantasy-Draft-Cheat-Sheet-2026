@@ -1217,6 +1217,78 @@ if (!Number.isFinite(playerScore)) {
   return candidates.slice(0, 5);
 }
 
+function getProjectedDraftPackageCached(
+  player,
+  context
+) {
+
+  if (!player) {
+    return null;
+  }
+
+  context =
+    context || {};
+
+  /*
+   * Store the cache on the context itself.
+   *
+   * A new live draft state creates a new context,
+   * so the cache naturally resets whenever the
+   * draft state is rebuilt.
+   */
+
+  if (!context.packageProjectionCache) {
+
+    context.packageProjectionCache = {};
+
+  }
+
+
+  var key =
+    String(
+      player.name || ''
+    ).toLowerCase();
+
+
+  if (!key) {
+    return null;
+  }
+
+
+  /*
+   * Already calculated during this engine pass.
+   */
+
+  if (
+    Object.prototype.hasOwnProperty.call(
+      context.packageProjectionCache,
+      key
+    )
+  ) {
+
+    return context.packageProjectionCache[key];
+
+  }
+
+
+  /*
+   * Calculate once.
+   */
+
+  var result =
+    calculateProjectedDraftPackage(
+      player,
+      context
+    );
+
+
+  context.packageProjectionCache[key] =
+    result;
+
+
+  return result;
+}
+
 function calculateProjectedDraftPackage(
   player,
   context
@@ -1490,11 +1562,11 @@ function calculatePackagePathAdvantage(
     context || {};
 
 
-  var currentPackage =
-    calculateProjectedDraftPackage(
-      player,
-      context
-    );
+var currentPackage =
+  getProjectedDraftPackageCached(
+    player,
+    context
+  );
 
   if (!currentPackage) {
     return 0;
@@ -1527,11 +1599,11 @@ function calculatePackagePathAdvantage(
     alternatives
       .map(function(candidate) {
 
-        var pkg =
-          calculateProjectedDraftPackage(
-            candidate,
-            context
-          );
+var pkg =
+  getProjectedDraftPackageCached(
+    candidate,
+    context
+  );
 
         return pkg
           ? Number(pkg.packageValue) || 0
