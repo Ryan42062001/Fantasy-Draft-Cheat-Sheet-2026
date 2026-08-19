@@ -4335,6 +4335,94 @@ var currentPick = Math.min(
   };
 }
 
+function getDraftPhase(
+  currentPick,
+  teams
+) {
+
+  currentPick =
+    Number(currentPick) || 0;
+
+  teams =
+    Number(teams) || 10;
+
+  if (
+    currentPick <= 0 ||
+    teams <= 0
+  ) {
+
+    return {
+      round: 0,
+      phase: 'UNKNOWN'
+    };
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT ROUND
+   * -------------------------------------------------------
+   */
+
+  var round =
+    Math.ceil(
+      currentPick / teams
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * DRAFT PHASE
+   * -------------------------------------------------------
+   *
+   * FOUNDATION
+   *   Rounds 1–3
+   *
+   * STARTER BUILD
+   *   Rounds 4–7
+   *
+   * VALUE / DEPTH
+   *   Rounds 8–11
+   *
+   * UPSIDE / ENDGAME
+   *   Round 12+
+   */
+
+  var phase;
+
+  if (round <= 3) {
+
+    phase =
+      'FOUNDATION';
+
+  } else if (round <= 7) {
+
+    phase =
+      'STARTER BUILD';
+
+  } else if (round <= 11) {
+
+    phase =
+      'VALUE / DEPTH';
+
+  } else {
+
+    phase =
+      'UPSIDE / ENDGAME';
+
+  }
+
+
+  return {
+    round:
+      round,
+
+    phase:
+      phase
+  };
+}
+
 
 /* ---------------------------------------------------------
    ROSTER STATE
@@ -12094,6 +12182,69 @@ function runDraftEngineTests(options) {
   ),
   -2,
   2
+);
+
+    test.equal(
+  'Draft phase: pick 1 is FOUNDATION',
+  getDraftPhase(
+    1,
+    10
+  ).phase,
+  'FOUNDATION'
+);
+
+test.equal(
+  'Draft phase: round 3 is FOUNDATION',
+  getDraftPhase(
+    25,
+    10
+  ).phase,
+  'FOUNDATION'
+);
+
+test.equal(
+  'Draft phase: round 4 is STARTER BUILD',
+  getDraftPhase(
+    31,
+    10
+  ).phase,
+  'STARTER BUILD'
+);
+
+test.equal(
+  'Draft phase: round 7 is STARTER BUILD',
+  getDraftPhase(
+    65,
+    10
+  ).phase,
+  'STARTER BUILD'
+);
+
+test.equal(
+  'Draft phase: round 8 is VALUE / DEPTH',
+  getDraftPhase(
+    71,
+    10
+  ).phase,
+  'VALUE / DEPTH'
+);
+
+test.equal(
+  'Draft phase: round 12 is UPSIDE / ENDGAME',
+  getDraftPhase(
+    111,
+    10
+  ).phase,
+  'UPSIDE / ENDGAME'
+);
+
+test.equal(
+  'Draft phase: invalid pick returns UNKNOWN',
+  getDraftPhase(
+    0,
+    10
+  ).phase,
+  'UNKNOWN'
 );
 
 test.equal(
