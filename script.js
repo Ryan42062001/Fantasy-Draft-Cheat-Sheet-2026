@@ -1471,6 +1471,130 @@ if (!Number.isFinite(currentScore)) {
   };
 }
 
+function calculatePackagePathAdvantage(
+  player,
+  scoredPlayers,
+  context
+) {
+
+  if (!player) {
+    return 0;
+  }
+
+  scoredPlayers =
+    Array.isArray(scoredPlayers)
+      ? scoredPlayers
+      : [];
+
+  context =
+    context || {};
+
+
+  var currentPackage =
+    calculateProjectedDraftPackage(
+      player,
+      context
+    );
+
+  if (!currentPackage) {
+    return 0;
+  }
+
+
+  /*
+   * Compare against the strongest realistic
+   * alternative starting players.
+   */
+
+  var alternatives =
+    scoredPlayers
+      .filter(function(candidate) {
+
+        return candidate &&
+          candidate.name !== player.name &&
+          candidate.available !== false;
+
+      })
+      .slice(0, 5);
+
+
+  if (!alternatives.length) {
+    return 0;
+  }
+
+
+  var alternativeValues =
+    alternatives
+      .map(function(candidate) {
+
+        var pkg =
+          calculateProjectedDraftPackage(
+            candidate,
+            context
+          );
+
+        return pkg
+          ? Number(pkg.packageValue) || 0
+          : 0;
+
+      })
+      .filter(function(value) {
+        return value > 0;
+      });
+
+
+  if (!alternativeValues.length) {
+    return 0;
+  }
+
+
+  var bestAlternativePackage =
+    Math.max.apply(
+      null,
+      alternativeValues
+    );
+
+
+  var packageGap =
+    (
+      Number(currentPackage.packageValue) || 0
+    ) -
+    bestAlternativePackage;
+
+
+  /*
+   * -------------------------------------------------------
+   * NORMALIZE
+   * -------------------------------------------------------
+   *
+   * Roughly:
+   *
+   * +10 package advantage → +2
+   *  +5 package advantage → +1
+   *   0                   →  0
+   *  -5                   → -1
+   * -10                   → -2
+   */
+
+  var score =
+    packageGap / 5;
+
+
+  score =
+    Math.max(
+      -2,
+      Math.min(
+        2,
+        score
+      )
+    );
+
+
+  return Number(
+    score.toFixed(2)
+  );
+}
+
 function calculateMultiPickPlanningScore(
   player,
   context
@@ -11800,6 +11924,17 @@ function runDraftEngineTests(options) {
     21,
     10
   );
+
+    test.between(
+  'Package path advantage stays in safe range',
+  calculatePackagePathAdvantage(
+    rbOne,
+    [rbOne, rbReplacement],
+    context
+  ),
+  -2,
+  2
+);
 
 test.equal(
   'Multi-pick: pick 21 first future pick is 40',
