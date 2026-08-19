@@ -17706,6 +17706,186 @@ var overallScore =
   };
 }
 
+function simulateAllDraftSlots(options) {
+
+  options =
+    options || {};
+
+  var teams =
+    Number(options.teams) || 10;
+
+  var rounds =
+    Number(options.rounds) || 16;
+
+  var results = [];
+
+
+  for (
+    var draftSlot = 1;
+    draftSlot <= teams;
+    draftSlot++
+  ) {
+
+    var simulation =
+      simulateFullDraft({
+        teams:
+          teams,
+
+        draftSlot:
+          draftSlot,
+
+        rounds:
+          rounds
+      });
+
+
+    var grade =
+      gradeSimulatedDraft(
+        simulation
+      );
+
+
+    results.push({
+
+      draftSlot:
+        draftSlot,
+
+      grade:
+        grade
+          ? grade.grade
+          : 'N/A',
+
+      overallScore:
+        grade
+          ? grade.overallScore
+          : 0,
+
+      QB:
+        grade
+          ? grade.counts.QB
+          : 0,
+
+      RB:
+        grade
+          ? grade.counts.RB
+          : 0,
+
+      WR:
+        grade
+          ? grade.counts.WR
+          : 0,
+
+      TE:
+        grade
+          ? grade.counts.TE
+          : 0,
+
+      K:
+        grade
+          ? grade.counts.K
+          : 0,
+
+      DST:
+        grade
+          ? grade.counts.DST
+          : 0,
+
+      starterCompletion:
+        grade
+          ? grade.starterCompletion
+          : 0,
+
+      depthBalance:
+        grade
+          ? grade.depthBalance
+          : 0,
+
+      saturation:
+        grade
+          ? grade.saturation
+          : 0,
+
+      draftCapital:
+        grade
+          ? grade.draftCapitalEfficiency
+          : 0,
+
+      valueEfficiency:
+        grade
+          ? grade.valueEfficiency
+          : 0,
+
+      averageReach:
+        grade
+          ? grade.averageReach
+          : 0,
+
+      simulation:
+        simulation
+
+    });
+
+  }
+
+
+  console.group(
+    'ALL DRAFT SLOT SIMULATIONS'
+  );
+
+
+  console.table(
+    results.map(function(result) {
+
+      return {
+
+        slot:
+          result.draftSlot,
+
+        grade:
+          result.grade,
+
+        score:
+          result.overallScore,
+
+        QB:
+          result.QB,
+
+        RB:
+          result.RB,
+
+        WR:
+          result.WR,
+
+        TE:
+          result.TE,
+
+        K:
+          result.K,
+
+        DST:
+          result.DST,
+
+        draftCapital:
+          result.draftCapital,
+
+        value:
+          result.valueEfficiency,
+
+        avgReach:
+          result.averageReach
+
+      };
+
+    })
+  );
+
+
+  console.groupEnd();
+
+
+  return results;
+}
+
 function draftEngineWithSimulatedRoster(
   positions,
   fn
