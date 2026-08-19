@@ -556,6 +556,226 @@ function calculateMyNextTwoDraftPicks(
   };
 }
 
+function calculateMultiPickPositionPath(
+  player,
+  context
+) {
+
+  if (!player) {
+    return null;
+  }
+
+  context =
+    context || {};
+
+  var position =
+    player.position ||
+    player.pos ||
+    null;
+
+  if (
+    !position ||
+    !['QB', 'RB', 'WR', 'TE'].includes(position)
+  ) {
+    return null;
+  }
+
+  var currentPick =
+    Number(context.currentPick) || 0;
+
+  var teams =
+    Number(context.teams) || 10;
+
+  var futurePicks =
+    calculateMyNextTwoDraftPicks(
+      currentPick,
+      teams
+    );
+
+  var needs =
+    Object.assign(
+      {},
+      context.rosterNeeds ||
+      calculateDecisionRosterNeeds()
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * SIMULATE TAKING CURRENT PLAYER
+   * -------------------------------------------------------
+   */
+
+  if (
+    Number(needs[position]) > 0
+  ) {
+
+    needs[position] =
+      Math.max(
+        0,
+        Number(needs[position]) - 1
+      );
+
+  } else if (
+    (
+      position === 'RB' ||
+      position === 'WR' ||
+      position === 'TE'
+    ) &&
+    Number(needs.FLEX) > 0
+  ) {
+
+    needs.FLEX =
+      Math.max(
+        0,
+        Number(needs.FLEX) - 1
+      );
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * SCORE FUTURE POSITION PRIORITIES
+   * -------------------------------------------------------
+   */
+
+  var positions =
+    ['QB', 'RB', 'WR', 'TE'];
+
+  var priorities =
+    positions.map(function(pos) {
+
+      var need =
+        Number(needs[pos]) || 0;
+
+      var flexNeed =
+        Number(needs.FLEX) || 0;
+
+      var priority = 0;
+
+
+      /*
+       * Dedicated starter need.
+       */
+
+      priority +=
+        need * 3;
+
+
+      /*
+       * FLEX need.
+       */
+
+      if (
+        flexNeed > 0 &&
+        (
+          pos === 'RB' ||
+          pos === 'WR' ||
+          pos === 'TE'
+        )
+      ) {
+
+        priority += 1;
+
+      }
+
+
+      /*
+       * Future depth.
+       *
+       * Thin positions deserve more priority.
+       */
+
+      var depth =
+        calculateFuturePositionDepth(
+          {
+            position:
+              pos,
+
+            rank:
+              Number(player.rank) || 999,
+
+            name:
+              '__PATH_' + pos
+          },
+          context
+        );
+
+      var depthUrgency =
+        Math.max(
+          0,
+          100 - depth
+        ) / 25;
+
+      priority +=
+        depthUrgency;
+
+
+      return {
+        position:
+          pos,
+
+        need:
+          need,
+
+        flexNeed:
+          flexNeed,
+
+        futureDepth:
+          depth,
+
+        priority:
+          priority
+      };
+
+    });
+
+
+  priorities.sort(function(a, b) {
+
+    return (
+      Number(b.priority) -
+      Number(a.priority)
+    );
+
+  });
+
+
+  var firstFuturePosition =
+    priorities[0]
+      ? priorities[0].position
+      : null;
+
+  var secondFuturePosition =
+    priorities[1]
+      ? priorities[1].position
+      : null;
+
+
+  return {
+
+    currentPosition:
+      position,
+
+    firstNextPick:
+      futurePicks.firstNextPick,
+
+    secondNextPick:
+      futurePicks.secondNextPick,
+
+    firstFuturePosition:
+      firstFuturePosition,
+
+    secondFuturePosition:
+      secondFuturePosition,
+
+    priorities:
+      priorities
+
+  };
+}
+
 function getSnakeDraftTeamForPick(
   pick,
   teams
@@ -10649,6 +10869,24 @@ test.equal(
   'Multi-pick: pick 21 first future pick is 40',
   multiPick21.firstNextPick,
   40
+);
+
+    test.assert(
+  'Multi-pick path returns result',
+  !!calculateMultiPickPositionPath(
+    rbOne,
+    context
+  )
+);
+
+test.assert(
+  'Multi-pick path returns future positions',
+  !!(
+    calculateMultiPickPositionPath(
+      rbOne,
+      context
+    ).firstFuturePosition
+  )
 );
 
 test.equal(
