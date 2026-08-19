@@ -13575,6 +13575,23 @@ test.equal(
   4
 );
 
+var liveStateForPositions =
+  buildLiveDraftDebugState();
+
+test.assert(
+  'Decision pool includes K',
+  liveStateForPositions.scored.some(function(player) {
+    return player.position === 'K';
+  })
+);
+
+test.assert(
+  'Decision pool includes DST',
+  liveStateForPositions.scored.some(function(player) {
+    return player.position === 'DST';
+  })
+);
+
 test.equal(
   'Roster construction: filled QB is penalized',
   calculateRosterConstructionValue(
@@ -14524,6 +14541,71 @@ function buildLiveDraftDebugState() {
         );
 
       });
+
+  /*
+ * -------------------------------------------------------
+ * ADD K / DST TO DECISION POOL
+ * -------------------------------------------------------
+ *
+ * K and DST are not part of the VORP profile system,
+ * but they still need to enter the decision engine so
+ * late-round roster requirements can select them.
+ */
+
+players
+  .filter(function(player) {
+
+    return (
+      player &&
+      player.available &&
+      (
+        player.position === 'K' ||
+        player.position === 'DST'
+      )
+    );
+
+  })
+  .forEach(function(player) {
+
+    /*
+     * Give special-teams players neutral fantasy-value
+     * inputs. Their timing and endgame requirement logic
+     * will determine when they become viable.
+     */
+
+    var specialTeamsPlayer =
+      Object.assign(
+        {},
+        player,
+        {
+          vorp:
+            0,
+
+          scarcity:
+            0,
+
+          draftAware:
+            0
+        }
+      );
+
+
+    var scoredSpecialTeams =
+      calculateDraftDecisionScore(
+        specialTeamsPlayer,
+        context
+      );
+
+
+    if (scoredSpecialTeams) {
+
+      scored.push(
+        scoredSpecialTeams
+      );
+
+    }
+
+  });
 
 scored.sort(function(a, b) {
 
