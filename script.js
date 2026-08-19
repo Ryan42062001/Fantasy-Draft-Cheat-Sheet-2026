@@ -13703,6 +13703,35 @@ test.equal(
 );
 
 test.equal(
+  'Draft grade: early TE2 reduces draft-capital efficiency',
+  gradeSimulatedDraft({
+    roster: {
+      QB: ['QB1'],
+      RB: ['RB1', 'RB2', 'RB3', 'RB4', 'RB5'],
+      WR: ['WR1', 'WR2', 'WR3', 'WR4', 'WR5'],
+      TE: ['TE1', 'TE2'],
+      K: ['K1'],
+      DST: ['DST1']
+    },
+    myDraft: [
+      {
+        round: 2,
+        position: 'TE',
+        pick: 20,
+        rank: 20
+      },
+      {
+        round: 4,
+        position: 'TE',
+        pick: 40,
+        rank: 40
+      }
+    ]
+  }).draftCapitalEfficiency,
+  90
+);
+
+test.equal(
   'Opponent map: pick 10 belongs to team 10',
   getSnakeDraftTeamForPick(
     10,
