@@ -962,6 +962,117 @@ return {
 
 }
 
+function calculateMultiPickPlanningScore(
+  player,
+  context
+) {
+
+  if (!player) {
+    return 0;
+  }
+
+  var path =
+    calculateMultiPickPositionPath(
+      player,
+      context
+    );
+
+  if (!path) {
+    return 0;
+  }
+
+  var position =
+    player.position ||
+    player.pos ||
+    null;
+
+  if (!position) {
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * MULTI-PICK PLANNING SCORE
+   * -------------------------------------------------------
+   *
+   * Reward a current pick when taking this position
+   * leaves us with a healthy, complementary path at
+   * the next two selections.
+   *
+   * Keep the score intentionally small.
+   */
+
+  var score = 0;
+
+
+  /*
+   * If the next two target positions are different
+   * from the current one, that generally improves
+   * roster balance and draft flexibility.
+   */
+
+  if (
+    path.firstFuturePosition &&
+    path.firstFuturePosition !== position
+  ) {
+    score += 0.75;
+  }
+
+
+  if (
+    path.secondFuturePosition &&
+    path.secondFuturePosition !== position
+  ) {
+    score += 0.50;
+  }
+
+
+  /*
+   * Reward diversity between the two future targets.
+   */
+
+  if (
+    path.firstFuturePosition &&
+    path.secondFuturePosition &&
+    path.firstFuturePosition !==
+      path.secondFuturePosition
+  ) {
+    score += 0.50;
+  }
+
+
+  /*
+   * If both future priorities still point back to
+   * the current position, taking this player now
+   * may leave the roster too concentrated.
+   */
+
+  if (
+    path.firstFuturePosition === position &&
+    path.secondFuturePosition === position
+  ) {
+    score -= 1;
+  }
+
+
+  /*
+   * Clamp to a small supporting range.
+   */
+
+  score =
+    Math.max(
+      -1,
+      Math.min(
+        2,
+        score
+      )
+    );
+
+
+  return score;
+}
+
 function getSnakeDraftTeamForPick(
   pick,
   teams
@@ -11073,6 +11184,16 @@ test.assert(
       context
     ).firstFuturePosition
   )
+);
+
+    test.between(
+  'Multi-pick planning score stays in safe range',
+  calculateMultiPickPlanningScore(
+    rbOne,
+    context
+  ),
+  -1,
+  2
 );
 
 test.equal(
