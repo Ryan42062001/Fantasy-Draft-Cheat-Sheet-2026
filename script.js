@@ -991,46 +991,30 @@ function calculateMultiPickPlanningScore(
   }
 
 
-  /*
-   * -------------------------------------------------------
-   * MULTI-PICK PLANNING SCORE
-   * -------------------------------------------------------
-   *
-   * Reward a current pick when taking this position
-   * leaves us with a healthy, complementary path at
-   * the next two selections.
-   *
-   * Keep the score intentionally small.
-   */
-
   var score = 0;
 
 
   /*
-   * If the next two target positions are different
-   * from the current one, that generally improves
-   * roster balance and draft flexibility.
+   * -------------------------------------------------------
+   * 1. PATH DIVERSITY
+   * -------------------------------------------------------
+   *
+   * Keep this smaller than before.
    */
 
   if (
     path.firstFuturePosition &&
     path.firstFuturePosition !== position
   ) {
-    score += 0.75;
+    score += 0.40;
   }
-
 
   if (
     path.secondFuturePosition &&
     path.secondFuturePosition !== position
   ) {
-    score += 0.50;
+    score += 0.25;
   }
-
-
-  /*
-   * Reward diversity between the two future targets.
-   */
 
   if (
     path.firstFuturePosition &&
@@ -1038,14 +1022,108 @@ function calculateMultiPickPlanningScore(
     path.firstFuturePosition !==
       path.secondFuturePosition
   ) {
-    score += 0.50;
+    score += 0.25;
   }
 
 
   /*
-   * If both future priorities still point back to
-   * the current position, taking this player now
-   * may leave the roster too concentrated.
+   * -------------------------------------------------------
+   * 2. FIRST FUTURE PICK QUALITY
+   * -------------------------------------------------------
+   *
+   * A strong priority means there is a clear,
+   * useful roster-building move available next.
+   */
+
+  var firstPriority =
+    path.firstPriorities &&
+    path.firstPriorities.length
+      ? Number(
+          path.firstPriorities[0].priority
+        ) || 0
+      : 0;
+
+  score +=
+    Math.min(
+      0.50,
+      firstPriority / 20
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * 3. SECOND FUTURE PICK QUALITY
+   * -------------------------------------------------------
+   */
+
+  var secondPriority =
+    path.secondPriorities &&
+    path.secondPriorities.length
+      ? Number(
+          path.secondPriorities[0].priority
+        ) || 0
+      : 0;
+
+  score +=
+    Math.min(
+      0.40,
+      secondPriority / 20
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * 4. PATH BALANCE
+   * -------------------------------------------------------
+   *
+   * Reward paths where there are multiple viable
+   * options rather than one desperate position need.
+   */
+
+  if (
+    path.firstPriorities &&
+    path.firstPriorities.length >= 2
+  ) {
+
+    var firstGap =
+      Number(
+        path.firstPriorities[0].priority
+      ) -
+      Number(
+        path.firstPriorities[1].priority
+      );
+
+    if (firstGap <= 1) {
+      score += 0.20;
+    }
+
+  }
+
+
+  if (
+    path.secondPriorities &&
+    path.secondPriorities.length >= 2
+  ) {
+
+    var secondGap =
+      Number(
+        path.secondPriorities[0].priority
+      ) -
+      Number(
+        path.secondPriorities[1].priority
+      );
+
+    if (secondGap <= 1) {
+      score += 0.20;
+    }
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * 5. CONCENTRATION PENALTY
+   * -------------------------------------------------------
    */
 
   if (
@@ -1057,7 +1135,9 @@ function calculateMultiPickPlanningScore(
 
 
   /*
-   * Clamp to a small supporting range.
+   * -------------------------------------------------------
+   * CLAMP
+   * -------------------------------------------------------
    */
 
   score =
@@ -1070,7 +1150,9 @@ function calculateMultiPickPlanningScore(
     );
 
 
-  return score;
+  return Number(
+    score.toFixed(2)
+  );
 }
 
 function getSnakeDraftTeamForPick(
