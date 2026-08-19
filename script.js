@@ -6723,6 +6723,12 @@ console.log(
   tierCliffOpportunityScore
 );
 
+  var rosterConstructionScore =
+  calculateRosterConstructionValue(
+    player,
+    context
+  );
+
 
 /*
  * -------------------------------------------------------
@@ -6749,6 +6755,7 @@ finalScore += strategyScore;
 finalScore += tierCliffOpportunityScore;
 finalScore += runOpportunityScore;
 finalScore += draftAwareVorpOpportunityScore;
+finalScore += rosterConstructionScore;
 
   console.log(
   'STRATEGY SCORE DEBUG:',
@@ -6804,6 +6811,9 @@ tierCliffOpportunityScore:
 
 draftAwareVorpOpportunityScore:
   draftAwareVorpOpportunityScore,
+
+    rosterConstructionScore:
+  rosterConstructionScore,
 
 finalScore:
   finalScore
