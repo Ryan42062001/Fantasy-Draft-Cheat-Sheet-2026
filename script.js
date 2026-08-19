@@ -960,6 +960,8 @@ return {
 
 };
 
+}
+
 function getSnakeDraftTeamForPick(
   pick,
   teams
