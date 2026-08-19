@@ -7813,6 +7813,8 @@ return Math.round(
   depthScore
 );
 
+}
+
 function calculateNextPickSurvival(
   candidate,
   context
