@@ -11309,6 +11309,192 @@ function calculateRosterConstructionValue(
   return value;
 }
 
+function calculateRosterSaturationPenalty(
+  player,
+  context
+) {
+
+  if (!player) {
+    return 0;
+  }
+
+  context =
+    context || {};
+
+  var position =
+    player.position ||
+    player.pos ||
+    null;
+
+  if (
+    !position ||
+    !['QB', 'RB', 'WR', 'TE'].includes(position)
+  ) {
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT ROSTER COUNTS
+   * -------------------------------------------------------
+   */
+
+  var counts = {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0
+  };
+
+
+  document
+    .querySelectorAll(
+      'tr.draftrow.drafted-mine'
+    )
+    .forEach(function(row) {
+
+      var pos =
+        row.getAttribute(
+          'data-pos'
+        );
+
+      if (
+        pos &&
+        counts[pos] !== undefined
+      ) {
+
+        counts[pos]++;
+
+      }
+
+    });
+
+
+  var currentCount =
+    Number(
+      counts[position]
+    ) || 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * POSITION SATURATION
+   * -------------------------------------------------------
+   *
+   * Negative numbers are penalties.
+   *
+   * These are intentionally soft until the roster
+   * becomes clearly overstocked.
+   */
+
+  var penalty = 0;
+
+
+  if (position === 'RB') {
+
+    if (currentCount >= 7) {
+
+      penalty = -12;
+
+    } else if (currentCount === 6) {
+
+      penalty = -8;
+
+    } else if (currentCount === 5) {
+
+      penalty = -5;
+
+    } else if (currentCount === 4) {
+
+      penalty = -2;
+
+    }
+
+
+  } else if (position === 'WR') {
+
+    if (currentCount >= 7) {
+
+      penalty = -10;
+
+    } else if (currentCount === 6) {
+
+      penalty = -6;
+
+    } else if (currentCount === 5) {
+
+      penalty = -3;
+
+    }
+
+
+  } else if (position === 'QB') {
+
+    if (currentCount >= 2) {
+
+      penalty = -10;
+
+    } else if (currentCount === 1) {
+
+      penalty = -4;
+
+    }
+
+
+  } else if (position === 'TE') {
+
+    if (currentCount >= 3) {
+
+      penalty = -10;
+
+    } else if (currentCount === 2) {
+
+      penalty = -6;
+
+    } else if (currentCount === 1) {
+
+      penalty = -2;
+
+    }
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * BENCH BALANCE
+   * -------------------------------------------------------
+   *
+   * If one position is heavily stocked while the other
+   * main FLEX position is thin, increase the penalty.
+   */
+
+  if (
+    position === 'RB' &&
+    counts.RB >= 5 &&
+    counts.WR <= 2
+  ) {
+
+    penalty -= 3;
+
+  }
+
+
+  if (
+    position === 'WR' &&
+    counts.WR >= 5 &&
+    counts.RB <= 2
+  ) {
+
+    penalty -= 3;
+
+  }
+
+
+  return penalty;
+}
+
 function calculateDraftStrategy() {
 
   var counts = {
@@ -13446,6 +13632,61 @@ test.equal(
     scored.draftPhase,
     'FOUNDATION'
   );
+
+  test.equal(
+  'Roster saturation: empty roster has no RB penalty',
+  draftEngineTestWithRoster(
+    [],
+    function() {
+      return calculateRosterSaturationPenalty(
+        { position: 'RB' },
+        {}
+      );
+    }
+  ),
+  0
+);
+
+test.equal(
+  'Roster saturation: RB5 gets mild penalty',
+  draftEngineTestWithRoster(
+    ['RB', 'RB', 'RB', 'RB'],
+    function() {
+      return calculateRosterSaturationPenalty(
+        { position: 'RB' },
+        {}
+      );
+    }
+  ),
+  -2
+);
+
+test.assert(
+  'Roster saturation: RB7 gets strong penalty',
+  draftEngineTestWithRoster(
+    ['RB', 'RB', 'RB', 'RB', 'RB', 'RB'],
+    function() {
+      return calculateRosterSaturationPenalty(
+        { position: 'RB' },
+        {}
+      );
+    }
+  ) <= -8
+);
+
+test.equal(
+  'Roster saturation: second QB is discouraged',
+  draftEngineTestWithRoster(
+    ['QB'],
+    function() {
+      return calculateRosterSaturationPenalty(
+        { position: 'QB' },
+        {}
+      );
+    }
+  ),
+  -4
+);
 
   test.assert(
     'Decision score returns phase-adjusted roster construction',
