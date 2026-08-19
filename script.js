@@ -8776,6 +8776,157 @@ function calculateDecisionRosterNeeds(){
   return needs;
 }
 
+function calculateRosterConstructionValue(
+  player,
+  context
+) {
+
+  if (!player) {
+    return 0;
+  }
+
+  context =
+    context || {};
+
+  var position =
+    player.position ||
+    player.pos ||
+    null;
+
+  if (
+    !position ||
+    !['QB', 'RB', 'WR', 'TE'].includes(position)
+  ) {
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT ROSTER NEEDS
+   * -------------------------------------------------------
+   */
+
+  var needs =
+    context.rosterNeeds ||
+    calculateDecisionRosterNeeds();
+
+
+  var dedicatedNeed =
+    Number(needs[position]) || 0;
+
+  var flexNeed =
+    Number(needs.FLEX) || 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * BASE ROSTER-CONSTRUCTION VALUE
+   * -------------------------------------------------------
+   *
+   * This score is intentionally small.
+   *
+   * It should influence the decision,
+   * not overpower tier / VORP / ranking.
+   */
+
+  var value = 0;
+
+
+  /*
+   * Dedicated starting slot still open.
+   */
+
+  if (dedicatedNeed > 0) {
+
+    value += 3;
+
+  }
+
+
+  /*
+   * FLEX still open.
+   *
+   * Only RB / WR / TE qualify.
+   */
+
+  if (
+    flexNeed > 0 &&
+    (
+      position === 'RB' ||
+      position === 'WR' ||
+      position === 'TE'
+    )
+  ) {
+
+    value += 1;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * STARTER PRIORITY
+   * -------------------------------------------------------
+   *
+   * Filling a true starter vacancy should matter more
+   * than simply adding FLEX/depth.
+   */
+
+  if (
+    dedicatedNeed > 0 &&
+    position === 'QB'
+  ) {
+
+    value += 1;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * OVERSTOCK PROTECTION
+   * -------------------------------------------------------
+   *
+   * If the dedicated position is already filled and
+   * FLEX is also covered, reduce the value of adding
+   * another player at that position.
+   */
+
+  if (
+    dedicatedNeed <= 0 &&
+    (
+      position === 'QB' ||
+      flexNeed <= 0
+    )
+  ) {
+
+    value -= 2;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CLAMP
+   * -------------------------------------------------------
+   *
+   * Keep roster construction as a supporting signal.
+   */
+
+  value =
+    Math.max(
+      -2,
+      Math.min(
+        5,
+        value
+      )
+    );
+
+
+  return value;
+}
+
 function calculateDraftStrategy() {
 
   var counts = {
@@ -10034,6 +10185,91 @@ test.equal(
     'RB'
   ),
   0.5
+);
+
+    test.equal(
+  'Roster construction: dedicated RB need adds value',
+  calculateRosterConstructionValue(
+    { position: 'RB' },
+    {
+      rosterNeeds: {
+        QB: 0,
+        RB: 1,
+        WR: 0,
+        TE: 0,
+        FLEX: 0
+      }
+    }
+  ),
+  3
+);
+
+test.equal(
+  'Roster construction: FLEX-only RB adds small value',
+  calculateRosterConstructionValue(
+    { position: 'RB' },
+    {
+      rosterNeeds: {
+        QB: 0,
+        RB: 0,
+        WR: 0,
+        TE: 0,
+        FLEX: 1
+      }
+    }
+  ),
+  1
+);
+
+test.equal(
+  'Roster construction: empty QB starter gets strong value',
+  calculateRosterConstructionValue(
+    { position: 'QB' },
+    {
+      rosterNeeds: {
+        QB: 1,
+        RB: 0,
+        WR: 0,
+        TE: 0,
+        FLEX: 1
+      }
+    }
+  ),
+  4
+);
+
+test.equal(
+  'Roster construction: filled QB is penalized',
+  calculateRosterConstructionValue(
+    { position: 'QB' },
+    {
+      rosterNeeds: {
+        QB: 0,
+        RB: 0,
+        WR: 0,
+        TE: 0,
+        FLEX: 1
+      }
+    }
+  ),
+  -2
+);
+
+test.equal(
+  'Roster construction: filled RB with filled FLEX is penalized',
+  calculateRosterConstructionValue(
+    { position: 'RB' },
+    {
+      rosterNeeds: {
+        QB: 0,
+        RB: 0,
+        WR: 0,
+        TE: 0,
+        FLEX: 0
+      }
+    }
+  ),
+  -2
 );
 
 test.equal(
