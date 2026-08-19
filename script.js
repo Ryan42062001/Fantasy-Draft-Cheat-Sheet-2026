@@ -4423,6 +4423,138 @@ function getDraftPhase(
   };
 }
 
+function getDraftPhaseWeights(
+  phase
+) {
+
+  phase =
+    phase || 'UNKNOWN';
+
+
+  /*
+   * All values are multipliers.
+   *
+   * 1.00 = neutral
+   * >1.00 = emphasize
+   * <1.00 = de-emphasize
+   */
+
+  var weights = {
+    vorp:
+      1,
+
+    scarcity:
+      1,
+
+    rosterNeed:
+      1,
+
+    rosterConstruction:
+      1,
+
+    futureDepth:
+      1,
+
+    tierCliff:
+      1,
+
+    draftAwareVorp:
+      1,
+
+    multiPick:
+      1
+  };
+
+
+  if (phase === 'FOUNDATION') {
+
+    weights.vorp =
+      1.10;
+
+    weights.scarcity =
+      1.05;
+
+    weights.rosterNeed =
+      0.85;
+
+    weights.rosterConstruction =
+      0.90;
+
+    weights.futureDepth =
+      1.05;
+
+    weights.tierCliff =
+      1.10;
+
+
+  } else if (phase === 'STARTER BUILD') {
+
+    weights.vorp =
+      1.00;
+
+    weights.scarcity =
+      1.00;
+
+    weights.rosterNeed =
+      1.15;
+
+    weights.rosterConstruction =
+      1.20;
+
+    weights.futureDepth =
+      1.10;
+
+    weights.tierCliff =
+      1.05;
+
+
+  } else if (phase === 'VALUE / DEPTH') {
+
+    weights.vorp =
+      1.10;
+
+    weights.scarcity =
+      1.10;
+
+    weights.rosterNeed =
+      1.10;
+
+    weights.rosterConstruction =
+      1.00;
+
+    weights.futureDepth =
+      1.10;
+
+    weights.draftAwareVorp =
+      1.10;
+
+
+  } else if (phase === 'UPSIDE / ENDGAME') {
+
+    weights.vorp =
+      1.15;
+
+    weights.scarcity =
+      1.05;
+
+    weights.rosterNeed =
+      0.95;
+
+    weights.rosterConstruction =
+      0.90;
+
+    weights.futureDepth =
+      0.90;
+
+    weights.multiPick =
+      0.75;
+
+  }
+
+
+  return weights;
+}
+
 
 /* ---------------------------------------------------------
    ROSTER STATE
@@ -12209,6 +12341,54 @@ test.equal(
     10
   ).phase,
   'STARTER BUILD'
+);
+
+    test.equal(
+  'Draft phase weights: FOUNDATION boosts VORP',
+  getDraftPhaseWeights(
+    'FOUNDATION'
+  ).vorp,
+  1.10
+);
+
+test.equal(
+  'Draft phase weights: FOUNDATION lowers roster need',
+  getDraftPhaseWeights(
+    'FOUNDATION'
+  ).rosterNeed,
+  0.85
+);
+
+test.equal(
+  'Draft phase weights: STARTER BUILD boosts roster construction',
+  getDraftPhaseWeights(
+    'STARTER BUILD'
+  ).rosterConstruction,
+  1.20
+);
+
+test.equal(
+  'Draft phase weights: VALUE / DEPTH boosts scarcity',
+  getDraftPhaseWeights(
+    'VALUE / DEPTH'
+  ).scarcity,
+  1.10
+);
+
+test.equal(
+  'Draft phase weights: ENDGAME reduces multi-pick planning',
+  getDraftPhaseWeights(
+    'UPSIDE / ENDGAME'
+  ).multiPick,
+  0.75
+);
+
+test.equal(
+  'Draft phase weights: UNKNOWN stays neutral',
+  getDraftPhaseWeights(
+    'UNKNOWN'
+  ).vorp,
+  1
 );
 
 test.equal(
