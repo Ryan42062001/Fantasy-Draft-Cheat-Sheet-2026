@@ -13418,6 +13418,30 @@ if (scored) {
   );
 
   test.equal(
+  'Full draft math: 10 teams x 16 rounds = 160 picks',
+  10 * 16,
+  160
+);
+
+test.equal(
+  'Full draft math: slot 1 first pick belongs to team 1',
+  getSnakeDraftTeamForPick(
+    1,
+    10
+  ).teamSlot,
+  1
+);
+
+test.equal(
+  'Full draft math: slot 1 turn pick 20 belongs to team 1',
+  getSnakeDraftTeamForPick(
+    20,
+    10
+  ).teamSlot,
+  1
+);
+
+  test.equal(
     'Decision score exposes FOUNDATION phase at pick 1',
     scored.draftPhase,
     'FOUNDATION'
@@ -15605,6 +15629,581 @@ if (original.teamSlot !== null) {
   );
 
 }
+
+    });
+
+  }
+}
+
+function simulateFullDraft(options) {
+
+  options =
+    options || {};
+
+  var teams =
+    Number(options.teams) || 10;
+
+  var draftSlot =
+    Number(options.draftSlot) || 1;
+
+  var rounds =
+    Number(options.rounds) || 16;
+
+
+  if (
+    teams <= 0 ||
+    draftSlot <= 0 ||
+    draftSlot > teams ||
+    rounds <= 0
+  ) {
+
+    console.warn(
+      'FULL DRAFT SIMULATOR: Invalid configuration.'
+    );
+
+    return null;
+  }
+
+
+  var rows =
+    Array.prototype.slice.call(
+      document.querySelectorAll(
+        'tr.draftrow'
+      )
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * SNAPSHOT REAL BOARD
+   * -------------------------------------------------------
+   */
+
+  var originalRows =
+    rows.map(function(row) {
+
+      return {
+        className:
+          row.className,
+
+        pick:
+          row.getAttribute(
+            'data-pick'
+          ),
+
+        teamSlot:
+          row.getAttribute(
+            'data-team-slot'
+          )
+      };
+
+    });
+
+
+  var originalGetDraftAssistantState =
+    getDraftAssistantState;
+
+
+  /*
+   * -------------------------------------------------------
+   * CLEAN SIMULATION BOARD
+   * -------------------------------------------------------
+   */
+
+  rows.forEach(function(row) {
+
+    row.classList.remove(
+      'drafted-other',
+      'drafted-mine'
+    );
+
+    row.removeAttribute(
+      'data-pick'
+    );
+
+    row.removeAttribute(
+      'data-team-slot'
+    );
+
+  });
+
+
+  var totalPicks =
+    teams * rounds;
+
+  var myDraft = [];
+
+  var allDrafted = [];
+
+
+  /*
+   * Current simulated pick.
+   *
+   * buildLiveDraftDebugState() will read this through
+   * our temporary getDraftAssistantState override.
+   */
+
+  var simulatedCurrentPick = 1;
+
+
+  getDraftAssistantState =
+    function() {
+
+      return {
+        teams:
+          teams,
+
+        rounds:
+          rounds,
+
+        draftSlot:
+          draftSlot,
+
+        totalPicks:
+          totalPicks,
+
+        currentPick:
+          simulatedCurrentPick,
+
+        nextPick:
+          simulatedCurrentPick,
+
+        myNextPick:
+          simulatedCurrentPick,
+
+        picksUntilMyTurn:
+          0,
+
+        onClock:
+          true
+      };
+
+    };
+
+
+  try {
+
+    /*
+     * -------------------------------------------------------
+     * RUN COMPLETE DRAFT
+     * -------------------------------------------------------
+     */
+
+    for (
+      var pick = 1;
+      pick <= totalPicks;
+      pick++
+    ) {
+
+      simulatedCurrentPick =
+        pick;
+
+
+      var mapping =
+        getSnakeDraftTeamForPick(
+          pick,
+          teams
+        );
+
+
+      if (!mapping) {
+        continue;
+      }
+
+
+      var teamSlot =
+        Number(
+          mapping.teamSlot
+        ) || 0;
+
+
+      /*
+       * -------------------------------------------------------
+       * OUR PICK
+       * -------------------------------------------------------
+       */
+
+      if (teamSlot === draftSlot) {
+
+        var liveState =
+          buildLiveDraftDebugState();
+
+
+        if (
+          !liveState ||
+          !liveState.scored ||
+          !liveState.scored.length
+        ) {
+
+          console.warn(
+            'FULL DRAFT SIMULATOR: No recommendation at pick',
+            pick
+          );
+
+          continue;
+        }
+
+
+        /*
+         * Highest-ranked decision-engine recommendation.
+         */
+
+        var selected =
+          liveState.scored[0];
+
+
+        var selectedRow =
+          selected.row ||
+          rows.find(function(row) {
+
+            return (
+              row.getAttribute(
+                'data-name'
+              ) === selected.name
+            );
+
+          });
+
+
+        if (!selectedRow) {
+
+          console.warn(
+            'FULL DRAFT SIMULATOR: Could not locate row for',
+            selected.name
+          );
+
+          continue;
+        }
+
+
+        selectedRow.classList.add(
+          'drafted-mine'
+        );
+
+        selectedRow.setAttribute(
+          'data-pick',
+          pick
+        );
+
+        selectedRow.setAttribute(
+          'data-team-slot',
+          teamSlot
+        );
+
+
+        var myPickRecord = {
+
+          pick:
+            pick,
+
+          round:
+            Math.ceil(
+              pick / teams
+            ),
+
+          name:
+            selected.name,
+
+          position:
+            selected.position,
+
+          rank:
+            selected.rank,
+
+          score:
+            Number(
+              selected.finalScore
+            ) || 0,
+
+          phase:
+            selected.draftPhase ||
+            getDraftPhase(
+              pick,
+              teams
+            ).phase
+
+        };
+
+
+        myDraft.push(
+          myPickRecord
+        );
+
+
+        allDrafted.push(
+          Object.assign(
+            {
+              teamSlot:
+                teamSlot,
+
+              mine:
+                true
+            },
+            myPickRecord
+          )
+        );
+
+
+      } else {
+
+        /*
+         * -------------------------------------------------------
+         * OPPONENT PICK
+         * -------------------------------------------------------
+         *
+         * v1 opponents simply take the highest-ranked
+         * player remaining.
+         */
+
+        var availablePlayers =
+          getDraftAssistantPlayers()
+            .filter(function(player) {
+
+              return (
+                player &&
+                player.available !== false &&
+                player.row
+              );
+
+            })
+            .sort(function(a, b) {
+
+              return (
+                Number(a.rank || 999) -
+                Number(b.rank || 999)
+              );
+
+            });
+
+
+        var opponentPick =
+          availablePlayers[0];
+
+
+        if (!opponentPick) {
+          continue;
+        }
+
+
+        opponentPick.row.classList.add(
+          'drafted-other'
+        );
+
+        opponentPick.row.setAttribute(
+          'data-pick',
+          pick
+        );
+
+        opponentPick.row.setAttribute(
+          'data-team-slot',
+          teamSlot
+        );
+
+
+        allDrafted.push({
+
+          pick:
+            pick,
+
+          round:
+            Math.ceil(
+              pick / teams
+            ),
+
+          teamSlot:
+            teamSlot,
+
+          mine:
+            false,
+
+          name:
+            opponentPick.name,
+
+          position:
+            opponentPick.position,
+
+          rank:
+            opponentPick.rank
+
+        });
+
+      }
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * BUILD ROSTER SUMMARY
+     * -------------------------------------------------------
+     */
+
+    var roster = {
+      QB: [],
+      RB: [],
+      WR: [],
+      TE: [],
+      K: [],
+      DST: []
+    };
+
+
+    myDraft.forEach(function(player) {
+
+      if (
+        roster[player.position]
+      ) {
+
+        roster[player.position].push(
+          player.name
+        );
+
+      }
+
+    });
+
+
+    /*
+     * -------------------------------------------------------
+     * OUTPUT
+     * -------------------------------------------------------
+     */
+
+    console.group(
+      'FULL DRAFT SIMULATION — ' +
+      teams +
+      ' TEAM — SLOT ' +
+      draftSlot
+    );
+
+
+    console.log(
+      'Rounds:',
+      rounds
+    );
+
+
+    console.table(
+      myDraft.map(function(player) {
+
+        return {
+          round:
+            player.round,
+
+          pick:
+            player.pick,
+
+          name:
+            player.name,
+
+          position:
+            player.position,
+
+          rank:
+            player.rank,
+
+          score:
+            Number(
+              player.score
+            ).toFixed(1),
+
+          phase:
+            player.phase
+        };
+
+      })
+    );
+
+
+    console.log(
+      'FINAL ROSTER:',
+      roster
+    );
+
+
+    console.groupEnd();
+
+
+    return {
+
+      teams:
+        teams,
+
+      draftSlot:
+        draftSlot,
+
+      rounds:
+        rounds,
+
+      totalPicks:
+        totalPicks,
+
+      myDraft:
+        myDraft,
+
+      roster:
+        roster,
+
+      allDrafted:
+        allDrafted
+
+    };
+
+
+  } finally {
+
+    /*
+     * -------------------------------------------------------
+     * RESTORE REAL BOARD
+     * -------------------------------------------------------
+     */
+
+    getDraftAssistantState =
+      originalGetDraftAssistantState;
+
+
+    rows.forEach(function(row, index) {
+
+      var original =
+        originalRows[index];
+
+
+      row.className =
+        original.className;
+
+
+      if (original.pick !== null) {
+
+        row.setAttribute(
+          'data-pick',
+          original.pick
+        );
+
+      } else {
+
+        row.removeAttribute(
+          'data-pick'
+        );
+
+      }
+
+
+      if (
+        original.teamSlot !== null
+      ) {
+
+        row.setAttribute(
+          'data-team-slot',
+          original.teamSlot
+        );
+
+      } else {
+
+        row.removeAttribute(
+          'data-team-slot'
+        );
+
+      }
 
     });
 
