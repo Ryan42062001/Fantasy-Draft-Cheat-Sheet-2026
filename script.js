@@ -742,39 +742,223 @@ function calculateMultiPickPositionPath(
   });
 
 
-  var firstFuturePosition =
-    priorities[0]
-      ? priorities[0].position
-      : null;
+ /*
+ * -------------------------------------------------------
+ * FIRST FUTURE POSITION
+ * -------------------------------------------------------
+ */
 
-  var secondFuturePosition =
-    priorities[1]
-      ? priorities[1].position
-      : null;
+var firstFuturePosition =
+  priorities[0]
+    ? priorities[0].position
+    : null;
 
 
-  return {
+/*
+ * -------------------------------------------------------
+ * SIMULATE FIRST FUTURE PICK
+ * -------------------------------------------------------
+ *
+ * After choosing the first future position, update
+ * the remaining roster needs before deciding what
+ * the SECOND future position should be.
+ */
 
-    currentPosition:
-      position,
+var secondNeeds =
+  Object.assign(
+    {},
+    needs
+  );
 
-    firstNextPick:
-      futurePicks.firstNextPick,
+if (firstFuturePosition) {
 
-    secondNextPick:
-      futurePicks.secondNextPick,
+  if (
+    Number(
+      secondNeeds[firstFuturePosition]
+    ) > 0
+  ) {
 
-    firstFuturePosition:
-      firstFuturePosition,
+    secondNeeds[firstFuturePosition] =
+      Math.max(
+        0,
+        Number(
+          secondNeeds[firstFuturePosition]
+        ) - 1
+      );
 
-    secondFuturePosition:
-      secondFuturePosition,
+  } else if (
+    (
+      firstFuturePosition === 'RB' ||
+      firstFuturePosition === 'WR' ||
+      firstFuturePosition === 'TE'
+    ) &&
+    Number(secondNeeds.FLEX) > 0
+  ) {
 
-    priorities:
-      priorities
+    secondNeeds.FLEX =
+      Math.max(
+        0,
+        Number(secondNeeds.FLEX) - 1
+      );
 
-  };
+  }
+
 }
+
+
+/*
+ * -------------------------------------------------------
+ * SECOND FUTURE PRIORITIES
+ * -------------------------------------------------------
+ */
+
+var secondPriorities =
+  positions.map(function(pos) {
+
+    var need =
+      Number(
+        secondNeeds[pos]
+      ) || 0;
+
+    var flexNeed =
+      Number(
+        secondNeeds.FLEX
+      ) || 0;
+
+    var priority = 0;
+
+
+    /*
+     * Dedicated starter need.
+     */
+
+    priority +=
+      need * 3;
+
+
+    /*
+     * FLEX need.
+     */
+
+    if (
+      flexNeed > 0 &&
+      (
+        pos === 'RB' ||
+        pos === 'WR' ||
+        pos === 'TE'
+      )
+    ) {
+
+      priority += 1;
+
+    }
+
+
+    /*
+     * Future positional depth.
+     */
+
+    var depth =
+      calculateFuturePositionDepth(
+        {
+          position:
+            pos,
+
+          rank:
+            Number(player.rank) || 999,
+
+          name:
+            '__SECOND_PATH_' + pos
+        },
+        context
+      );
+
+
+    var depthUrgency =
+      Math.max(
+        0,
+        100 - depth
+      ) / 25;
+
+
+    priority +=
+      depthUrgency;
+
+
+    return {
+
+      position:
+        pos,
+
+      need:
+        need,
+
+      flexNeed:
+        flexNeed,
+
+      futureDepth:
+        depth,
+
+      priority:
+        priority
+
+    };
+
+  });
+
+
+secondPriorities.sort(function(a, b) {
+
+  return (
+    Number(b.priority) -
+    Number(a.priority)
+  );
+
+});
+
+
+var secondFuturePosition =
+  secondPriorities[0]
+    ? secondPriorities[0].position
+    : null;
+
+
+/*
+ * -------------------------------------------------------
+ * RETURN PATH
+ * -------------------------------------------------------
+ */
+
+return {
+
+  currentPosition:
+    position,
+
+  firstNextPick:
+    futurePicks.firstNextPick,
+
+  secondNextPick:
+    futurePicks.secondNextPick,
+
+  firstFuturePosition:
+    firstFuturePosition,
+
+  secondFuturePosition:
+    secondFuturePosition,
+
+  firstPriorities:
+    priorities,
+
+  secondPriorities:
+    secondPriorities,
+
+  needsAfterCurrentPick:
+    needs,
+
+  needsAfterFirstFuturePick:
+    secondNeeds
+
+};
 
 function getSnakeDraftTeamForPick(
   pick,
