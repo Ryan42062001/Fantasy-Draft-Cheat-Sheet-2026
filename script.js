@@ -8910,6 +8910,40 @@ var rankPenalty =
     ? -(rankPressure * 7)
     : 0;
 
+  /*
+ * -------------------------------------------------------
+ * POST-PICK SURVIVAL BONUS
+ * -------------------------------------------------------
+ *
+ * A player ranked after our future pick should become
+ * progressively more likely to survive as their rank
+ * moves farther beyond that pick.
+ *
+ * Example at Pick 20:
+ *
+ * Rank 21 = slightly safer
+ * Rank 25 = safer
+ * Rank 30 = considerably safer
+ */
+
+var postPickBonus = 0;
+
+if (
+  nextPick &&
+  rank >= nextPick
+) {
+
+  var ranksAfterPick =
+    rank - nextPick;
+
+  postPickBonus =
+    Math.min(
+      12,
+      ranksAfterPick * 1.5
+    );
+
+}
+
 var timingPenalty =
   -(timing * 0.10);
 
@@ -8942,6 +8976,7 @@ var pickDistancePenalty =
 var survival =
   startingSurvival +
   rankPenalty +
+  postPickBonus +
   timingPenalty +
   opponentThreatPenalty +
   rankDistancePenalty +
@@ -9003,6 +9038,9 @@ survival =
 
       rankDistance:
         rankDistance,
+
+      postPickBonus:
+  postPickBonus,
 
       rankDistancePenalty:
         rankDistancePenalty,
@@ -11550,6 +11588,53 @@ test.assert(
     rbOne,
     context
   )
+);
+
+    var justAfterPickSurvival =
+  calculateNextPickSurvival(
+    {
+      name: 'Just After Pick',
+      position: 'WR',
+      rank: 21,
+      timingScore: 0
+    },
+    {
+      teams: 10,
+      currentPick: 1,
+      calculatedNextPick: 20,
+      calculatedPicksUntilNext: 18,
+      currentRank: 1
+    }
+  );
+
+var fartherAfterPickSurvival =
+  calculateNextPickSurvival(
+    {
+      name: 'Farther After Pick',
+      position: 'WR',
+      rank: 28,
+      timingScore: 0
+    },
+    {
+      teams: 10,
+      currentPick: 1,
+      calculatedNextPick: 20,
+      calculatedPicksUntilNext: 18,
+      currentRank: 1
+    }
+  );
+
+test.assert(
+  'Survival: later-ranked player is more likely to survive future pick',
+  fartherAfterPickSurvival >
+    justAfterPickSurvival
+);
+
+test.between(
+  'Survival: post-pick bonus remains bounded',
+  fartherAfterPickSurvival,
+  0,
+  100
 );
 
 test.assert(
