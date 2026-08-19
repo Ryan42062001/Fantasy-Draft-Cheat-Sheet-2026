@@ -464,6 +464,98 @@ function calculateMyNextDraftPick(currentPick, teams) {
   };
 }
 
+function calculateMyNextTwoDraftPicks(
+  currentPick,
+  teams
+) {
+
+  currentPick =
+    Number(currentPick) || 0;
+
+  teams =
+    Number(teams) || 10;
+
+  if (
+    currentPick <= 0 ||
+    teams <= 0
+  ) {
+
+    return {
+      firstNextPick: 0,
+      secondNextPick: 0,
+      picksBetweenFirst: 0,
+      picksBetweenSecond: 0
+    };
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * FIRST FUTURE PICK
+   * -------------------------------------------------------
+   */
+
+  var firstWindow =
+    calculateMyNextDraftPick(
+      currentPick,
+      teams
+    );
+
+  var firstNextPick =
+    Number(
+      firstWindow.nextPick
+    ) || 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * SECOND FUTURE PICK
+   * -------------------------------------------------------
+   *
+   * Treat our first future selection as the new
+   * current pick, then calculate again.
+   */
+
+  var secondWindow =
+    firstNextPick
+      ? calculateMyNextDraftPick(
+          firstNextPick,
+          teams
+        )
+      : {
+          nextPick: 0,
+          picksBetween: 0
+        };
+
+
+  var secondNextPick =
+    Number(
+      secondWindow.nextPick
+    ) || 0;
+
+
+  return {
+
+    firstNextPick:
+      firstNextPick,
+
+    secondNextPick:
+      secondNextPick,
+
+    picksBetweenFirst:
+      Number(
+        firstWindow.picksBetween
+      ) || 0,
+
+    picksBetweenSecond:
+      Number(
+        secondWindow.picksBetween
+      ) || 0
+
+  };
+}
+
 function getSnakeDraftTeamForPick(
   pick,
   teams
@@ -10545,6 +10637,62 @@ function runDraftEngineTests(options) {
     10
   ).teamSlot,
   1
+);
+
+    var multiPick21 =
+  calculateMyNextTwoDraftPicks(
+    21,
+    10
+  );
+
+test.equal(
+  'Multi-pick: pick 21 first future pick is 40',
+  multiPick21.firstNextPick,
+  40
+);
+
+test.equal(
+  'Multi-pick: pick 21 second future pick is 41',
+  multiPick21.secondNextPick,
+  41
+);
+
+
+var multiPick40 =
+  calculateMyNextTwoDraftPicks(
+    40,
+    10
+  );
+
+test.equal(
+  'Multi-pick: pick 40 first future pick is 41',
+  multiPick40.firstNextPick,
+  41
+);
+
+test.equal(
+  'Multi-pick: pick 40 second future pick is 60',
+  multiPick40.secondNextPick,
+  60
+);
+
+
+var multiPick1 =
+  calculateMyNextTwoDraftPicks(
+    1,
+    10
+  );
+
+test.equal(
+  'Multi-pick: pick 1 first future pick is 20',
+  multiPick1.firstNextPick,
+  20
+);
+
+test.equal(
+  'Multi-pick: pick 1 second future pick is 21',
+  multiPick1.secondNextPick,
+  21
 );
 
     test.equal(
