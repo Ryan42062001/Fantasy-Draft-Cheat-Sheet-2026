@@ -11415,28 +11415,41 @@ function calculateRosterSaturationPenalty(
   var penalty = 0;
 
 
-  if (position === 'RB') {
+if (position === 'RB') {
 
-    if (currentCount >= 7) {
+  /*
+   * RB1-RB4:
+   * normal roster construction.
+   *
+   * RB5:
+   * mild depth penalty.
+   *
+   * RB6:
+   * meaningful saturation.
+   *
+   * RB7+:
+   * must be exceptional value.
+   */
 
-      penalty = -12;
+  if (currentCount >= 7) {
 
-    } else if (currentCount === 6) {
+    penalty = -16;
 
-      penalty = -8;
+  } else if (currentCount === 6) {
 
-    } else if (currentCount === 5) {
+    penalty = -12;
 
-      penalty = -5;
+  } else if (currentCount === 5) {
 
-    } else if (currentCount === 4) {
+    penalty = -6;
 
-      penalty = -2;
+  } else if (currentCount === 4) {
 
-    }
+    penalty = -2;
 
+  }
 
-  } else if (position === 'WR') {
+} else if (position === 'WR') {
 
     if (currentCount >= 7) {
 
@@ -11494,15 +11507,36 @@ function calculateRosterSaturationPenalty(
    * main FLEX position is thin, increase the penalty.
    */
 
+if (
+  position === 'RB'
+) {
+
+  /*
+   * If RB depth is substantially ahead of WR depth,
+   * discourage further concentration.
+   */
+
+  var rbWrDifference =
+    counts.RB - counts.WR;
+
+
   if (
-    position === 'RB' &&
     counts.RB >= 5 &&
-    counts.WR <= 2
+    rbWrDifference >= 3
   ) {
 
-    penalty -= 3;
+    penalty -= 4;
+
+  } else if (
+    counts.RB >= 5 &&
+    rbWrDifference >= 2
+  ) {
+
+    penalty -= 2;
 
   }
+
+}
 
 
   if (
@@ -14011,6 +14045,23 @@ test.equal(
     10
   ).teamSlot,
   1
+);
+
+test.assert(
+  'Roster saturation: drafting RB7 is heavily penalized',
+  draftEngineTestWithRoster(
+    ['RB', 'RB', 'RB', 'RB', 'RB', 'RB'],
+    function() {
+
+      return (
+        calculateRosterSaturationPenalty(
+          { position: 'RB' },
+          {}
+        ) <= -12
+      );
+
+    }
+  )
 );
 
   test.equal(
