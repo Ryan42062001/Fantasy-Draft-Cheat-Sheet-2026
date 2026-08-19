@@ -8528,6 +8528,14 @@ var tierCliffOpportunityScore =
  * -------------------------------------------------------
  */
 
+  var phaseCoreAdjustment =
+  calculatePhaseCoreAdjustment(
+    vorpScore,
+    scarcityScore,
+    rosterNeedScore,
+    phaseWeights
+  );
+
 var draftAwareVorpOpportunityScore =
   calculateDraftAwareVorpOpportunity(
     player,
@@ -8628,6 +8636,9 @@ finalScore +=
   phaseAdjustedTierCliffScore;
 
 finalScore +=
+  phaseCoreAdjustment.total;
+
+finalScore +=
   runOpportunityScore;
 
 finalScore +=
@@ -8675,6 +8686,18 @@ finalScore +=
 
     vorpScore:
       vorpScore,
+
+    phaseCoreAdjustment:
+  phaseCoreAdjustment.total,
+
+phaseCoreVorpAdjustment:
+  phaseCoreAdjustment.vorp,
+
+phaseCoreScarcityAdjustment:
+  phaseCoreAdjustment.scarcity,
+
+phaseCoreRosterNeedAdjustment:
+  phaseCoreAdjustment.rosterNeed,
 
     scarcityScore:
       scarcityScore,
