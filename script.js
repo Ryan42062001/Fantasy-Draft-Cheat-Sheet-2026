@@ -3645,6 +3645,11 @@ function debugTurnSequencingAdvice(
             state.context
           );
 
+        recommendation =
+  attachLiveTurnPackage(
+    recommendation,
+    state.context
+  );
 
         var nextPickInfo =
           calculateMyNextDraftPick(
@@ -3954,8 +3959,12 @@ function debugTurnSequencingAdvice(
 function calculateTurnPackage(
   teams,
   draftSlot,
-  currentPick
+  currentPick,
+  options
 ) {
+
+  options =
+    options || {};
 
   teams =
     Number(teams) || 12;
@@ -4480,7 +4489,7 @@ if (packageAdvantage >= 6) {
          * 10. DEBUG OUTPUT
          * -------------------------------------------------------
          */
-
+      if (!options.silent) {
         console.group(
           'TURN PACKAGE DEBUG — ' +
           teams +
@@ -4533,83 +4542,254 @@ if (packageAdvantage >= 6) {
         );
 
 
-        if (bestPackage) {
+if (bestPackage) {
 
-          console.log(
-  'BEST TURN PACKAGE:',
-  {
-    pick1:
-      bestPackage.firstName,
+  console.log(
+    'BEST TURN PACKAGE:',
+    {
+      pick1:
+        bestPackage.firstName,
 
-    pick1Position:
-      bestPackage.firstPosition,
+      pick1Position:
+        bestPackage.firstPosition,
 
-    pick2:
-      bestPackage.secondName,
+      pick2:
+        bestPackage.secondName,
 
-    pick2Position:
-      bestPackage.secondPosition,
+      pick2Position:
+        bestPackage.secondPosition,
 
-    packageScore:
-      Number(
-        bestPackage.packageScore
-      ).toFixed(1),
+      packageScore:
+        Number(
+          bestPackage.packageScore
+        ).toFixed(1),
 
-    packageAdvantage:
-      Number(
-        packageAdvantage
-      ).toFixed(1),
+      packageAdvantage:
+        Number(
+          packageAdvantage
+        ).toFixed(1),
 
-    confidence:
-      packageConfidence
-  }
-);
+      confidence:
+        packageConfidence
+    }
+  );
+
 }
-        
-        console.groupEnd();
+
+console.groupEnd();
+
+} // closes if (!options.silent)
 
 
-        return {
+return {
 
-          teams:
-            teams,
+  teams:
+    teams,
 
-          draftSlot:
-            draftSlot,
+  draftSlot:
+    draftSlot,
 
-          firstPick:
-            currentPick,
+  firstPick:
+    currentPick,
 
-          secondPick:
-            secondPick,
+  secondPick:
+    secondPick,
 
-          bestPackage:
-  bestPackage,
+  bestPackage:
+    bestPackage,
 
-secondBestPackage:
-  secondBestPackage,
+  secondBestPackage:
+    secondBestPackage,
 
-packageAdvantage:
-  packageAdvantage,
+  packageAdvantage:
+    packageAdvantage,
 
-packageConfidence:
-  packageConfidence,
+  packageConfidence:
+    packageConfidence,
 
-packages:
-  packages
+  packages:
+    packages
 
-        };
+};
 
 
-      } finally {
+} finally {
 
-        getDraftAssistantState =
-          originalStateGetter;
+  getDraftAssistantState =
+    originalStateGetter;
 
-      }
+}
 
     }
   );
+}
+
+function attachLiveTurnPackage(
+  recommendation,
+  context
+) {
+
+  if (
+    !recommendation ||
+    !context
+  ) {
+
+    return recommendation;
+
+  }
+
+
+  var teams =
+    Number(
+      context.teams
+    ) || 10;
+
+
+  var draftSlot =
+    Number(
+      context.draftSlot
+    ) || 1;
+
+
+  var currentPick =
+    Number(
+      context.currentPick
+    ) || 0;
+
+
+  if (currentPick <= 0) {
+
+    return recommendation;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CHECK WHETHER THIS IS A TRUE BACK-TO-BACK TURN
+   * -------------------------------------------------------
+   */
+
+  var nextPickInfo =
+    calculateMyNextDraftPick(
+      currentPick,
+      teams
+    );
+
+
+  if (
+    !nextPickInfo ||
+    Number(
+      nextPickInfo.picksBetween
+    ) !== 0
+  ) {
+
+    recommendation.turnPackage =
+      null;
+
+    recommendation.turnPackageActive =
+      false;
+
+    return recommendation;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * BUILD TURN PACKAGE ONCE
+   * -------------------------------------------------------
+   */
+
+  var turnPackage =
+    calculateTurnPackage(
+      teams,
+      draftSlot,
+      currentPick
+    );
+
+
+  if (
+    !turnPackage ||
+    !turnPackage.bestPackage
+  ) {
+
+    recommendation.turnPackage =
+      null;
+
+    recommendation.turnPackageActive =
+      false;
+
+    return recommendation;
+
+  }
+
+
+  var best =
+    turnPackage.bestPackage;
+
+
+  /*
+   * -------------------------------------------------------
+   * EXPOSE TURN INTELLIGENCE
+   * -------------------------------------------------------
+   */
+
+  recommendation.turnPackageActive =
+    true;
+
+
+  recommendation.turnPackage =
+    turnPackage;
+
+
+  recommendation.turnPick1 =
+    best.firstName;
+
+
+  recommendation.turnPick1Position =
+    best.firstPosition;
+
+
+  recommendation.turnPick2 =
+    best.secondName;
+
+
+  recommendation.turnPick2Position =
+    best.secondPosition;
+
+
+  recommendation.turnPackageScore =
+    Number(
+      best.packageScore
+    ) || 0;
+
+
+  recommendation.turnPackageAdvantage =
+    Number(
+      turnPackage.packageAdvantage
+    ) || 0;
+
+
+  recommendation.turnPackageConfidence =
+    turnPackage.packageConfidence ||
+    'LOW';
+
+
+  /*
+   * The live recommendation should point toward
+   * the optimal FIRST player of the turn.
+   */
+
+  recommendation.turnRecommendedNow =
+    best.firstName;
+
+
+  recommendation.turnTargetNext =
+    best.secondName;
+
+
+  return recommendation;
 }
 
   /*
