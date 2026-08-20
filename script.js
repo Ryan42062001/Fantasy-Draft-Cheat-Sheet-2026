@@ -5887,7 +5887,9 @@ window.latestDraftExplanation =
       '</div>';
 
     turnHtml +=
-  buildPickContextHtml();
+  buildPickContextHtml(
+  state
+);
 
 
     /*
@@ -6085,7 +6087,9 @@ window.latestDraftExplanation =
     '</div>';
 
   html +=
-  buildPickContextHtml();
+  buildPickContextHtml(
+  state
+);
 
   /*
    * PRIMARY PLAYER
@@ -6247,7 +6251,9 @@ window.latestDraftExplanation =
 
 }
 
-function buildPickContextHtml() {
+function buildPickContextHtml(
+  state
+) {
 
   var teams =
     Number(
