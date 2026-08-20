@@ -3164,12 +3164,6 @@ function debugTurnDecisionScenario(
     Number(firstPick) || 1;
 
 
-  /*
-   * -------------------------------------------------------
-   * FIND THIS SLOT'S NEXT TWO PICKS
-   * -------------------------------------------------------
-   */
-
   var myPicks =
     getMyRemainingDraftPicks(
       firstPick,
@@ -3185,12 +3179,7 @@ function debugTurnDecisionScenario(
   ) {
 
     console.warn(
-      'TURN DEBUG: Could not find two picks.',
-      {
-        teams: teams,
-        draftSlot: draftSlot,
-        firstPick: firstPick
-      }
+      'TURN DEBUG: Could not find two picks.'
     );
 
     return null;
@@ -3204,6 +3193,375 @@ function debugTurnDecisionScenario(
   var pickB =
     myPicks[1];
 
+
+  /*
+   * -------------------------------------------------------
+   * BUILD ONE SIMULATED PICK STATE
+   * -------------------------------------------------------
+   */
+
+  function buildPickResult(
+    pick,
+    selectedBeforeThisPick
+  ) {
+
+    return draftEngineWithSimulatedPriorPicks(
+      pick,
+      function() {
+
+        /*
+         * If this is the second pick of our turn,
+         * temporarily mark the player selected at
+         * the first pick as ours.
+         */
+
+        var selectedRow = null;
+        var originalClass = null;
+
+
+        if (
+          selectedBeforeThisPick &&
+          selectedBeforeThisPick.name
+        ) {
+
+          selectedRow =
+            Array.prototype.slice.call(
+              document.querySelectorAll(
+                'tr.draftrow'
+              )
+            )
+            .find(function(row) {
+
+              return (
+                row.getAttribute(
+                  'data-name'
+                ) ===
+                selectedBeforeThisPick.name
+              );
+
+            });
+
+
+          if (selectedRow) {
+
+            originalClass =
+              selectedRow.className;
+
+            selectedRow.classList.remove(
+              'drafted-other'
+            );
+
+            selectedRow.classList.add(
+              'drafted-mine'
+            );
+
+            selectedRow.setAttribute(
+              'data-pick',
+              selectedBeforeThisPick.pick
+            );
+
+            selectedRow.setAttribute(
+              'data-team-slot',
+              draftSlot
+            );
+
+          }
+
+        }
+
+
+        /*
+         * Temporarily expose the correct live draft state.
+         */
+
+        var originalStateGetter =
+          getDraftAssistantState;
+
+        var baseState =
+          originalStateGetter();
+
+
+        getDraftAssistantState =
+          function() {
+
+            return Object.assign(
+              {},
+              baseState,
+              {
+                teams:
+                  teams,
+
+                draftSlot:
+                  draftSlot,
+
+                currentPick:
+                  pick,
+
+                rounds:
+                  16
+              }
+            );
+
+          };
+
+
+        try {
+
+          var state =
+            buildLiveDraftDebugState();
+
+
+          if (
+            !state ||
+            !state.scored ||
+            !state.scored.length
+          ) {
+
+            return null;
+
+          }
+
+
+          var primary =
+            state.scored[0];
+
+
+          var recommendation =
+            calculateDraftRecommendation(
+              primary,
+              state.scored,
+              state.context
+            );
+
+
+          var nextPickInfo =
+            calculateMyNextDraftPick(
+              pick,
+              teams
+            );
+
+
+          return {
+
+            pick:
+              pick,
+
+            primary:
+              primary,
+
+            recommendation:
+              recommendation,
+
+            nextPick:
+              nextPickInfo
+                ? nextPickInfo.nextPick
+                : null,
+
+            picksBetween:
+              nextPickInfo
+                ? nextPickInfo.picksBetween
+                : null
+
+          };
+
+
+        } finally {
+
+          getDraftAssistantState =
+            originalStateGetter;
+
+
+          if (
+            selectedRow &&
+            originalClass !== null
+          ) {
+
+            selectedRow.className =
+              originalClass;
+
+          }
+
+        }
+
+      }
+    );
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * FIRST PICK
+   * -------------------------------------------------------
+   */
+
+  var first =
+    buildPickResult(
+      pickA,
+      null
+    );
+
+
+  if (!first) {
+
+    console.warn(
+      'TURN DEBUG: Could not build first pick.'
+    );
+
+    return null;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * SECOND PICK
+   * -------------------------------------------------------
+   *
+   * Carry the first selection into the simulated
+   * second-pick roster.
+   */
+
+  var second =
+    buildPickResult(
+      pickB,
+      {
+        name:
+          first.primary.name,
+
+        pick:
+          pickA
+      }
+    );
+
+
+  if (!second) {
+
+    console.warn(
+      'TURN DEBUG: Could not build second pick.'
+    );
+
+    return null;
+
+  }
+
+
+  var output = [
+    {
+      stage:
+        'FIRST PICK',
+
+      pick:
+        first.pick,
+
+      primary:
+        first.primary.name,
+
+      position:
+        first.primary.position,
+
+      score:
+        Number(
+          first.primary.finalScore
+        ).toFixed(1),
+
+      nextPick:
+        first.nextPick,
+
+      picksBetween:
+        first.picksBetween,
+
+      recommendation:
+        first.recommendation
+          ? first.recommendation.recommendation
+          : null,
+
+      confidence:
+        first.recommendation
+          ? first.recommendation.confidence
+          : null
+    },
+
+    {
+      stage:
+        'SECOND PICK',
+
+      pick:
+        second.pick,
+
+      primary:
+        second.primary.name,
+
+      position:
+        second.primary.position,
+
+      score:
+        Number(
+          second.primary.finalScore
+        ).toFixed(1),
+
+      nextPick:
+        second.nextPick,
+
+      picksBetween:
+        second.picksBetween,
+
+      recommendation:
+        second.recommendation
+          ? second.recommendation.recommendation
+          : null,
+
+      confidence:
+        second.recommendation
+          ? second.recommendation.confidence
+          : null
+    }
+  ];
+
+
+  console.group(
+    'TURN DECISION DEBUG — ' +
+    teams +
+    ' TEAM — SLOT ' +
+    draftSlot
+  );
+
+
+  console.table(
+    output
+  );
+
+
+  console.log(
+    'RAW FIRST:',
+    first
+  );
+
+  console.log(
+    'RAW SECOND:',
+    second
+  );
+
+
+  console.groupEnd();
+
+
+  return {
+    teams:
+      teams,
+
+    draftSlot:
+      draftSlot,
+
+    firstPick:
+      first,
+
+    secondPick:
+      second,
+
+    table:
+      output
+  };
+}
 
   /*
    * -------------------------------------------------------
