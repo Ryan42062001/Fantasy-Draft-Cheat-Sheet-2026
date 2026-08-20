@@ -18494,8 +18494,28 @@ function runDraftEngineScenario(name) {
 
 function buildLiveDraftDebugState() {
 
+  var __perfStart =
+  performance.now();
+
+function __perfMark(label) {
+
+  var now =
+    performance.now();
+
+  console.log(
+    '[LIVE STATE PERF]',
+    label,
+    (now - __perfStart).toFixed(2) + ' ms'
+  );
+
+}
+
   var players =
     getDraftAssistantPlayers();
+
+  __perfMark(
+  'after player rows'
+);
 
   var available =
     players.filter(function(player) {
@@ -18595,6 +18615,10 @@ function buildLiveDraftDebugState() {
 
   };
 
+  __perfMark(
+  'after context'
+);
+
   var scored =
     vorpResult.profiles
       .filter(function(profile) {
@@ -18629,6 +18653,10 @@ function buildLiveDraftDebugState() {
 
       });
 
+  __perfMark(
+  'after scoring'
+);
+  
   /*
  * -------------------------------------------------------
  * ADD K / DST TO DECISION POOL
@@ -18703,6 +18731,10 @@ scored.sort(function(a, b) {
 
 });
 
+  __perfMark(
+  'after sorting'
+);
+
 
 /*
  * Cache base scored players for projection lookup.
@@ -18739,6 +18771,10 @@ applyPackagePathAdjustments(
   scored,
   context,
   8
+);
+
+  __perfMark(
+  'complete'
 );
 
   return {
