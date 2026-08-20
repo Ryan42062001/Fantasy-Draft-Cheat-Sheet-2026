@@ -11889,6 +11889,19 @@ var decision =
     context
   );
 
+  if (
+  backToBackTurn &&
+  decision &&
+  decision.recommendation !== 'PASS'
+) {
+
+  decision.recommendation =
+    'DRAFT';
+
+  decision.summary =
+    'Back-to-back pick: treat this as a two-pick turn package rather than a wait decision.';
+
+}
 
 if (
   backToBackTurn &&
