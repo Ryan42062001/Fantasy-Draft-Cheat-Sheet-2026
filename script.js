@@ -6424,34 +6424,139 @@ function buildPickContextHtml(
 
 }
 
-function buildPickContextHtml(...) {
-
-  ...
-
-  return output;
-}
-
-
 function buildUrgencyIndicatorHtml(
   recommendation,
   primary,
   state
 ) {
 
-  ...
+  if (
+    !recommendation ||
+    !primary ||
+    !state ||
+    !state.context
+  ) {
+
+    return '';
+
+  }
+
+  if (
+    recommendation.turnPackageActive
+  ) {
+
+    return (
+      '<div style="' +
+        'font-size:0.69rem;' +
+        'font-weight:900;' +
+        'margin-bottom:9px;' +
+        'color:#a9c2ab;' +
+      '">' +
+        '&#10003; TURN SAFE &middot; no opponent picks between selections' +
+      '</div>'
+    );
+
+  }
+
+  var timingScore =
+    Number(
+      primary.timingScore
+    ) || 0;
+
+  var tierCliffScore =
+    Number(
+      primary.tierCliffOpportunityScore
+    ) || 0;
+
+  var scarcityScore =
+    Number(
+      primary.scarcityScore
+    ) || 0;
+
+  var picksBetween =
+    Number(
+      state.context.calculatedPicksUntilNext
+    );
+
+  if (!Number.isFinite(picksBetween)) {
+
+    var teams =
+      Number(
+        state.context.teams
+      ) || 10;
+
+    var currentPick =
+      Number(
+        state.context.currentPick
+      ) || 0;
+
+    var nextPickInfo =
+      calculateMyNextDraftPick(
+        currentPick,
+        teams
+      );
+
+    picksBetween =
+      nextPickInfo
+        ? Number(
+            nextPickInfo.picksBetween
+          )
+        : 0;
+
+  }
+
+  var label =
+    'LOW RISK TO WAIT';
+
+  var symbol =
+    '&#10003;';
+
+  if (tierCliffScore >= 5) {
+
+    label =
+      'TIER CLIFF — ACT NOW';
+
+    symbol =
+      '&#9888;';
+
+  } else if (timingScore >= 70) {
+
+    label =
+      'HIGH RISK TO WAIT';
+
+    symbol =
+      '&#9888;';
+
+  } else if (
+    timingScore >= 50 ||
+    (
+      scarcityScore >= 90 &&
+      picksBetween >= 10
+    )
+  ) {
+
+    label =
+      'MODERATE RISK TO WAIT';
+
+    symbol =
+      '&#9888;';
+
+  }
+
+  return (
+    '<div style="' +
+      'font-size:0.69rem;' +
+      'font-weight:900;' +
+      'margin-bottom:9px;' +
+      'color:#a9c2ab;' +
+    '">' +
+      symbol +
+      ' ' +
+      label +
+    '</div>'
+  );
+
 }
-
-function buildPickContextHtml(
-  state
-) {
-
-  // existing function...
-
-  return output;
-}
-
-
-/* PASTE IT HERE */
 
 function buildUrgencyIndicatorHtml(
   recommendation,
