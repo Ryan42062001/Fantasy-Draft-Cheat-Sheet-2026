@@ -11889,19 +11889,12 @@ var decision =
     context
   );
 
-  if (
-  backToBackTurn &&
-  decision &&
-  decision.recommendation !== 'PASS'
-) {
 
-  decision.recommendation =
-    'DRAFT';
-
-  decision.summary =
-    'Back-to-back pick: treat this as a two-pick turn package rather than a wait decision.';
-
-}
+/*
+ * -------------------------------------------------------
+ * BACK-TO-BACK TURN OVERRIDE
+ * -------------------------------------------------------
+ */
 
 if (
   backToBackTurn &&
@@ -11916,15 +11909,6 @@ if (
     'Back-to-back pick: treat this as a two-pick turn package rather than a wait decision.';
 
 }
-
-  var decision =
-    calculateRecommendationDecision(
-      player,
-      nextPlayer,
-      scoreGap,
-      confidenceScore,
-      context
-    );
 
 
   /*
