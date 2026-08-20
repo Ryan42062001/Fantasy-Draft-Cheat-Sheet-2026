@@ -16293,6 +16293,72 @@ test.equal(
 );
 
   test.assert(
+  'Turn package returns result',
+  !!calculateTurnPackage(
+    12,
+    1,
+    24
+  )
+);
+
+
+var turnPackageTest =
+  calculateTurnPackage(
+    12,
+    1,
+    24
+  );
+
+
+test.assert(
+  'Turn package returns best package',
+  !!(
+    turnPackageTest &&
+    turnPackageTest.bestPackage
+  )
+);
+
+
+test.assert(
+  'Turn package evaluates multiple combinations',
+  !!(
+    turnPackageTest &&
+    Array.isArray(
+      turnPackageTest.packages
+    ) &&
+    turnPackageTest.packages.length > 1
+  )
+);
+
+
+test.between(
+  'Turn package advantage stays in safe range',
+  turnPackageTest
+    ? Number(
+        turnPackageTest.packageAdvantage
+      ) || 0
+    : 0,
+  0,
+  100
+);
+
+
+test.assert(
+  'Turn package confidence returns valid level',
+  !!(
+    turnPackageTest &&
+    [
+      'LOW',
+      'MODERATE',
+      'HIGH',
+      'VERY HIGH'
+    ].includes(
+      turnPackageTest.packageConfidence
+    )
+  )
+);
+
+  test.assert(
     'Decision score returns phase-adjusted roster construction',
     Number.isFinite(
       scored.phaseAdjustedRosterConstructionScore
