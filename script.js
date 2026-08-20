@@ -13263,6 +13263,293 @@ backToBackTurn:
   };
 }
 
+function buildRecommendationExplanation(
+  recommendation
+) {
+
+  if (!recommendation) {
+
+    return null;
+
+  }
+
+
+  var action =
+    recommendation.recommendation ||
+    'CONSIDER';
+
+
+  var confidence =
+    recommendation.confidence ||
+    'LOW';
+
+
+  var player =
+    recommendation.player ||
+    'Best available player';
+
+
+  var reasons = [];
+
+
+  /*
+   * -------------------------------------------------------
+   * TURN-PACKAGE EXPLANATION
+   * -------------------------------------------------------
+   */
+
+  if (
+    recommendation.turnPackageActive &&
+    recommendation.turnRecommendedNow &&
+    recommendation.turnTargetNext
+  ) {
+
+    var turnNow =
+      recommendation.turnRecommendedNow;
+
+
+    var turnNext =
+      recommendation.turnTargetNext;
+
+
+    var advantage =
+      Number(
+        recommendation.turnPackageAdvantage
+      ) || 0;
+
+
+    reasons.push(
+      turnNow +
+      ' + ' +
+      turnNext +
+      ' is the strongest two-pick turn package.'
+    );
+
+
+    reasons.push(
+      turnNext +
+      ' is guaranteed to remain available at your next pick because no opponent selects between the two picks.'
+    );
+
+
+    if (advantage > 0) {
+
+      reasons.push(
+        'This package leads the next-best turn option by ' +
+        advantage.toFixed(1) +
+        ' points.'
+      );
+
+    }
+
+
+    return {
+
+      type:
+        'TURN_PACKAGE',
+
+      action:
+        'DRAFT',
+
+      headline:
+        'Draft ' +
+        turnNow,
+
+      player:
+        turnNow,
+
+      confidence:
+        recommendation.turnPackageConfidence ||
+        confidence,
+
+      reasons:
+        reasons,
+
+      nextAction:
+        'Target ' +
+        turnNext +
+        ' with your next pick.',
+
+      nextTarget:
+        turnNext
+
+    };
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * NORMAL SINGLE-PICK EXPLANATION
+   * -------------------------------------------------------
+   */
+
+  if (recommendation.reason) {
+
+    reasons.push(
+      recommendation.reason + '.'
+    );
+
+  }
+
+
+  var scoreGap =
+    Number(
+      recommendation.scoreGap
+    );
+
+
+  if (
+    Number.isFinite(scoreGap) &&
+    recommendation.nextBest
+  ) {
+
+    if (scoreGap >= 8) {
+
+      reasons.push(
+        player +
+        ' leads ' +
+        recommendation.nextBest +
+        ' by ' +
+        scoreGap.toFixed(1) +
+        ' points.'
+      );
+
+    } else if (scoreGap >= 3) {
+
+      reasons.push(
+        player +
+        ' holds a meaningful advantage over ' +
+        recommendation.nextBest +
+        '.'
+      );
+
+    } else if (Math.abs(scoreGap) < 3) {
+
+      reasons.push(
+        recommendation.nextBest +
+        ' is a close alternative.'
+      );
+
+    }
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * DECISION-SPECIFIC EXPLANATION
+   * -------------------------------------------------------
+   */
+
+  if (action === 'DRAFT') {
+
+    if (
+      recommendation.confidence ===
+        'VERY HIGH' ||
+      recommendation.confidence ===
+        'HIGH'
+    ) {
+
+      reasons.push(
+        'The current value is strong enough that waiting is not recommended.'
+      );
+
+    }
+
+  } else if (action === 'WAIT') {
+
+    if (recommendation.nextBest) {
+
+      reasons.push(
+        'Comparable value should still be available at your next selection.'
+      );
+
+    }
+
+  } else if (action === 'PASS') {
+
+    reasons.push(
+      'The current player does not provide enough value relative to the alternatives.'
+    );
+
+  } else if (action === 'CONSIDER') {
+
+    reasons.push(
+      'The decision is close enough that roster construction and draft strategy should break the tie.'
+    );
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * NEXT ACTION
+   * -------------------------------------------------------
+   */
+
+  var nextAction = '';
+
+
+  if (action === 'DRAFT') {
+
+    nextAction =
+      'Take ' +
+      player +
+      ' now.';
+
+  } else if (action === 'WAIT') {
+
+    nextAction =
+      'Wait and reassess at your next pick.';
+
+  } else if (action === 'PASS') {
+
+    nextAction =
+      'Pass and move to the next-best option.';
+
+  } else {
+
+    nextAction =
+      'Compare the close alternatives before making the pick.';
+
+  }
+
+
+  return {
+
+    type:
+      'SINGLE_PICK',
+
+    action:
+      action,
+
+    headline:
+      action.charAt(0) +
+      action.slice(1).toLowerCase() +
+      ' ' +
+      player,
+
+    player:
+      player,
+
+    confidence:
+      confidence,
+
+    reasons:
+      reasons.slice(0, 3),
+
+    nextAction:
+      nextAction,
+
+    nextTarget:
+      recommendation.nextBest ||
+      null
+
+  };
+
+}
+
 function generateDecisionExplanation(result, comparisonResult) {
 
   if (!result) {
