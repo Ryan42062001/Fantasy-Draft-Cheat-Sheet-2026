@@ -3209,12 +3209,6 @@ function debugTurnDecisionScenario(
       pick,
       function() {
 
-        /*
-         * If this is the second pick of our turn,
-         * temporarily mark the player selected at
-         * the first pick as ours.
-         */
-
         var selectedRow = null;
         var originalClass = null;
 
@@ -3269,10 +3263,6 @@ function debugTurnDecisionScenario(
 
         }
 
-
-        /*
-         * Temporarily expose the correct live draft state.
-         */
 
         var originalStateGetter =
           getDraftAssistantState;
@@ -3416,9 +3406,6 @@ function debugTurnDecisionScenario(
    * -------------------------------------------------------
    * SECOND PICK
    * -------------------------------------------------------
-   *
-   * Carry the first selection into the simulated
-   * second-pick roster.
    */
 
   var second =
@@ -3444,6 +3431,12 @@ function debugTurnDecisionScenario(
 
   }
 
+
+  /*
+   * -------------------------------------------------------
+   * OUTPUT
+   * -------------------------------------------------------
+   */
 
   var output = [
     {
