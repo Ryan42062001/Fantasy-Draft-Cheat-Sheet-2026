@@ -3148,6 +3148,337 @@ function debugOpponentThreatAtPick(
   return result;
 }
 
+function debugTurnDecisionScenario(
+  teams,
+  draftSlot,
+  firstPick
+) {
+
+  teams =
+    Number(teams) || 12;
+
+  draftSlot =
+    Number(draftSlot) || 1;
+
+  firstPick =
+    Number(firstPick) || 1;
+
+
+  /*
+   * -------------------------------------------------------
+   * FIND THIS SLOT'S NEXT TWO PICKS
+   * -------------------------------------------------------
+   */
+
+  var myPicks =
+    getMyRemainingDraftPicks(
+      firstPick,
+      teams,
+      16,
+      draftSlot
+    );
+
+
+  if (
+    !myPicks ||
+    myPicks.length < 2
+  ) {
+
+    console.warn(
+      'TURN DEBUG: Could not find two picks.',
+      {
+        teams: teams,
+        draftSlot: draftSlot,
+        firstPick: firstPick
+      }
+    );
+
+    return null;
+
+  }
+
+
+  var pickA =
+    myPicks[0];
+
+  var pickB =
+    myPicks[1];
+
+
+  /*
+   * -------------------------------------------------------
+   * BUILD A DEBUG STATE FOR EACH PICK
+   * -------------------------------------------------------
+   */
+
+  function buildPickResult(
+    pick
+  ) {
+
+    var baseState =
+      getDraftAssistantState();
+
+
+    var originalStateGetter =
+      getDraftAssistantState;
+
+
+    getDraftAssistantState =
+      function() {
+
+        return Object.assign(
+          {},
+          baseState,
+          {
+            teams:
+              teams,
+
+            draftSlot:
+              draftSlot,
+
+            currentPick:
+              pick
+          }
+        );
+
+      };
+
+
+    try {
+
+      var state =
+        buildLiveDraftDebugState();
+
+
+      if (
+        !state ||
+        !state.scored ||
+        !state.scored.length
+      ) {
+
+        return null;
+
+      }
+
+
+      var primary =
+        state.scored[0];
+
+
+      var recommendation =
+        calculateDraftRecommendation(
+          primary,
+          state.scored,
+          state.context
+        );
+
+
+      var nextPickInfo =
+        calculateMyNextDraftPick(
+          pick,
+          teams
+        );
+
+
+      return {
+
+        pick:
+          pick,
+
+        primary:
+          primary,
+
+        recommendation:
+          recommendation,
+
+        nextPick:
+          nextPickInfo
+            ? nextPickInfo.nextPick
+            : null,
+
+        picksBetween:
+          nextPickInfo
+            ? nextPickInfo.picksBetween
+            : null
+
+      };
+
+
+    } finally {
+
+      getDraftAssistantState =
+        originalStateGetter;
+
+    }
+
+  }
+
+
+  var first =
+    buildPickResult(
+      pickA
+    );
+
+  var second =
+    buildPickResult(
+      pickB
+    );
+
+
+  if (
+    !first ||
+    !second
+  ) {
+
+    console.warn(
+      'TURN DEBUG: Could not build both states.'
+    );
+
+    return null;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * OUTPUT
+   * -------------------------------------------------------
+   */
+
+  var output = [
+    {
+      stage:
+        'FIRST PICK',
+
+      pick:
+        first.pick,
+
+      primary:
+        first.primary.name,
+
+      position:
+        first.primary.position,
+
+      score:
+        Number(
+          first.primary.finalScore
+        ).toFixed(1),
+
+      nextPick:
+        first.nextPick,
+
+      picksBetween:
+        first.picksBetween,
+
+      recommendation:
+        first.recommendation
+          ? first.recommendation.recommendation
+          : null,
+
+      confidence:
+        first.recommendation
+          ? first.recommendation.confidence
+          : null,
+
+      nextOption:
+        first.recommendation &&
+        first.recommendation.bestNextPickOption
+          ? first.recommendation
+              .bestNextPickOption
+              .name
+          : null
+    },
+
+    {
+      stage:
+        'SECOND PICK',
+
+      pick:
+        second.pick,
+
+      primary:
+        second.primary.name,
+
+      position:
+        second.primary.position,
+
+      score:
+        Number(
+          second.primary.finalScore
+        ).toFixed(1),
+
+      nextPick:
+        second.nextPick,
+
+      picksBetween:
+        second.picksBetween,
+
+      recommendation:
+        second.recommendation
+          ? second.recommendation.recommendation
+          : null,
+
+      confidence:
+        second.recommendation
+          ? second.recommendation.confidence
+          : null,
+
+      nextOption:
+        second.recommendation &&
+        second.recommendation.bestNextPickOption
+          ? second.recommendation
+              .bestNextPickOption
+              .name
+          : null
+    }
+  ];
+
+
+  console.group(
+    'TURN DECISION DEBUG — ' +
+    teams +
+    ' TEAM — SLOT ' +
+    draftSlot
+  );
+
+
+  console.table(
+    output
+  );
+
+
+  console.log(
+    'RAW FIRST:',
+    first
+  );
+
+  console.log(
+    'RAW SECOND:',
+    second
+  );
+
+
+  console.groupEnd();
+
+
+  return {
+    teams:
+      teams,
+
+    draftSlot:
+      draftSlot,
+
+    firstPick:
+      first,
+
+    secondPick:
+      second,
+
+    table:
+      output
+  };
+}
+
 function updateRemaining() { safeCall('updateRemainingCustom'); }
 
 // ==== REAL-TIME DRAFT POSITION & PICK COUNTER ====
