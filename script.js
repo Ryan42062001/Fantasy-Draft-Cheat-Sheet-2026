@@ -11893,14 +11893,14 @@ var decision =
 if (
   backToBackTurn &&
   decision &&
-  decision.recommendation === 'WAIT'
+  decision.recommendation !== 'PASS'
 ) {
 
   decision.recommendation =
     'DRAFT';
 
   decision.summary =
-    'Back-to-back pick: no opponent can take the player before your next selection.';
+    'Back-to-back pick: treat this as a two-pick turn package rather than a wait decision.';
 
 }
 
