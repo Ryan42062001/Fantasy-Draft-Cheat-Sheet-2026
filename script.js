@@ -3315,13 +3315,6 @@ function debugTurnDecisionScenario(
 var primary =
   state.scored[0];
 
-var recommendation =
-  calculateDraftRecommendation(
-    primary,
-    state.scored,
-    state.context
-  );
-
 recommendation =
   attachLiveTurnPackage(
     recommendation,
@@ -3649,12 +3642,6 @@ function debugTurnSequencingAdvice(
             state.scored,
             state.context
           );
-
-        recommendation =
-  attachLiveTurnPackage(
-    recommendation,
-    state.context
-  );
 
         var nextPickInfo =
           calculateMyNextDraftPick(
