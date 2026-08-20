@@ -4207,147 +4207,157 @@ function calculateTurnPackage(
 
 
             /*
-             * ---------------------------------------------------
-             * 6. FIND BEST SECOND PLAYER
-             * ---------------------------------------------------
-             */
+ * ---------------------------------------------------
+ * 6. FIND TOP SECOND-PICK CANDIDATES
+ * ---------------------------------------------------
+ *
+ * Evaluate several possible second selections instead
+ * of assuming the highest-scoring player is always the
+ * best turn partner.
+ */
 
-            var secondPlayer =
-              secondState.scored
-                .find(function(candidate) {
+var secondCandidates =
+  secondState.scored
+    .filter(function(candidate) {
 
-                  return (
-                    candidate &&
-                    candidate.name &&
-                    candidate.name !==
-                      firstPlayer.name
-                  );
+      return (
+        candidate &&
+        candidate.name &&
+        candidate.name !==
+          firstPlayer.name
+      );
 
-                });
-
-
-            if (!secondPlayer) {
-
-              return;
-            }
-
-
-            /*
-             * ---------------------------------------------------
-             * 7. PACKAGE COMPONENTS
-             * ---------------------------------------------------
-             */
-
-            var firstScore =
-              Number(
-                firstPlayer.finalScore
-              ) || 0;
-
-            var secondScore =
-              Number(
-                secondPlayer.finalScore
-              ) || 0;
+    })
+    .slice(0, 4);
 
 
-            /*
-             * Small diversity bonus.
-             *
-             * This is intentionally tiny.
-             * The second-player rescore already handles most
-             * roster construction effects.
-             */
+if (!secondCandidates.length) {
 
-            var positionDiversityBonus =
-              (
-                firstPlayer.position !==
-                secondPlayer.position
-              )
-                ? 1.5
-                : 0;
+  return;
+
+}
 
 
-            /*
-             * QB / TE premium positions can create meaningful
-             * construction advantages, but only reward them
-             * slightly because their actual value is already
-             * represented by finalScore.
-             */
+/*
+ * ---------------------------------------------------
+ * 7. BUILD EACH TWO-PLAYER PACKAGE
+ * ---------------------------------------------------
+ */
 
-            var structuralBonus =
-              0;
+secondCandidates.forEach(function(secondPlayer) {
 
-
-            if (
-              firstPlayer.position === 'QB' ||
-              secondPlayer.position === 'QB'
-            ) {
-
-              structuralBonus +=
-                0.5;
-
-            }
+  var firstScore =
+    Number(
+      firstPlayer.finalScore
+    ) || 0;
 
 
-            if (
-              firstPlayer.position === 'TE' ||
-              secondPlayer.position === 'TE'
-            ) {
-
-              structuralBonus +=
-                0.5;
-
-            }
+  var secondScore =
+    Number(
+      secondPlayer.finalScore
+    ) || 0;
 
 
-            /*
-             * ---------------------------------------------------
-             * 8. PACKAGE SCORE
-             * ---------------------------------------------------
-             */
+  /*
+   * Small diversity bonus.
+   *
+   * Keep this intentionally small because roster
+   * construction is already represented in the
+   * second player's rescored finalScore.
+   */
 
-            var packageScore =
-              firstScore +
-              secondScore +
-              positionDiversityBonus +
-              structuralBonus;
+  var positionDiversityBonus =
+    (
+      firstPlayer.position !==
+      secondPlayer.position
+    )
+      ? 1.5
+      : 0;
 
 
-            packages.push({
+  /*
+   * Small structural bonus for premium singleton
+   * positions. Again, keep this tiny to avoid
+   * double-counting positional value.
+   */
 
-              firstPlayer:
-                firstPlayer,
+  var structuralBonus =
+    0;
 
-              secondPlayer:
-                secondPlayer,
 
-              firstName:
-                firstPlayer.name,
+  if (
+    firstPlayer.position === 'QB' ||
+    secondPlayer.position === 'QB'
+  ) {
 
-              firstPosition:
-                firstPlayer.position,
+    structuralBonus +=
+      0.5;
 
-              firstScore:
-                firstScore,
+  }
 
-              secondName:
-                secondPlayer.name,
 
-              secondPosition:
-                secondPlayer.position,
+  if (
+    firstPlayer.position === 'TE' ||
+    secondPlayer.position === 'TE'
+  ) {
 
-              secondScore:
-                secondScore,
+    structuralBonus +=
+      0.5;
 
-              positionDiversityBonus:
-                positionDiversityBonus,
+  }
 
-              structuralBonus:
-                structuralBonus,
 
-              packageScore:
-                packageScore
+  /*
+   * -------------------------------------------------
+   * PACKAGE SCORE
+   * -------------------------------------------------
+   */
 
-            });
+  var packageScore =
+    firstScore +
+    secondScore +
+    positionDiversityBonus +
+    structuralBonus;
+
+
+  packages.push({
+
+    firstPlayer:
+      firstPlayer,
+
+    secondPlayer:
+      secondPlayer,
+
+    firstName:
+      firstPlayer.name,
+
+    firstPosition:
+      firstPlayer.position,
+
+    firstScore:
+      firstScore,
+
+    secondName:
+      secondPlayer.name,
+
+    secondPosition:
+      secondPlayer.position,
+
+    secondScore:
+      secondScore,
+
+    positionDiversityBonus:
+      positionDiversityBonus,
+
+    structuralBonus:
+      structuralBonus,
+
+    packageScore:
+      packageScore
+
+  });
+
+});
 
 
           } finally {
