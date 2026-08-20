@@ -11140,6 +11140,39 @@ var draftWindow =
 var picksUntilNext =
   Number(draftWindow.picksBetween) || 0;
 
+  /*
+ * -------------------------------------------------------
+ * BACK-TO-BACK PICK GUARANTEE
+ * -------------------------------------------------------
+ */
+
+var picksBetween =
+  Number(
+    context.calculatedPicksUntilNext
+  );
+
+
+if (
+  !Number.isFinite(picksBetween)
+) {
+
+  picksBetween =
+    Math.max(
+      0,
+      nextPick -
+      currentPick -
+      1
+    );
+
+}
+
+
+if (picksBetween <= 0) {
+
+  return 100;
+
+}
+
 var rank =
   Number(candidate.rank) || 999;
 
@@ -15441,6 +15474,44 @@ test.equal(
     }
   ),
   -4
+);
+
+test.equal(
+  'Survival: back-to-back pick guarantees player survives',
+  calculateNextPickSurvival(
+    {
+      name: 'Turn Player',
+      position: 'RB',
+      rank: 24,
+      timingScore: 100
+    },
+    {
+      currentPick: 24,
+      calculatedNextPick: 25,
+      calculatedPicksUntilNext: 0,
+      currentRank: 24
+    }
+  ),
+  100
+);
+
+test.equal(
+  'Survival: back-to-back guarantee ignores player rank',
+  calculateNextPickSurvival(
+    {
+      name: 'Elite Turn Player',
+      position: 'WR',
+      rank: 1,
+      timingScore: 100
+    },
+    {
+      currentPick: 24,
+      calculatedNextPick: 25,
+      calculatedPicksUntilNext: 0,
+      currentRank: 24
+    }
+  ),
+  100
 );
 
   test.assert(
