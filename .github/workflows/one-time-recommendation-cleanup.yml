@@ -1,0 +1,131 @@
+name: One-time recommendation cleanup
+
+on:
+  push:
+    branches:
+      - chatgpt/recommendation-cleanup
+    paths:
+      - '.github/workflows/one-time-recommendation-cleanup.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/recommendation-cleanup
+
+      - name: Patch script.js
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('script.js')
+          text = path.read_text(encoding='utf-8')
+          marker = 'function calculateDraftRecommendation('
+
+          def find_function_end(source, start):
+              brace = source.find('{', start)
+              if brace < 0:
+                  raise RuntimeError('Opening brace not found')
+              depth = 0
+              i = brace
+              state = 'code'
+              quote = None
+              while i < len(source):
+                  ch = source[i]
+                  nxt = source[i + 1] if i + 1 < len(source) else ''
+                  if state == 'code':
+                      if ch in ('"', "'", '`'):
+                          state = 'string'
+                          quote = ch
+                      elif ch == '/' and nxt == '/':
+                          state = 'line_comment'
+                          i += 1
+                      elif ch == '/' and nxt == '*':
+                          state = 'block_comment'
+                          i += 1
+                      elif ch == '{':
+                          depth += 1
+                      elif ch == '}':
+                          depth -= 1
+                          if depth == 0:
+                              return i + 1
+                  elif state == 'string':
+                      if ch == '\\':
+                          i += 1
+                      elif ch == quote:
+                          state = 'code'
+                          quote = None
+                  elif state == 'line_comment':
+                      if ch == '\n':
+                          state = 'code'
+                  elif state == 'block_comment':
+                      if ch == '*' and nxt == '/':
+                          state = 'code'
+                          i += 1
+                  i += 1
+              raise RuntimeError('Function closing brace not found')
+
+          starts = [m.start() for m in re.finditer(re.escape(marker), text)]
+          print('Declarations before:', len(starts))
+          if not starts:
+              raise RuntimeError('calculateDraftRecommendation not found')
+
+          # Keep only the last declaration because JavaScript uses the last one.
+          if len(starts) > 1:
+              ranges = []
+              for start in starts[:-1]:
+                  end = find_function_end(text, start)
+                  while end < len(text) and text[end] in ' \t\r\n':
+                      end += 1
+                  ranges.append((start, end))
+              for start, end in reversed(ranges):
+                  text = text[:start] + text[end:]
+
+          starts = [m.start() for m in re.finditer(re.escape(marker), text)]
+          if len(starts) != 1:
+              raise RuntimeError(f'Expected one declaration after cleanup, found {len(starts)}')
+
+          start = starts[0]
+          end = find_function_end(text, start)
+          fn = text[start:end]
+
+          if 'backToBackTurn' not in fn:
+              raise RuntimeError('Active function missing backToBackTurn logic')
+
+          # Normalize the turn override so WAIT or CONSIDER becomes DRAFT, but PASS stays PASS.
+          fn, n = re.subn(
+              r"decision\.recommendation\s*===\s*['\"]WAIT['\"]",
+              "decision.recommendation !== 'PASS'",
+              fn
+          )
+          if n == 0 and "decision.recommendation !== 'PASS'" not in fn:
+              raise RuntimeError('Could not find back-to-back recommendation condition')
+
+          text = text[:start] + fn + text[end:]
+
+          if text.count(marker) != 1:
+              raise RuntimeError('Duplicate recommendation function still remains')
+
+          path.write_text(text, encoding='utf-8')
+          print('Declarations after:', text.count(marker))
+
+      - name: Syntax check
+        run: node --check script.js
+
+      - name: Commit script.js
+        run: |
+          if git diff --quiet -- script.js; then
+            echo 'No script.js changes needed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- script.js
+          git commit -m 'Fix duplicate draft recommendation logic'
+          git push origin HEAD:chatgpt/recommendation-cleanup
