@@ -3951,6 +3951,603 @@ function debugTurnSequencingAdvice(
   );
 }
 
+function calculateTurnPackage(
+  teams,
+  draftSlot,
+  currentPick
+) {
+
+  teams =
+    Number(teams) || 12;
+
+  draftSlot =
+    Number(draftSlot) || 1;
+
+  currentPick =
+    Number(currentPick) || 1;
+
+
+  /*
+   * -------------------------------------------------------
+   * 1. VERIFY THIS IS ACTUALLY A BACK-TO-BACK TURN
+   * -------------------------------------------------------
+   */
+
+  var nextPickInfo =
+    calculateMyNextDraftPick(
+      currentPick,
+      teams
+    );
+
+
+  if (
+    !nextPickInfo ||
+    Number(nextPickInfo.picksBetween) !== 0
+  ) {
+
+    console.warn(
+      'TURN PACKAGE: Current pick is not part of a back-to-back turn.',
+      {
+        currentPick:
+          currentPick,
+
+        nextPick:
+          nextPickInfo
+            ? nextPickInfo.nextPick
+            : null,
+
+        picksBetween:
+          nextPickInfo
+            ? nextPickInfo.picksBetween
+            : null
+      }
+    );
+
+    return null;
+  }
+
+
+  var secondPick =
+    Number(
+      nextPickInfo.nextPick
+    ) || 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * 2. BUILD FIRST-PICK STATE
+   * -------------------------------------------------------
+   */
+
+  return draftEngineWithSimulatedPriorPicks(
+    currentPick,
+    function() {
+
+      var originalStateGetter =
+        getDraftAssistantState;
+
+      var baseState =
+        originalStateGetter();
+
+
+      getDraftAssistantState =
+        function() {
+
+          return Object.assign(
+            {},
+            baseState,
+            {
+              teams:
+                teams,
+
+              draftSlot:
+                draftSlot,
+
+              currentPick:
+                currentPick,
+
+              rounds:
+                16
+            }
+          );
+
+        };
+
+
+      try {
+
+        var firstState =
+          buildLiveDraftDebugState();
+
+
+        if (
+          !firstState ||
+          !firstState.scored ||
+          !firstState.scored.length
+        ) {
+
+          console.warn(
+            'TURN PACKAGE: Could not build first-pick state.'
+          );
+
+          return null;
+        }
+
+
+        /*
+         * -------------------------------------------------------
+         * 3. ONLY TEST THE TOP FIRST-PICK CANDIDATES
+         * -------------------------------------------------------
+         *
+         * We do not need to simulate the entire player pool.
+         * The top 8 is enough for package comparison and keeps
+         * this debug tool reasonably fast.
+         */
+
+        var firstCandidates =
+          firstState.scored
+            .slice(0, 8);
+
+
+        var packages =
+          [];
+
+
+        /*
+         * -------------------------------------------------------
+         * 4. SIMULATE EACH POSSIBLE FIRST PLAYER
+         * -------------------------------------------------------
+         */
+
+        firstCandidates.forEach(function(firstPlayer) {
+
+          if (
+            !firstPlayer ||
+            !firstPlayer.name
+          ) {
+
+            return;
+          }
+
+
+          var selectedRow =
+            firstPlayer.row || null;
+
+          var originalClass =
+            selectedRow
+              ? selectedRow.className
+              : null;
+
+          var originalPick =
+            selectedRow
+              ? selectedRow.getAttribute(
+                  'data-pick'
+                )
+              : null;
+
+          var originalTeamSlot =
+            selectedRow
+              ? selectedRow.getAttribute(
+                  'data-team-slot'
+                )
+              : null;
+
+
+          /*
+           * Temporarily mark first player as OUR pick.
+           */
+
+          if (selectedRow) {
+
+            selectedRow.classList.remove(
+              'drafted-other'
+            );
+
+            selectedRow.classList.add(
+              'drafted-mine'
+            );
+
+            selectedRow.setAttribute(
+              'data-pick',
+              currentPick
+            );
+
+            selectedRow.setAttribute(
+              'data-team-slot',
+              draftSlot
+            );
+
+          }
+
+
+          try {
+
+            /*
+             * ---------------------------------------------------
+             * 5. BUILD SECOND-PICK STATE AFTER PLAYER A
+             * ---------------------------------------------------
+             */
+
+            getDraftAssistantState =
+              function() {
+
+                return Object.assign(
+                  {},
+                  baseState,
+                  {
+                    teams:
+                      teams,
+
+                    draftSlot:
+                      draftSlot,
+
+                    currentPick:
+                      secondPick,
+
+                    rounds:
+                      16
+                  }
+                );
+
+              };
+
+
+            var secondState =
+              buildLiveDraftDebugState();
+
+
+            if (
+              !secondState ||
+              !secondState.scored ||
+              !secondState.scored.length
+            ) {
+
+              return;
+            }
+
+
+            /*
+             * ---------------------------------------------------
+             * 6. FIND BEST SECOND PLAYER
+             * ---------------------------------------------------
+             */
+
+            var secondPlayer =
+              secondState.scored
+                .find(function(candidate) {
+
+                  return (
+                    candidate &&
+                    candidate.name &&
+                    candidate.name !==
+                      firstPlayer.name
+                  );
+
+                });
+
+
+            if (!secondPlayer) {
+
+              return;
+            }
+
+
+            /*
+             * ---------------------------------------------------
+             * 7. PACKAGE COMPONENTS
+             * ---------------------------------------------------
+             */
+
+            var firstScore =
+              Number(
+                firstPlayer.finalScore
+              ) || 0;
+
+            var secondScore =
+              Number(
+                secondPlayer.finalScore
+              ) || 0;
+
+
+            /*
+             * Small diversity bonus.
+             *
+             * This is intentionally tiny.
+             * The second-player rescore already handles most
+             * roster construction effects.
+             */
+
+            var positionDiversityBonus =
+              (
+                firstPlayer.position !==
+                secondPlayer.position
+              )
+                ? 1.5
+                : 0;
+
+
+            /*
+             * QB / TE premium positions can create meaningful
+             * construction advantages, but only reward them
+             * slightly because their actual value is already
+             * represented by finalScore.
+             */
+
+            var structuralBonus =
+              0;
+
+
+            if (
+              firstPlayer.position === 'QB' ||
+              secondPlayer.position === 'QB'
+            ) {
+
+              structuralBonus +=
+                0.5;
+
+            }
+
+
+            if (
+              firstPlayer.position === 'TE' ||
+              secondPlayer.position === 'TE'
+            ) {
+
+              structuralBonus +=
+                0.5;
+
+            }
+
+
+            /*
+             * ---------------------------------------------------
+             * 8. PACKAGE SCORE
+             * ---------------------------------------------------
+             */
+
+            var packageScore =
+              firstScore +
+              secondScore +
+              positionDiversityBonus +
+              structuralBonus;
+
+
+            packages.push({
+
+              firstPlayer:
+                firstPlayer,
+
+              secondPlayer:
+                secondPlayer,
+
+              firstName:
+                firstPlayer.name,
+
+              firstPosition:
+                firstPlayer.position,
+
+              firstScore:
+                firstScore,
+
+              secondName:
+                secondPlayer.name,
+
+              secondPosition:
+                secondPlayer.position,
+
+              secondScore:
+                secondScore,
+
+              positionDiversityBonus:
+                positionDiversityBonus,
+
+              structuralBonus:
+                structuralBonus,
+
+              packageScore:
+                packageScore
+
+            });
+
+
+          } finally {
+
+            /*
+             * ---------------------------------------------------
+             * RESTORE PLAYER ROW
+             * ---------------------------------------------------
+             */
+
+            if (selectedRow) {
+
+              selectedRow.className =
+                originalClass;
+
+
+              if (originalPick !== null) {
+
+                selectedRow.setAttribute(
+                  'data-pick',
+                  originalPick
+                );
+
+              } else {
+
+                selectedRow.removeAttribute(
+                  'data-pick'
+                );
+
+              }
+
+
+              if (
+                originalTeamSlot !== null
+              ) {
+
+                selectedRow.setAttribute(
+                  'data-team-slot',
+                  originalTeamSlot
+                );
+
+              } else {
+
+                selectedRow.removeAttribute(
+                  'data-team-slot'
+                );
+
+              }
+
+            }
+
+          }
+
+        });
+
+
+        /*
+         * -------------------------------------------------------
+         * 9. SORT PACKAGES
+         * -------------------------------------------------------
+         */
+
+        packages.sort(function(a, b) {
+
+          return (
+            Number(b.packageScore) -
+            Number(a.packageScore)
+          );
+
+        });
+
+
+        var bestPackage =
+          packages.length
+            ? packages[0]
+            : null;
+
+
+        /*
+         * -------------------------------------------------------
+         * 10. DEBUG OUTPUT
+         * -------------------------------------------------------
+         */
+
+        console.group(
+          'TURN PACKAGE DEBUG — ' +
+          teams +
+          ' TEAM — SLOT ' +
+          draftSlot +
+          ' — PICKS ' +
+          currentPick +
+          '/' +
+          secondPick
+        );
+
+
+        console.table(
+          packages
+            .slice(0, 10)
+            .map(function(pkg) {
+
+              return {
+
+                pick1:
+                  pkg.firstName,
+
+                pos1:
+                  pkg.firstPosition,
+
+                score1:
+                  pkg.firstScore.toFixed(1),
+
+                pick2:
+                  pkg.secondName,
+
+                pos2:
+                  pkg.secondPosition,
+
+                score2:
+                  pkg.secondScore.toFixed(1),
+
+                diversity:
+                  pkg.positionDiversityBonus.toFixed(1),
+
+                structural:
+                  pkg.structuralBonus.toFixed(1),
+
+                packageScore:
+                  pkg.packageScore.toFixed(1)
+
+              };
+
+            })
+        );
+
+
+        if (bestPackage) {
+
+          console.log(
+            'BEST TURN PACKAGE:',
+            {
+              pick1:
+                bestPackage.firstName,
+
+              pick1Position:
+                bestPackage.firstPosition,
+
+              pick2:
+                bestPackage.secondName,
+
+              pick2Position:
+                bestPackage.secondPosition,
+
+              packageScore:
+                Number(
+                  bestPackage.packageScore
+                ).toFixed(1)
+            }
+          );
+
+        }
+
+
+        console.groupEnd();
+
+
+        return {
+
+          teams:
+            teams,
+
+          draftSlot:
+            draftSlot,
+
+          firstPick:
+            currentPick,
+
+          secondPick:
+            secondPick,
+
+          bestPackage:
+            bestPackage,
+
+          packages:
+            packages
+
+        };
+
+
+      } finally {
+
+        getDraftAssistantState =
+          originalStateGetter;
+
+      }
+
+    }
+  );
+}
+
   /*
    * -------------------------------------------------------
    * BUILD A DEBUG STATE FOR EACH PICK
