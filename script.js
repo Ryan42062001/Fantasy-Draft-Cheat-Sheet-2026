@@ -6266,6 +6266,16 @@ function buildPickContextHtml(
   state
 ) {
 
+  if (
+    !state ||
+    !state.context
+  ) {
+
+    return '';
+
+  }
+
+
   var teams =
     Number(
       state.context.teams
@@ -6302,8 +6312,9 @@ function buildPickContextHtml(
 
 
   /*
-   * Fallback to snake-pick calculation if the
-   * live context does not already expose it.
+   * -------------------------------------------------------
+   * FALLBACK TO SNAKE-PICK CALCULATION
+   * -------------------------------------------------------
    */
 
   if (
@@ -6350,6 +6361,12 @@ function buildPickContextHtml(
       : picksBetween +
         ' picks between';
 
+
+  /*
+   * -------------------------------------------------------
+   * BUILD UI
+   * -------------------------------------------------------
+   */
 
   var output =
     '<div style="' +
@@ -6405,6 +6422,23 @@ function buildPickContextHtml(
 
   return output;
 
+}
+
+function buildPickContextHtml(...) {
+
+  ...
+
+  return output;
+}
+
+
+function buildUrgencyIndicatorHtml(
+  recommendation,
+  primary,
+  state
+) {
+
+  ...
 }
 
 function buildPickContextHtml(
