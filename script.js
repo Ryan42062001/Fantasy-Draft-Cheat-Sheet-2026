@@ -16293,72 +16293,6 @@ test.equal(
 );
 
   test.assert(
-  'Turn package returns result',
-  !!calculateTurnPackage(
-    12,
-    1,
-    24
-  )
-);
-
-
-var turnPackageTest =
-  calculateTurnPackage(
-    12,
-    1,
-    24
-  );
-
-
-test.assert(
-  'Turn package returns best package',
-  !!(
-    turnPackageTest &&
-    turnPackageTest.bestPackage
-  )
-);
-
-
-test.assert(
-  'Turn package evaluates multiple combinations',
-  !!(
-    turnPackageTest &&
-    Array.isArray(
-      turnPackageTest.packages
-    ) &&
-    turnPackageTest.packages.length > 1
-  )
-);
-
-
-test.between(
-  'Turn package advantage stays in safe range',
-  turnPackageTest
-    ? Number(
-        turnPackageTest.packageAdvantage
-      ) || 0
-    : 0,
-  0,
-  100
-);
-
-
-test.assert(
-  'Turn package confidence returns valid level',
-  !!(
-    turnPackageTest &&
-    [
-      'LOW',
-      'MODERATE',
-      'HIGH',
-      'VERY HIGH'
-    ].includes(
-      turnPackageTest.packageConfidence
-    )
-  )
-);
-
-  test.assert(
     'Decision score returns phase-adjusted roster construction',
     Number.isFinite(
       scored.phaseAdjustedRosterConstructionScore
@@ -16728,6 +16662,150 @@ test.equal(
   console.groupEnd();
 
   return summary;
+}
+
+function runTurnPackageTests() {
+
+  console.group(
+    'TURN PACKAGE TEST SUITE'
+  );
+
+
+  var result =
+    calculateTurnPackage(
+      12,
+      1,
+      24
+    );
+
+
+  var tests = [];
+
+
+  function assert(
+    name,
+    condition
+  ) {
+
+    tests.push({
+      name: name,
+      passed: !!condition
+    });
+
+  }
+
+
+  assert(
+    'Turn package returns result',
+    !!result
+  );
+
+
+  assert(
+    'Turn package returns best package',
+    !!(
+      result &&
+      result.bestPackage
+    )
+  );
+
+
+  assert(
+    'Turn package evaluates multiple combinations',
+    !!(
+      result &&
+      Array.isArray(
+        result.packages
+      ) &&
+      result.packages.length > 1
+    )
+  );
+
+
+  assert(
+    'Turn package advantage stays in safe range',
+    !!(
+      result &&
+      Number.isFinite(
+        Number(
+          result.packageAdvantage
+        )
+      ) &&
+      Number(
+        result.packageAdvantage
+      ) >= 0 &&
+      Number(
+        result.packageAdvantage
+      ) <= 100
+    )
+  );
+
+
+  assert(
+    'Turn package confidence returns valid level',
+    !!(
+      result &&
+      [
+        'LOW',
+        'MODERATE',
+        'HIGH',
+        'VERY HIGH'
+      ].includes(
+        result.packageConfidence
+      )
+    )
+  );
+
+
+  var passed =
+    tests.filter(function(test) {
+      return test.passed;
+    }).length;
+
+
+  var failed =
+    tests.length -
+    passed;
+
+
+  console.log(
+    'Result:',
+    passed +
+      ' passed, ' +
+      failed +
+      ' failed (' +
+      tests.length +
+      ' total)'
+  );
+
+
+  tests.forEach(function(test) {
+
+    console.log(
+      test.passed
+        ? '✓ ' + test.name
+        : '✗ ' + test.name
+    );
+
+  });
+
+
+  console.groupEnd();
+
+
+  return {
+    results:
+      tests,
+
+    passed:
+      passed,
+
+    failed:
+      failed,
+
+    total:
+      tests.length
+  };
 }
 
 function runDraftEngineScenario(name) {
