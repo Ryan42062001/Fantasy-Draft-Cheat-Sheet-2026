@@ -11825,6 +11825,25 @@ var scoreGap =
    * -------------------------------------------------------
    */
 
+  if (
+  Number(picksBetween) === 0
+) {
+
+  return {
+    recommendation:
+      'DRAFT',
+
+    confidence:
+      confidence || 'HIGH',
+
+    reason:
+      'Back-to-back pick: no opponent can take the player before your next selection.',
+
+    backToBackTurn:
+      true
+  };
+}
+
   var decision =
     calculateRecommendationDecision(
       player,
@@ -12006,6 +12025,9 @@ var scoreGap =
 
     confidence:
       confidence,
+
+    backToBackTurn:
+  true,
 
     recommendation:
       decision.recommendation,
@@ -15311,6 +15333,41 @@ if (scored) {
     -1000,
     1000
   );
+
+  test.equal(
+  'Recommendation: back-to-back turn does not return WAIT',
+  calculateDraftRecommendation(
+    {
+      finalScore: 80
+    },
+    [
+      {
+        finalScore: 80
+      }
+    ],
+    {
+      picksBetween: 0
+    }
+  ).recommendation,
+  'DRAFT'
+);
+
+test.assert(
+  'Recommendation: back-to-back turn is flagged',
+  calculateDraftRecommendation(
+    {
+      finalScore: 80
+    },
+    [
+      {
+        finalScore: 80
+      }
+    ],
+    {
+      picksBetween: 0
+    }
+  ).backToBackTurn === true
+);
 
   test.between(
     'Decision tier score is 0–100',
