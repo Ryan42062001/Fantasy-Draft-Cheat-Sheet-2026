@@ -13586,46 +13586,49 @@ if (playerResult) {
 }
 
  var scoreGap =
-    Number(
-      recommendation.scoreGap
+  Number(
+    recommendation.scoreGap
+  );
+
+
+if (
+  Number.isFinite(scoreGap) &&
+  recommendation.nextBest
+) {
+
+  if (scoreGap >= 8) {
+
+    addReason(
+      player +
+      ' leads ' +
+      recommendation.nextBest +
+      ' by ' +
+      scoreGap.toFixed(1) +
+      ' points.',
+      88
     );
 
+  } else if (scoreGap >= 3) {
 
-  if (
-    Number.isFinite(scoreGap) &&
-    recommendation.nextBest
-  ) {
+    addReason(
+      player +
+      ' holds a meaningful advantage over ' +
+      recommendation.nextBest +
+      '.',
+      72
+    );
 
-addReason(
-  player +
-  ' leads ' +
-  recommendation.nextBest +
-  ' by ' +
-  scoreGap.toFixed(1) +
-  ' points.',
-  88
-);
+  } else if (Math.abs(scoreGap) < 3) {
 
-    } addReason(
-  player +
-  ' holds a meaningful advantage over ' +
-  recommendation.nextBest +
-  '.',
-  72
-);
-
-    } else if (Math.abs(scoreGap) < 3) {
-
-      addReason(
-  recommendation.nextBest +
-  ' is a close alternative.',
-  50
-);
-
-    }
+    addReason(
+      recommendation.nextBest +
+      ' is a close alternative.',
+      50
+    );
 
   }
 
+}
 
  /*
  * -------------------------------------------------------
