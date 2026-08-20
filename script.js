@@ -13482,9 +13482,9 @@ if (
   ) {
 
     addReason(
-  'Foundation phase favors elite talent and value over forcing positional need.',
-  55
-);
+      'Foundation phase favors elite talent and value over forcing positional need.',
+      55
+    );
 
   } else if (
     playerResult.draftPhase ===
@@ -13492,9 +13492,9 @@ if (
   ) {
 
     addReason(
-  'Starter-build phase increases the importance of filling strong lineup needs.',
-  55
-);
+      'Starter-build phase increases the importance of filling strong lineup needs.',
+      55
+    );
 
   } else if (
     playerResult.draftPhase ===
@@ -13502,9 +13502,9 @@ if (
   ) {
 
     addReason(
-  'Value/depth phase puts more weight on scarcity and remaining positional value.',
-  50
-);
+      'Value/depth phase puts more weight on scarcity and remaining positional value.',
+      50
+    );
 
   } else if (
     playerResult.draftPhase ===
@@ -13512,9 +13512,9 @@ if (
   ) {
 
     addReason(
-  'Endgame phase prioritizes upside, roster completion, and remaining positional requirements.',
-  60
-);
+      'Endgame phase prioritizes upside, roster completion, and remaining positional requirements.',
+      60
+    );
 
   }
 
@@ -13627,54 +13627,54 @@ addReason(
   }
 
 
-  /*
-   * -------------------------------------------------------
-   * DECISION-SPECIFIC EXPLANATION
-   * -------------------------------------------------------
-   */
+ /*
+ * -------------------------------------------------------
+ * DECISION-SPECIFIC EXPLANATION
+ * -------------------------------------------------------
+ */
 
-  if (action === 'DRAFT') {
+if (action === 'DRAFT') {
 
-    if (
-      recommendation.confidence ===
-        'VERY HIGH' ||
-      recommendation.confidence ===
-        'HIGH'
-    ) {
-
-      addReason(
-  'The current value is strong enough that waiting is not recommended.',
-  75
-);
-
-    }
-
-  } else if (action === 'WAIT') {
-
-    if (recommendation.nextBest) {
-
-      addReason(
-  'Comparable value should still be available at your next selection.',
-  82
-);
-
-    }
-
-  } else if (action === 'PASS') {
+  if (
+    recommendation.confidence ===
+      'VERY HIGH' ||
+    recommendation.confidence ===
+      'HIGH'
+  ) {
 
     addReason(
-  'The current player does not provide enough value relative to the alternatives.',
-  95
-);
-
-  } else if (action === 'CONSIDER') {
-
-   addReason(
-  'The decision is close enough that roster construction and draft strategy should break the tie.',
-  65
-);
+      'The current value is strong enough that waiting is not recommended.',
+      75
+    );
 
   }
+
+} else if (action === 'WAIT') {
+
+  if (recommendation.nextBest) {
+
+    addReason(
+      'Comparable value should still be available at your next selection.',
+      82
+    );
+
+  }
+
+} else if (action === 'PASS') {
+
+  addReason(
+    'The current player does not provide enough value relative to the alternatives.',
+    95
+  );
+
+} else if (action === 'CONSIDER') {
+
+  addReason(
+    'The decision is close enough that roster construction and draft strategy should break the tie.',
+    65
+  );
+
+}
 
 
   /*
