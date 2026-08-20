@@ -5886,6 +5886,9 @@ window.latestDraftExplanation =
 
       '</div>';
 
+    turnHtml +=
+  buildPickContextHtml();
+
 
     /*
      * PICK 1
@@ -6081,6 +6084,8 @@ window.latestDraftExplanation =
 
     '</div>';
 
+  html +=
+  buildPickContextHtml();
 
   /*
    * PRIMARY PLAYER
@@ -6239,6 +6244,149 @@ window.latestDraftExplanation =
 
   el.innerHTML =
     html;
+
+}
+
+function buildPickContextHtml() {
+
+  var teams =
+    Number(
+      state.context.teams
+    ) ||
+    Number(LEAGUE_SIZE) ||
+    10;
+
+
+  var currentPick =
+    Number(
+      state.context.currentPick
+    ) || 0;
+
+
+  var currentRound =
+    currentPick > 0
+      ? Math.ceil(
+          currentPick / teams
+        )
+      : 0;
+
+
+  var nextPick =
+    Number(
+      state.context.calculatedNextPick ||
+      state.context.nextPick
+    ) || 0;
+
+
+  var picksBetween =
+    Number(
+      state.context.calculatedPicksUntilNext
+    );
+
+
+  /*
+   * Fallback to snake-pick calculation if the
+   * live context does not already expose it.
+   */
+
+  if (
+    !nextPick ||
+    !Number.isFinite(picksBetween)
+  ) {
+
+    var nextPickInfo =
+      calculateMyNextDraftPick(
+        currentPick,
+        teams
+      );
+
+
+    if (nextPickInfo) {
+
+      nextPick =
+        Number(
+          nextPickInfo.nextPick
+        ) || nextPick;
+
+
+      picksBetween =
+        Number(
+          nextPickInfo.picksBetween
+        );
+
+    }
+
+  }
+
+
+  if (!Number.isFinite(picksBetween)) {
+
+    picksBetween =
+      0;
+
+  }
+
+
+  var betweenLabel =
+    picksBetween === 1
+      ? '1 pick between'
+      : picksBetween +
+        ' picks between';
+
+
+  var output =
+    '<div style="' +
+      'font-size:0.69rem;' +
+      'color:#a9c2ab;' +
+      'margin-bottom:9px;' +
+      'line-height:1.35;' +
+    '">';
+
+
+  if (currentPick > 0) {
+
+    output +=
+      'Pick <b>#' +
+      currentPick +
+      '</b>';
+
+  }
+
+
+  if (currentRound > 0) {
+
+    output +=
+      ' &middot; Round <b>' +
+      currentRound +
+      '</b>';
+
+  }
+
+
+  if (nextPick > 0) {
+
+    output +=
+      ' &middot; Next <b>#' +
+      nextPick +
+      '</b>';
+
+  }
+
+
+  if (currentPick > 0) {
+
+    output +=
+      ' &middot; ' +
+      betweenLabel;
+
+  }
+
+
+  output +=
+    '</div>';
+
+
+  return output;
 
 }
 
