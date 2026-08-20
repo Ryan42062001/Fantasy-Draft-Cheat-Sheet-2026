@@ -5600,90 +5600,371 @@ function applyTeamColors(){
   });
 }
 
-function updateRecommendedPick(){
-  var el = document.getElementById('recommended-pick-text');
-  if(!el) return;
+function updateRecommendedPick() {
 
-  var counts = {QB:0,RB:0,WR:0,TE:0,K:0,DST:0};
-  document.querySelectorAll('tr.draftrow.drafted-mine').forEach(function(row){
-    var pos = row.getAttribute('data-pos');
-    if(pos && counts[pos] !== undefined) counts[pos]++;
-  });
-  var totalDrafted = document.querySelectorAll('tr.draftrow.drafted-mine').length;
-  if(totalDrafted === 0){
-    el.innerHTML = 'Tap a player to start tracking your team, and I\'ll suggest your best picks here.';
+  var el =
+    document.getElementById(
+      'recommended-pick-text'
+    );
+
+
+  if (!el) {
+
     return;
+
   }
 
-  var needOrder = [];
-  ['QB','RB','WR','TE'].forEach(function(p){
-    var startersNeeded = Math.max(0, (ROSTER_SLOTS[p]||0) - (counts[p]||0));
-    if(startersNeeded > 0) needOrder.push({type:'starter', pos:p, count:startersNeeded});
-  });
 
-  ['QB','RB','WR','TE','K','DST'].forEach(function(p){
-    var filledBench = Math.max(0, (counts[p]||0) - (ROSTER_SLOTS[p]||0));
-    var benchLeft = (BENCH_SLOTS[p]||0) - filledBench;
-    if(benchLeft > 0) needOrder.push({type:'bench', pos:p, count:benchLeft});
-  });
+  /*
+   * -------------------------------------------------------
+   * BUILD LIVE DRAFT ENGINE STATE
+   * -------------------------------------------------------
+   */
 
-  var candidates = [];
-  document.querySelectorAll('tr.draftrow').forEach(function(row){
-    if(row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')) return;
-    var pos = row.getAttribute('data-pos') || 'N/A';
-    var rkCell = row.children[0];
-    var rawRk = rkCell ? rkCell.innerText.replace(/Rd\d+/, '').trim() : '';
-    var rk = parseInt(rawRk, 10) || 9999;
-    var nameCell = row.querySelector('.pname');
-    var name = nameCell ? nameCell.childNodes[0].textContent.trim() : (row.getAttribute('data-name') || 'Unknown');
-    var round = Math.ceil(rk / LEAGUE_SIZE);
-    candidates.push({row:row, pos:pos, rk:rk, name:name, round:round});
-  });
+  var state =
+    buildLiveDraftDebugState();
 
-  var suggested = [];
-  for(var i=0; i<candidates.length && suggested.length<3; i++){
-    var c = candidates[i];
-    var satisfies = false;
-    for(var j=0; j<needOrder.length; j++){
-      if(needOrder[j].pos === c.pos){ satisfies = true; break; }
-    }
-    if(needOrder.length === 0 || satisfies){
-      suggested.push(c);
-    }
-  }
 
-  if(suggested.length < 3){
-    for(var k=0; k<candidates.length && suggested.length<3; k++){
-      var candidate = candidates[k];
-      var isAlreadySuggested = suggested.some(function(item){ return item.name === candidate.name; });
-      if(!isAlreadySuggested) {
-        suggested.push(candidate);
-      }
-    }
-  }
+  if (
+    !state ||
+    !state.scored ||
+    !state.scored.length
+  ) {
 
-  if(suggested.length === 0){
-    el.innerHTML = 'No available players to recommend.';
+    el.innerHTML =
+      'No available players to recommend.';
+
     return;
+
   }
 
-  var html = '<div style="text-align:left;">';
-  html += '<div style="font-size:0.82rem;color:#a9c2ab;margin-bottom:6px;">Top 3 picks for your roster construction</div>';
-  suggested.forEach(function(s, idx){
-    var reason = '';
-    var startersNeeded = Math.max(0, (ROSTER_SLOTS[s.pos]||0) - (counts[s.pos]||0));
-    var filledBench = Math.max(0, (counts[s.pos]||0) - (ROSTER_SLOTS[s.pos]||0));
-    var benchLeft = (BENCH_SLOTS[s.pos]||0) - filledBench;
-    if(startersNeeded > 0){ reason = 'fills a <b>'+s.pos+'</b> starter need'; }
-    else if(benchLeft > 0){ reason = 'good bench fit ('+benchLeft+' slots left)'; }
-    else { reason = 'best available'; }
-    html += '<div style="padding:6px 8px;border-radius:8px;margin-bottom:6px;background:rgba(255,255,255,0.02);">';
-    html += '<div style="font-weight:900;">'+(idx+1)+'. '+s.name+' <span class="pos-pill pos-'+s.pos+'" style="margin-left:8px;">'+s.pos+'</span></div>';
-    html += '<div style="font-size:0.72rem;color:#a9c2ab;">#'+s.rk+' overall &middot; Rd'+s.round+' &middot; '+reason+'</div>';
-    html += '</div>';
-  });
-  html += '</div>';
-  el.innerHTML = html;
+
+  /*
+   * -------------------------------------------------------
+   * PRIMARY ENGINE RECOMMENDATION
+   * -------------------------------------------------------
+   */
+
+  var primary =
+    state.scored[0];
+
+
+  var recommendation =
+    calculateDraftRecommendation(
+      primary,
+      state.scored,
+      state.context
+    );
+
+
+  if (!recommendation) {
+
+    el.innerHTML =
+      'Unable to build a recommendation.';
+
+    return;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * PHASE 6 — TURN PACKAGE INTELLIGENCE
+   * -------------------------------------------------------
+   */
+
+  recommendation =
+    attachLiveTurnPackage(
+      recommendation,
+      state.context
+    );
+
+
+  /*
+   * Keep the latest live result accessible for debugging
+   * and for later recommendation-explanation/UI work.
+   */
+
+  window.latestDraftRecommendation =
+    recommendation;
+
+
+  /*
+   * -------------------------------------------------------
+   * TURN-PACKAGE RECOMMENDATION
+   * -------------------------------------------------------
+   */
+
+  if (
+    recommendation.turnPackageActive &&
+    recommendation.turnRecommendedNow &&
+    recommendation.turnTargetNext
+  ) {
+
+    var turnNow =
+      recommendation.turnRecommendedNow;
+
+
+    var turnNext =
+      recommendation.turnTargetNext;
+
+
+    var turnNowPosition =
+      recommendation.turnPick1Position ||
+      '';
+
+
+    var turnNextPosition =
+      recommendation.turnPick2Position ||
+      '';
+
+
+    var packageScore =
+      Number(
+        recommendation.turnPackageScore
+      ) || 0;
+
+
+    var packageAdvantage =
+      Number(
+        recommendation.turnPackageAdvantage
+      ) || 0;
+
+
+    var packageConfidence =
+      recommendation.turnPackageConfidence ||
+      'LOW';
+
+
+    var turnHtml =
+      '<div style="text-align:left;">';
+
+
+    turnHtml +=
+      '<div style="' +
+      'font-size:0.82rem;' +
+      'color:#a9c2ab;' +
+      'margin-bottom:6px;' +
+      '">' +
+      'Best two-pick turn strategy' +
+      '</div>';
+
+
+    turnHtml +=
+      '<div style="' +
+      'padding:8px;' +
+      'border-radius:8px;' +
+      'margin-bottom:6px;' +
+      'background:rgba(255,255,255,0.04);' +
+      '">';
+
+
+    turnHtml +=
+      '<div style="font-weight:900;">' +
+      '1. ' +
+      turnNow +
+      (
+        turnNowPosition
+          ? ' <span class="pos-pill pos-' +
+            turnNowPosition +
+            '" style="margin-left:8px;">' +
+            turnNowPosition +
+            '</span>'
+          : ''
+      ) +
+      '</div>';
+
+
+    turnHtml +=
+      '<div style="' +
+      'font-size:0.72rem;' +
+      'color:#a9c2ab;' +
+      '">' +
+      'Draft now' +
+      '</div>';
+
+
+    turnHtml +=
+      '</div>';
+
+
+    turnHtml +=
+      '<div style="' +
+      'padding:8px;' +
+      'border-radius:8px;' +
+      'margin-bottom:6px;' +
+      'background:rgba(255,255,255,0.02);' +
+      '">';
+
+
+    turnHtml +=
+      '<div style="font-weight:900;">' +
+      '2. ' +
+      turnNext +
+      (
+        turnNextPosition
+          ? ' <span class="pos-pill pos-' +
+            turnNextPosition +
+            '" style="margin-left:8px;">' +
+            turnNextPosition +
+            '</span>'
+          : ''
+      ) +
+      '</div>';
+
+
+    turnHtml +=
+      '<div style="' +
+      'font-size:0.72rem;' +
+      'color:#a9c2ab;' +
+      '">' +
+      'Target with your next pick' +
+      '</div>';
+
+
+    turnHtml +=
+      '</div>';
+
+
+    turnHtml +=
+      '<div style="' +
+      'font-size:0.72rem;' +
+      'color:#a9c2ab;' +
+      '">' +
+      'Package score: ' +
+      packageScore.toFixed(1) +
+      ' &middot; Advantage: +' +
+      packageAdvantage.toFixed(1) +
+      ' &middot; ' +
+      packageConfidence +
+      ' confidence' +
+      '</div>';
+
+
+    turnHtml +=
+      '</div>';
+
+
+    el.innerHTML =
+      turnHtml;
+
+
+    return;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * NORMAL SINGLE-PICK RECOMMENDATION
+   * -------------------------------------------------------
+   */
+
+  var html =
+    '<div style="text-align:left;">';
+
+
+  html +=
+    '<div style="' +
+    'font-size:0.82rem;' +
+    'color:#a9c2ab;' +
+    'margin-bottom:6px;' +
+    '">' +
+    'Best pick right now' +
+    '</div>';
+
+
+  html +=
+    '<div style="' +
+    'padding:8px;' +
+    'border-radius:8px;' +
+    'margin-bottom:6px;' +
+    'background:rgba(255,255,255,0.04);' +
+    '">';
+
+
+  html +=
+    '<div style="font-weight:900;">' +
+    primary.name +
+    ' <span class="pos-pill pos-' +
+    primary.position +
+    '" style="margin-left:8px;">' +
+    primary.position +
+    '</span>' +
+    '</div>';
+
+
+  html +=
+    '<div style="' +
+    'font-size:0.72rem;' +
+    'color:#a9c2ab;' +
+    '">' +
+    recommendation.recommendation +
+    ' &middot; ' +
+    recommendation.confidence +
+    ' confidence' +
+    '</div>';
+
+
+  html +=
+    '</div>';
+
+
+  /*
+   * -------------------------------------------------------
+   * CLOSE ALTERNATIVES
+   * -------------------------------------------------------
+   */
+
+  state.scored
+    .slice(1, 3)
+    .forEach(function(player) {
+
+      html +=
+        '<div style="' +
+        'padding:6px 8px;' +
+        'border-radius:8px;' +
+        'margin-bottom:6px;' +
+        'background:rgba(255,255,255,0.02);' +
+        '">';
+
+
+      html +=
+        '<div style="font-weight:800;">' +
+        player.name +
+        ' <span class="pos-pill pos-' +
+        player.position +
+        '" style="margin-left:8px;">' +
+        player.position +
+        '</span>' +
+        '</div>';
+
+
+      html +=
+        '<div style="' +
+        'font-size:0.72rem;' +
+        'color:#a9c2ab;' +
+        '">' +
+        'Score: ' +
+        Number(
+          player.finalScore
+        ).toFixed(1) +
+        '</div>';
+
+
+      html +=
+        '</div>';
+
+    });
+
+
+  html +=
+    '</div>';
+
+
+  el.innerHTML =
+    html;
+
 }
 
 function addRoundMarkers(){
