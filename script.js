@@ -11819,29 +11819,89 @@ var scoreGap =
   }
 
 
-  /*
-   * -------------------------------------------------------
-   * 7. DECISION LAYER
-   * -------------------------------------------------------
-   */
+ /*
+ * -------------------------------------------------------
+ * 7. DECISION LAYER
+ * -------------------------------------------------------
+ */
+
+var picksBetween =
+  Number(
+    context.calculatedPicksUntilNext
+  );
+
+
+if (!Number.isFinite(picksBetween)) {
+
+  picksBetween =
+    Number(
+      context.picksBetween
+    );
+
+}
+
+
+if (!Number.isFinite(picksBetween)) {
+
+  var currentPick =
+    Number(
+      context.currentPick
+    ) || 0;
+
+  var nextPick =
+    Number(
+      context.calculatedNextPick ||
+      context.nextPick
+    ) || 0;
+
 
   if (
-  Number(picksBetween) === 0
+    currentPick > 0 &&
+    nextPick > 0
+  ) {
+
+    picksBetween =
+      Math.max(
+        0,
+        nextPick -
+        currentPick -
+        1
+      );
+
+  }
+
+}
+
+
+var backToBackTurn =
+  (
+    Number.isFinite(picksBetween) &&
+    picksBetween === 0
+  );
+
+
+var decision =
+  calculateRecommendationDecision(
+    player,
+    nextPlayer,
+    scoreGap,
+    confidenceScore,
+    context
+  );
+
+
+if (
+  backToBackTurn &&
+  decision &&
+  decision.recommendation === 'WAIT'
 ) {
 
-  return {
-    recommendation:
-      'DRAFT',
+  decision.recommendation =
+    'DRAFT';
 
-    confidence:
-      confidence || 'HIGH',
+  decision.summary =
+    'Back-to-back pick: no opponent can take the player before your next selection.';
 
-    reason:
-      'Back-to-back pick: no opponent can take the player before your next selection.',
-
-    backToBackTurn:
-      true
-  };
 }
 
   var decision =
@@ -12026,8 +12086,8 @@ var scoreGap =
     confidence:
       confidence,
 
-    backToBackTurn:
-  true,
+backToBackTurn:
+  backToBackTurn,
 
     recommendation:
       decision.recommendation,
@@ -12074,6 +12134,9 @@ var scoreGap =
 
     recommendation:
       decision.recommendation,
+
+    backToBackTurn:
+  backToBackTurn,
 
     reason:
       reason,
