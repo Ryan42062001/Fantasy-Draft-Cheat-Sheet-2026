@@ -18040,6 +18040,291 @@ applyPackagePathAdjustments(
   };
 }
 
+function runRecommendationExplanationTests() {
+
+  console.group(
+    'RECOMMENDATION EXPLANATION TEST SUITE'
+  );
+
+
+  var tests = [];
+
+
+  function assert(
+    name,
+    condition
+  ) {
+
+    tests.push({
+      name: name,
+      passed: !!condition
+    });
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * BUILD NORMAL SINGLE-PICK EXPLANATION
+   * -------------------------------------------------------
+   */
+
+  var state =
+    buildLiveDraftDebugState();
+
+
+  var normalRecommendation =
+    (
+      state &&
+      state.scored &&
+      state.scored.length
+    )
+      ? calculateDraftRecommendation(
+          state.scored[0],
+          state.scored,
+          state.context
+        )
+      : null;
+
+
+  var normalExplanation =
+    normalRecommendation
+      ? buildRecommendationExplanation(
+          normalRecommendation,
+          state.scored[0],
+          state.scored[1] || null
+        )
+      : null;
+
+
+  assert(
+    'Explanation returns result',
+    !!normalExplanation
+  );
+
+
+  assert(
+    'Explanation returns SINGLE_PICK type',
+    !!(
+      normalExplanation &&
+      normalExplanation.type ===
+        'SINGLE_PICK'
+    )
+  );
+
+
+  assert(
+    'Explanation reasons are strings and capped at 4',
+    !!(
+      normalExplanation &&
+      Array.isArray(
+        normalExplanation.reasons
+      ) &&
+      normalExplanation.reasons.length <= 4 &&
+      normalExplanation.reasons.every(
+        function(reason) {
+          return (
+            typeof reason ===
+            'string'
+          );
+        }
+      )
+    )
+  );
+
+
+  assert(
+    'Explanation returns next action',
+    !!(
+      normalExplanation &&
+      typeof normalExplanation.nextAction ===
+        'string' &&
+      normalExplanation.nextAction.length > 0
+    )
+  );
+
+
+  /*
+   * -------------------------------------------------------
+   * PRIORITY TEST
+   * -------------------------------------------------------
+   *
+   * A large score gap should outrank lower-priority
+   * contextual reasons.
+   */
+
+  assert(
+    'Explanation prioritizes strong score advantage',
+    !!(
+      normalExplanation &&
+      normalExplanation.reasons &&
+      normalExplanation.reasons.length &&
+      (
+        normalExplanation.reasons[0]
+          .indexOf('leads') !== -1 ||
+        normalExplanation.reasons[0]
+          .indexOf('tier cliff') !== -1 ||
+        normalExplanation.reasons[0]
+          .indexOf('gone before') !== -1
+      )
+    )
+  );
+
+
+  /*
+   * -------------------------------------------------------
+   * TURN-PACKAGE EXPLANATION
+   * -------------------------------------------------------
+   */
+
+  var turnPackage =
+    calculateTurnPackage(
+      12,
+      1,
+      24,
+      {
+        silent:
+          true
+      }
+    );
+
+
+  var turnRecommendation =
+    turnPackage &&
+    turnPackage.bestPackage
+      ? {
+          recommendation:
+            'DRAFT',
+
+          confidence:
+            turnPackage.packageConfidence,
+
+          player:
+            turnPackage.bestPackage.firstName,
+
+          turnPackageActive:
+            true,
+
+          turnRecommendedNow:
+            turnPackage.bestPackage.firstName,
+
+          turnTargetNext:
+            turnPackage.bestPackage.secondName,
+
+          turnPackageAdvantage:
+            turnPackage.packageAdvantage,
+
+          turnPackageConfidence:
+            turnPackage.packageConfidence
+        }
+      : null;
+
+
+  var turnExplanation =
+    turnRecommendation
+      ? buildRecommendationExplanation(
+          turnRecommendation,
+          null,
+          null
+        )
+      : null;
+
+
+  assert(
+    'Turn explanation returns TURN_PACKAGE type',
+    !!(
+      turnExplanation &&
+      turnExplanation.type ===
+        'TURN_PACKAGE'
+    )
+  );
+
+
+  assert(
+    'Turn explanation returns next target',
+    !!(
+      turnExplanation &&
+      turnExplanation.nextTarget
+    )
+  );
+
+
+  assert(
+    'Turn explanation uses valid confidence',
+    !!(
+      turnExplanation &&
+      [
+        'LOW',
+        'MODERATE',
+        'HIGH',
+        'VERY HIGH'
+      ].includes(
+        turnExplanation.confidence
+      )
+    )
+  );
+
+
+  /*
+   * -------------------------------------------------------
+   * RESULTS
+   * -------------------------------------------------------
+   */
+
+  var passed =
+    tests.filter(function(test) {
+      return test.passed;
+    }).length;
+
+
+  var failed =
+    tests.length -
+    passed;
+
+
+  console.log(
+    'Result:',
+    passed +
+      ' passed, ' +
+    failed +
+      ' failed (' +
+    tests.length +
+      ' total)'
+  );
+
+
+  tests.forEach(function(test) {
+
+    console.log(
+      test.passed
+        ? '✓ ' + test.name
+        : '✗ ' + test.name
+    );
+
+  });
+
+
+  console.groupEnd();
+
+
+  return {
+
+    results:
+      tests,
+
+    passed:
+      passed,
+
+    failed:
+      failed,
+
+    total:
+      tests.length
+
+  };
+
+}
+
 function runLiveDraftRecommendationTests() {
 
   var state =
