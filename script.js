@@ -3312,16 +3312,21 @@ function debugTurnDecisionScenario(
           }
 
 
-          var primary =
-            state.scored[0];
+var primary =
+  state.scored[0];
 
+var recommendation =
+  calculateDraftRecommendation(
+    primary,
+    state.scored,
+    state.context
+  );
 
-          var recommendation =
-            calculateDraftRecommendation(
-              primary,
-              state.scored,
-              state.context
-            );
+recommendation =
+  attachLiveTurnPackage(
+    recommendation,
+    state.context
+  );
 
 
           var nextPickInfo =
