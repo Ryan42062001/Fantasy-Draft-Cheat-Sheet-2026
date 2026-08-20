@@ -13291,7 +13291,32 @@ function buildRecommendationExplanation(
     'Best available player';
 
 
-  var reasons = [];
+var reasons = [];
+
+
+function addReason(
+  text,
+  priority
+) {
+
+  if (!text) {
+
+    return;
+
+  }
+
+
+  reasons.push({
+
+    text:
+      text,
+
+    priority:
+      Number(priority) || 0
+
+  });
+
+}
 
 
   /*
@@ -13320,29 +13345,32 @@ function buildRecommendationExplanation(
       ) || 0;
 
 
-    reasons.push(
-      turnNow +
-      ' + ' +
-      turnNext +
-      ' is the strongest two-pick turn package.'
-    );
+    addReason(
+  turnNow +
+  ' + ' +
+  turnNext +
+  ' is the strongest two-pick turn package.',
+  100
+);
 
 
-    reasons.push(
-      turnNext +
-      ' is guaranteed to remain available at your next pick because no opponent selects between the two picks.'
-    );
+addReason(
+  turnNext +
+  ' is guaranteed to remain available at your next pick because no opponent selects between the two picks.',
+  95
+);
 
 
-    if (advantage > 0) {
+if (advantage > 0) {
 
-      reasons.push(
-        'This package leads the next-best turn option by ' +
-        advantage.toFixed(1) +
-        ' points.'
-      );
+  addReason(
+    'This package leads the next-best turn option by ' +
+    advantage.toFixed(1) +
+    ' points.',
+    90
+  );
 
-    }
+}
 
 
     return {
@@ -13365,7 +13393,22 @@ function buildRecommendationExplanation(
         confidence,
 
       reasons:
-        reasons,
+  reasons
+    .slice()
+    .sort(function(a, b) {
+
+      return (
+        Number(b.priority) -
+        Number(a.priority)
+      );
+
+    })
+    .slice(0, 4)
+    .map(function(reason) {
+
+      return reason.text;
+
+    }),
 
       nextAction:
         'Target ' +
@@ -13406,16 +13449,18 @@ if (
   deepExplanation.primaryReason
 ) {
 
-  reasons.push(
-    'Primary edge: ' +
-    deepExplanation.primaryReason +
-    '.'
-  );
+addReason(
+  'Primary edge: ' +
+  deepExplanation.primaryReason +
+  '.',
+  80
+);
 
 } else if (recommendation.reason) {
 
-  reasons.push(
-    recommendation.reason + '.'
+  addReason(
+    recommendation.reason + '.',
+    80
   );
 
 }
@@ -13436,36 +13481,40 @@ if (
     'FOUNDATION'
   ) {
 
-    reasons.push(
-      'Foundation phase favors elite talent and value over forcing positional need.'
-    );
+    addReason(
+  'Foundation phase favors elite talent and value over forcing positional need.',
+  55
+);
 
   } else if (
     playerResult.draftPhase ===
     'STARTER BUILD'
   ) {
 
-    reasons.push(
-      'Starter-build phase increases the importance of filling strong lineup needs.'
-    );
+    addReason(
+  'Starter-build phase increases the importance of filling strong lineup needs.',
+  55
+);
 
   } else if (
     playerResult.draftPhase ===
     'VALUE / DEPTH'
   ) {
 
-    reasons.push(
-      'Value/depth phase puts more weight on scarcity and remaining positional value.'
-    );
+    addReason(
+  'Value/depth phase puts more weight on scarcity and remaining positional value.',
+  50
+);
 
   } else if (
     playerResult.draftPhase ===
     'UPSIDE / ENDGAME'
   ) {
 
-    reasons.push(
-      'Endgame phase prioritizes upside, roster completion, and remaining positional requirements.'
-    );
+    addReason(
+  'Endgame phase prioritizes upside, roster completion, and remaining positional requirements.',
+  60
+);
 
   }
 
@@ -13485,9 +13534,10 @@ if (playerResult) {
     ) >= 5
   ) {
 
-    reasons.push(
-      'A significant tier cliff makes this player more valuable to take now.'
-    );
+    addReason(
+  'A significant tier cliff makes this player more valuable to take now.',
+  95
+);
 
   }
 
@@ -13498,9 +13548,10 @@ if (playerResult) {
     ) >= 90
   ) {
 
-    reasons.push(
-      'This position currently has elite scarcity value.'
-    );
+    addReason(
+  'This position currently has elite scarcity value.',
+  70
+);
 
   }
 
@@ -13511,9 +13562,10 @@ if (playerResult) {
     ) < 0
   ) {
 
-    reasons.push(
-      'Roster saturation reduces the value of adding another player at this position.'
-    );
+    addReason(
+  'Roster saturation reduces the value of adding another player at this position.',
+  85
+);
 
   }
 
@@ -13524,9 +13576,10 @@ if (playerResult) {
     ) >= 70
   ) {
 
-    reasons.push(
-      'There is high risk this player will be gone before your next selection.'
-    );
+    addReason(
+  'There is high risk this player will be gone before your next selection.',
+  90
+);
 
   }
 
@@ -13543,32 +13596,31 @@ if (playerResult) {
     recommendation.nextBest
   ) {
 
-    if (scoreGap >= 8) {
+addReason(
+  player +
+  ' leads ' +
+  recommendation.nextBest +
+  ' by ' +
+  scoreGap.toFixed(1) +
+  ' points.',
+  88
+);
 
-      reasons.push(
-        player +
-        ' leads ' +
-        recommendation.nextBest +
-        ' by ' +
-        scoreGap.toFixed(1) +
-        ' points.'
-      );
-
-    } else if (scoreGap >= 3) {
-
-      reasons.push(
-        player +
-        ' holds a meaningful advantage over ' +
-        recommendation.nextBest +
-        '.'
-      );
+    } addReason(
+  player +
+  ' holds a meaningful advantage over ' +
+  recommendation.nextBest +
+  '.',
+  72
+);
 
     } else if (Math.abs(scoreGap) < 3) {
 
-      reasons.push(
-        recommendation.nextBest +
-        ' is a close alternative.'
-      );
+      addReason(
+  recommendation.nextBest +
+  ' is a close alternative.',
+  50
+);
 
     }
 
@@ -13590,9 +13642,10 @@ if (playerResult) {
         'HIGH'
     ) {
 
-      reasons.push(
-        'The current value is strong enough that waiting is not recommended.'
-      );
+      addReason(
+  'The current value is strong enough that waiting is not recommended.',
+  75
+);
 
     }
 
@@ -13600,23 +13653,26 @@ if (playerResult) {
 
     if (recommendation.nextBest) {
 
-      reasons.push(
-        'Comparable value should still be available at your next selection.'
-      );
+      addReason(
+  'Comparable value should still be available at your next selection.',
+  82
+);
 
     }
 
   } else if (action === 'PASS') {
 
-    reasons.push(
-      'The current player does not provide enough value relative to the alternatives.'
-    );
+    addReason(
+  'The current player does not provide enough value relative to the alternatives.',
+  95
+);
 
   } else if (action === 'CONSIDER') {
 
-    reasons.push(
-      'The decision is close enough that roster construction and draft strategy should break the tie.'
-    );
+   addReason(
+  'The decision is close enough that roster construction and draft strategy should break the tie.',
+  65
+);
 
   }
 
@@ -13675,8 +13731,23 @@ if (playerResult) {
     confidence:
       confidence,
 
-    reasons:
-      reasons.slice(0, 4),
+   reasons:
+  reasons
+    .slice()
+    .sort(function(a, b) {
+
+      return (
+        Number(b.priority) -
+        Number(a.priority)
+      );
+
+    })
+    .slice(0, 4)
+    .map(function(reason) {
+
+      return reason.text;
+
+    }),
 
     nextAction:
       nextAction,
