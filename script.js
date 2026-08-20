@@ -4555,6 +4555,441 @@ function getDraftPhaseWeights(
   return weights;
 }
 
+function getMyRemainingDraftPicks(
+  currentPick,
+  teams,
+  rounds,
+  draftSlot
+) {
+
+  currentPick =
+    Number(currentPick) || 0;
+
+  teams =
+    Number(teams) || 10;
+
+  rounds =
+    Number(rounds) || 16;
+
+  draftSlot =
+    Number(draftSlot) || 1;
+
+  var totalPicks =
+    teams * rounds;
+
+  var picks = [];
+
+  for (
+    var pick = currentPick;
+    pick <= totalPicks;
+    pick++
+  ) {
+
+    var mapping =
+      getSnakeDraftTeamForPick(
+        pick,
+        teams
+      );
+
+    if (
+      mapping &&
+      Number(mapping.teamSlot) ===
+        draftSlot
+    ) {
+
+      picks.push(
+        pick
+      );
+
+    }
+
+  }
+
+  return picks;
+}
+
+function getMandatoryEndgamePositions(
+  context
+) {
+
+  context =
+    context || {};
+
+
+  /*
+   * Cache this during one scoring pass.
+   */
+
+  if (
+    Array.isArray(
+      context._mandatoryEndgamePositions
+    )
+  ) {
+
+    return context._mandatoryEndgamePositions;
+
+  }
+
+
+  var state =
+    getDraftAssistantState();
+
+  var currentPick =
+    Number(context.currentPick) ||
+    Number(state.currentPick) ||
+    0;
+
+  var teams =
+    Number(context.teams) ||
+    Number(state.teams) ||
+    10;
+
+  var rounds =
+    Number(context.rounds) ||
+    Number(state.rounds) ||
+    16;
+
+  var draftSlot =
+    Number(context.draftSlot) ||
+    Number(state.draftSlot) ||
+    1;
+
+
+  if (
+    currentPick <= 0
+  ) {
+
+    context._mandatoryEndgamePositions = [];
+
+    return [];
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * WHICH REQUIRED POSITIONS ARE MISSING?
+   * -------------------------------------------------------
+   */
+
+  var counts = {
+    K: 0,
+    DST: 0
+  };
+
+
+  document
+    .querySelectorAll(
+      'tr.draftrow.drafted-mine'
+    )
+    .forEach(function(row) {
+
+      var position =
+        row.getAttribute(
+          'data-pos'
+        );
+
+      if (
+        position === 'K' ||
+        position === 'DST'
+      ) {
+
+        counts[position]++;
+
+      }
+
+    });
+
+
+  var missing = [];
+
+  if (counts.K <= 0) {
+    missing.push('K');
+  }
+
+  if (counts.DST <= 0) {
+    missing.push('DST');
+  }
+
+
+  if (!missing.length) {
+
+    context._mandatoryEndgamePositions = [];
+
+    return [];
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * OUR REMAINING PICKS
+   * -------------------------------------------------------
+   */
+
+  var remainingPicks =
+    getMyRemainingDraftPicks(
+      currentPick,
+      teams,
+      rounds,
+      draftSlot
+    );
+
+
+  if (!remainingPicks.length) {
+
+    context._mandatoryEndgamePositions = [];
+
+    return [];
+
+  }
+
+
+  /*
+   * Future opportunities AFTER the current selection.
+   */
+
+  var futurePicks =
+    remainingPicks.slice(1);
+
+
+  /*
+   * -------------------------------------------------------
+   * POSITION AVAILABILITY DEADLINES
+   * -------------------------------------------------------
+   *
+   * Because simulator opponents draft roughly by rank,
+   * use the latest-ranked remaining K/DST as the last
+   * reasonable point where that position can survive.
+   */
+
+  var players =
+    getDraftAssistantPlayers();
+
+
+  var deadlines =
+    missing
+      .map(function(position) {
+
+        var available =
+          players
+            .filter(function(player) {
+
+              return (
+                player &&
+                player.available !== false &&
+                player.position === position &&
+                Number(player.rank) > 0
+              );
+
+            });
+
+
+        if (!available.length) {
+
+          return {
+            position:
+              position,
+
+            deadline:
+              currentPick
+          };
+
+        }
+
+
+        var latestRank =
+          Math.max.apply(
+            null,
+            available.map(function(player) {
+
+              return (
+                Number(player.rank) || 0
+              );
+
+            })
+          );
+
+
+        return {
+          position:
+            position,
+
+          deadline:
+            Math.max(
+              currentPick,
+              latestRank
+            )
+        };
+
+      })
+      .sort(function(a, b) {
+
+        return (
+          Number(a.deadline) -
+          Number(b.deadline)
+        );
+
+      });
+
+
+  /*
+   * -------------------------------------------------------
+   * CAN ALL MISSING POSITIONS WAIT?
+   * -------------------------------------------------------
+   *
+   * Try assigning each missing required position to
+   * one of our FUTURE picks before its availability
+   * deadline.
+   *
+   * If that schedule cannot work, the current pick
+   * must be reserved.
+   */
+
+  var futureIndex = 0;
+
+  var futureSchedulePossible =
+    true;
+
+
+  for (
+    var i = 0;
+    i < deadlines.length;
+    i++
+  ) {
+
+    var requirement =
+      deadlines[i];
+
+
+    if (
+      futureIndex >=
+      futurePicks.length
+    ) {
+
+      futureSchedulePossible =
+        false;
+
+      break;
+    }
+
+
+    if (
+      Number(
+        futurePicks[futureIndex]
+      ) <=
+      Number(
+        requirement.deadline
+      )
+    ) {
+
+      futureIndex++;
+
+    } else {
+
+      futureSchedulePossible =
+        false;
+
+      break;
+
+    }
+
+  }
+
+
+  if (futureSchedulePossible) {
+
+    context._mandatoryEndgamePositions = [];
+
+    return [];
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT PICK MUST BE RESERVED
+   * -------------------------------------------------------
+   *
+   * Choose the position(s) with the earliest deadline.
+   */
+
+  var earliestDeadline =
+    Number(
+      deadlines[0].deadline
+    );
+
+
+  var mandatory =
+    deadlines
+      .filter(function(item) {
+
+        return (
+          Number(item.deadline) ===
+          earliestDeadline
+        );
+
+      })
+      .map(function(item) {
+
+        return item.position;
+
+      });
+
+
+  context._mandatoryEndgamePositions =
+    mandatory;
+
+
+  return mandatory;
+}
+
+function calculateMandatoryEndgameAdjustment(
+  player,
+  context
+) {
+
+  if (!player) {
+    return 0;
+  }
+
+
+  var mandatory =
+    getMandatoryEndgamePositions(
+      context
+    );
+
+
+  if (!mandatory.length) {
+    return 0;
+  }
+
+
+  var position =
+    player.position ||
+    player.pos;
+
+
+  /*
+   * This is intentionally decisive.
+   *
+   * Once we've reached the last safe opportunity,
+   * roster completion is no longer optional.
+   */
+
+  if (
+    mandatory.indexOf(
+      position
+    ) !== -1
+  ) {
+
+    return 100;
+
+  }
+
+
+  return -100;
+}
+
 function calculatePhaseCoreAdjustment(
   vorpScore,
   scarcityScore,
@@ -8292,6 +8727,12 @@ var phaseWeights =
     context
   );
 
+var mandatoryEndgameAdjustment =
+  calculateMandatoryEndgameAdjustment(
+    player,
+    context
+  );
+
 var rosterSaturationPenalty =
   calculateRosterSaturationPenalty(
     player,
@@ -8657,6 +9098,9 @@ finalScore +=
   endgameRosterRequirementScore;
 
 finalScore +=
+  mandatoryEndgameAdjustment;
+
+finalScore +=
   phaseAdjustedDraftAwareVorpScore;
 
 finalScore +=
@@ -8722,6 +9166,9 @@ phaseCoreRosterNeedAdjustment:
 
   endgameRosterRequirementScore:
   endgameRosterRequirementScore,
+
+  mandatoryEndgameAdjustment:
+  mandatoryEndgameAdjustment,
 
     scarcityScore:
       scarcityScore,
@@ -13686,6 +14133,39 @@ test.equal(
     'QB'
   ),
   0.25
+);
+
+test.equal(
+  'Remaining picks: 12-team slot 12 from pick 156',
+  getMyRemainingDraftPicks(
+    156,
+    12,
+    16,
+    12
+  ).join(','),
+  '156,157,180,181'
+);
+
+test.equal(
+  'Remaining picks: 12-team slot 12 from pick 157',
+  getMyRemainingDraftPicks(
+    157,
+    12,
+    16,
+    12
+  ).join(','),
+  '157,180,181'
+);
+
+test.equal(
+  'Remaining picks: 10-team slot 1 from pick 140',
+  getMyRemainingDraftPicks(
+    140,
+    10,
+    16,
+    1
+  ).join(','),
+  '140,141,160'
 );
 
 test.equal(
