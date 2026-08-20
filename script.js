@@ -4435,6 +4435,45 @@ secondCandidates.forEach(function(secondPlayer) {
             ? packages[0]
             : null;
 
+        var secondBestPackage =
+  packages.length > 1
+    ? packages[1]
+    : null;
+
+
+var packageAdvantage =
+  (
+    bestPackage &&
+    secondBestPackage
+  )
+    ? (
+        Number(bestPackage.packageScore) -
+        Number(secondBestPackage.packageScore)
+      )
+    : 0;
+
+
+var packageConfidence =
+  'LOW';
+
+
+if (packageAdvantage >= 6) {
+
+  packageConfidence =
+    'VERY HIGH';
+
+} else if (packageAdvantage >= 4) {
+
+  packageConfidence =
+    'HIGH';
+
+} else if (packageAdvantage >= 2) {
+
+  packageConfidence =
+    'MODERATE';
+
+}
+
 
         /*
          * -------------------------------------------------------
@@ -4497,30 +4536,36 @@ secondCandidates.forEach(function(secondPlayer) {
         if (bestPackage) {
 
           console.log(
-            'BEST TURN PACKAGE:',
-            {
-              pick1:
-                bestPackage.firstName,
+  'BEST TURN PACKAGE:',
+  {
+    pick1:
+      bestPackage.firstName,
 
-              pick1Position:
-                bestPackage.firstPosition,
+    pick1Position:
+      bestPackage.firstPosition,
 
-              pick2:
-                bestPackage.secondName,
+    pick2:
+      bestPackage.secondName,
 
-              pick2Position:
-                bestPackage.secondPosition,
+    pick2Position:
+      bestPackage.secondPosition,
 
-              packageScore:
-                Number(
-                  bestPackage.packageScore
-                ).toFixed(1)
-            }
-          );
+    packageScore:
+      Number(
+        bestPackage.packageScore
+      ).toFixed(1),
 
-        }
+    packageAdvantage:
+      Number(
+        packageAdvantage
+      ).toFixed(1),
 
-
+    confidence:
+      packageConfidence
+  }
+);
+}
+        
         console.groupEnd();
 
 
@@ -4539,10 +4584,19 @@ secondCandidates.forEach(function(secondPlayer) {
             secondPick,
 
           bestPackage:
-            bestPackage,
+  bestPackage,
 
-          packages:
-            packages
+secondBestPackage:
+  secondBestPackage,
+
+packageAdvantage:
+  packageAdvantage,
+
+packageConfidence:
+  packageConfidence,
+
+packages:
+  packages
 
         };
 
