@@ -17192,37 +17192,41 @@ function simulateFullDraft(options) {
 
         var myPickRecord = {
 
-          pick:
-            pick,
+  pick:
+    pick,
 
-          round:
-            Math.ceil(
-              pick / teams
-            ),
+  round:
+    Math.ceil(
+      pick / teams
+    ),
 
-          name:
-            selected.name,
+  name:
+    selected.name,
 
-          position:
-            selected.position,
+  position:
+    selected.position,
 
-          rank:
-            selected.rank,
+  rank:
+    selected.rank,
 
-          score:
-            Number(
-              selected.finalScore
-            ) || 0,
+  score:
+    Number(
+      selected.finalScore
+    ) || 0,
 
-          phase:
-            selected.draftPhase ||
-            getDraftPhase(
-              pick,
-              teams
-            ).phase
+  phase:
+    selected.draftPhase ||
+    getDraftPhase(
+      pick,
+      teams
+    ).phase,
 
-        };
+  mandatoryEndgame:
+    Number(
+      selected.mandatoryEndgameAdjustment
+    ) > 0
 
+};
 
         myDraft.push(
           myPickRecord
@@ -18003,17 +18007,18 @@ simulation.myDraft.forEach(function(player) {
    * K / DST should be endgame picks.
    */
 
-  if (
-    (
-      position === 'K' ||
-      position === 'DST'
-    ) &&
-    round < 14
-  ) {
+if (
+  (
+    position === 'K' ||
+    position === 'DST'
+  ) &&
+  round < 14 &&
+  !player.mandatoryEndgame
+) {
 
-    draftCapitalScore -= 15;
+  draftCapitalScore -= 15;
 
-  }
+}
 
 });
 
