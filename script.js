@@ -5673,20 +5673,27 @@ function updateRecommendedPick() {
    * -------------------------------------------------------
    */
 
-  recommendation =
-    attachLiveTurnPackage(
-      recommendation,
-      state.context
-    );
+recommendation =
+  attachLiveTurnPackage(
+    recommendation,
+    state.context
+  );
 
 
-  /*
-   * Keep the latest live result accessible for debugging
-   * and for later recommendation-explanation/UI work.
-   */
+window.latestDraftRecommendation =
+  recommendation;
 
-  window.latestDraftRecommendation =
-    recommendation;
+
+var liveExplanation =
+  buildRecommendationExplanation(
+    recommendation,
+    state.scored[0],
+    state.scored[1] || null
+  );
+
+
+window.latestDraftExplanation =
+  liveExplanation;
 
 
   /*
