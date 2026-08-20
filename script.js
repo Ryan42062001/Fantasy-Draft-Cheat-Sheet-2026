@@ -5695,17 +5695,133 @@ var liveExplanation =
 window.latestDraftExplanation =
   liveExplanation;
 
+  /*
+   * -------------------------------------------------------
+   * PHASE 8 — ON-THE-CLOCK UI
+   * -------------------------------------------------------
+   */
+
+  if (!liveExplanation) {
+
+    el.innerHTML =
+      'Unable to build recommendation explanation.';
+
+    return;
+
+  }
+
 
   /*
    * -------------------------------------------------------
-   * TURN-PACKAGE RECOMMENDATION
+   * SMALL UI HELPERS
+   * -------------------------------------------------------
+   */
+
+  function buildConfidenceBadge(
+    confidence
+  ) {
+
+    var label =
+      confidence || 'LOW';
+
+
+    return (
+      '<span style="' +
+        'display:inline-block;' +
+        'padding:3px 7px;' +
+        'border-radius:999px;' +
+        'font-size:0.68rem;' +
+        'font-weight:900;' +
+        'letter-spacing:0.04em;' +
+        'background:rgba(95,168,124,0.15);' +
+        'border:1px solid rgba(95,168,124,0.35);' +
+        'color:#a9c2ab;' +
+      '">' +
+        label +
+        ' CONFIDENCE' +
+      '</span>'
+    );
+
+  }
+
+
+  function buildReasonsHtml(
+    reasons
+  ) {
+
+    if (
+      !Array.isArray(reasons) ||
+      !reasons.length
+    ) {
+
+      return '';
+
+    }
+
+
+    var output =
+      '<div style="' +
+        'margin-top:10px;' +
+      '">' +
+
+        '<div style="' +
+          'font-size:0.68rem;' +
+          'font-weight:900;' +
+          'letter-spacing:0.08em;' +
+          'color:#a9c2ab;' +
+          'margin-bottom:5px;' +
+        '">' +
+          'WHY' +
+        '</div>';
+
+
+    reasons.forEach(function(reason) {
+
+      output +=
+        '<div style="' +
+          'display:flex;' +
+          'gap:6px;' +
+          'align-items:flex-start;' +
+          'font-size:0.76rem;' +
+          'line-height:1.35;' +
+          'margin-bottom:4px;' +
+        '">' +
+
+          '<span style="' +
+            'color:#a9c2ab;' +
+            'font-weight:900;' +
+          '">' +
+            '&#10003;' +
+          '</span>' +
+
+          '<span>' +
+            reason +
+          '</span>' +
+
+        '</div>';
+
+    });
+
+
+    output +=
+      '</div>';
+
+
+    return output;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * TURN-PACKAGE UI
    * -------------------------------------------------------
    */
 
   if (
-    recommendation.turnPackageActive &&
-    recommendation.turnRecommendedNow &&
-    recommendation.turnTargetNext
+    liveExplanation.type ===
+      'TURN_PACKAGE' &&
+    recommendation.turnPackageActive
   ) {
 
     var turnNow =
@@ -5738,114 +5854,180 @@ window.latestDraftExplanation =
       ) || 0;
 
 
-    var packageConfidence =
-      recommendation.turnPackageConfidence ||
-      'LOW';
-
-
     var turnHtml =
       '<div style="text-align:left;">';
 
 
+    /*
+     * HEADER
+     */
+
     turnHtml +=
       '<div style="' +
-      'font-size:0.82rem;' +
-      'color:#a9c2ab;' +
-      'margin-bottom:6px;' +
+        'display:flex;' +
+        'justify-content:space-between;' +
+        'align-items:center;' +
+        'gap:8px;' +
+        'margin-bottom:10px;' +
       '">' +
-      'Best two-pick turn strategy' +
+
+        '<div style="' +
+          'font-size:0.72rem;' +
+          'font-weight:900;' +
+          'letter-spacing:0.08em;' +
+          'color:#a9c2ab;' +
+        '">' +
+          'BEST TURN STRATEGY' +
+        '</div>' +
+
+        buildConfidenceBadge(
+          liveExplanation.confidence
+        ) +
+
       '</div>';
 
 
-    turnHtml +=
-      '<div style="' +
-      'padding:8px;' +
-      'border-radius:8px;' +
-      'margin-bottom:6px;' +
-      'background:rgba(255,255,255,0.04);' +
-      '">';
-
-
-    turnHtml +=
-      '<div style="font-weight:900;">' +
-      '1. ' +
-      turnNow +
-      (
-        turnNowPosition
-          ? ' <span class="pos-pill pos-' +
-            turnNowPosition +
-            '" style="margin-left:8px;">' +
-            turnNowPosition +
-            '</span>'
-          : ''
-      ) +
-      '</div>';
-
+    /*
+     * PICK 1
+     */
 
     turnHtml +=
       '<div style="' +
-      'font-size:0.72rem;' +
-      'color:#a9c2ab;' +
+        'padding:10px;' +
+        'border-radius:10px;' +
+        'margin-bottom:7px;' +
+        'background:rgba(95,168,124,0.12);' +
+        'border:1px solid rgba(95,168,124,0.30);' +
       '">' +
-      'Draft now' +
+
+        '<div style="' +
+          'font-size:0.66rem;' +
+          'font-weight:900;' +
+          'color:#a9c2ab;' +
+          'margin-bottom:3px;' +
+        '">' +
+          '1 · DRAFT NOW' +
+        '</div>' +
+
+        '<div style="' +
+          'font-size:1rem;' +
+          'font-weight:900;' +
+        '">' +
+
+          turnNow +
+
+          (
+            turnNowPosition
+              ? ' <span class="pos-pill pos-' +
+                turnNowPosition +
+                '" style="margin-left:8px;">' +
+                turnNowPosition +
+                '</span>'
+              : ''
+          ) +
+
+        '</div>' +
+
       '</div>';
 
 
-    turnHtml +=
-      '</div>';
-
+    /*
+     * PICK 2
+     */
 
     turnHtml +=
       '<div style="' +
-      'padding:8px;' +
-      'border-radius:8px;' +
-      'margin-bottom:6px;' +
-      'background:rgba(255,255,255,0.02);' +
-      '">';
-
-
-    turnHtml +=
-      '<div style="font-weight:900;">' +
-      '2. ' +
-      turnNext +
-      (
-        turnNextPosition
-          ? ' <span class="pos-pill pos-' +
-            turnNextPosition +
-            '" style="margin-left:8px;">' +
-            turnNextPosition +
-            '</span>'
-          : ''
-      ) +
-      '</div>';
-
-
-    turnHtml +=
-      '<div style="' +
-      'font-size:0.72rem;' +
-      'color:#a9c2ab;' +
+        'padding:10px;' +
+        'border-radius:10px;' +
+        'background:rgba(255,255,255,0.025);' +
+        'border:1px solid rgba(255,255,255,0.06);' +
       '">' +
-      'Target with your next pick' +
+
+        '<div style="' +
+          'font-size:0.66rem;' +
+          'font-weight:900;' +
+          'color:#a9c2ab;' +
+          'margin-bottom:3px;' +
+        '">' +
+          '2 · TARGET NEXT' +
+        '</div>' +
+
+        '<div style="' +
+          'font-size:0.92rem;' +
+          'font-weight:900;' +
+        '">' +
+
+          turnNext +
+
+          (
+            turnNextPosition
+              ? ' <span class="pos-pill pos-' +
+                turnNextPosition +
+                '" style="margin-left:8px;">' +
+                turnNextPosition +
+                '</span>'
+              : ''
+          ) +
+
+        '</div>' +
+
       '</div>';
 
 
-    turnHtml +=
-      '</div>';
-
+    /*
+     * PACKAGE METRICS
+     */
 
     turnHtml +=
       '<div style="' +
-      'font-size:0.72rem;' +
-      'color:#a9c2ab;' +
+        'font-size:0.69rem;' +
+        'color:#a9c2ab;' +
+        'margin-top:7px;' +
       '">' +
-      'Package score: ' +
-      packageScore.toFixed(1) +
-      ' &middot; Advantage: +' +
-      packageAdvantage.toFixed(1) +
-      ' &middot; ' +
-      packageConfidence +
-      ' confidence' +
+
+        'Package score: <b>' +
+        packageScore.toFixed(1) +
+        '</b>' +
+
+        ' &middot; Advantage: <b>+' +
+        packageAdvantage.toFixed(1) +
+        '</b>' +
+
       '</div>';
+
+
+    /*
+     * EXPLANATION
+     */
+
+    turnHtml +=
+      buildReasonsHtml(
+        liveExplanation.reasons
+      );
+
+
+    /*
+     * NEXT ACTION
+     */
+
+    if (liveExplanation.nextAction) {
+
+      turnHtml +=
+        '<div style="' +
+          'margin-top:10px;' +
+          'padding:7px 9px;' +
+          'border-radius:8px;' +
+          'font-size:0.74rem;' +
+          'font-weight:800;' +
+          'background:rgba(95,168,124,0.08);' +
+        '">' +
+
+          '&#10140; ' +
+          liveExplanation.nextAction +
+
+        '</div>';
+
+    }
 
 
     turnHtml +=
@@ -5863,7 +6045,7 @@ window.latestDraftExplanation =
 
   /*
    * -------------------------------------------------------
-   * NORMAL SINGLE-PICK RECOMMENDATION
+   * NORMAL SINGLE-PICK UI
    * -------------------------------------------------------
    */
 
@@ -5871,98 +6053,184 @@ window.latestDraftExplanation =
     '<div style="text-align:left;">';
 
 
+  /*
+   * HEADER
+   */
+
   html +=
     '<div style="' +
-    'font-size:0.82rem;' +
-    'color:#a9c2ab;' +
-    'margin-bottom:6px;' +
+      'display:flex;' +
+      'justify-content:space-between;' +
+      'align-items:center;' +
+      'gap:8px;' +
+      'margin-bottom:8px;' +
     '">' +
-    'Best pick right now' +
-    '</div>';
 
+      '<div style="' +
+        'font-size:0.72rem;' +
+        'font-weight:900;' +
+        'letter-spacing:0.08em;' +
+        'color:#a9c2ab;' +
+      '">' +
+        'BEST PICK RIGHT NOW' +
+      '</div>' +
 
-  html +=
-    '<div style="' +
-    'padding:8px;' +
-    'border-radius:8px;' +
-    'margin-bottom:6px;' +
-    'background:rgba(255,255,255,0.04);' +
-    '">';
+      buildConfidenceBadge(
+        liveExplanation.confidence
+      ) +
 
-
-  html +=
-    '<div style="font-weight:900;">' +
-    primary.name +
-    ' <span class="pos-pill pos-' +
-    primary.position +
-    '" style="margin-left:8px;">' +
-    primary.position +
-    '</span>' +
-    '</div>';
-
-
-  html +=
-    '<div style="' +
-    'font-size:0.72rem;' +
-    'color:#a9c2ab;' +
-    '">' +
-    recommendation.recommendation +
-    ' &middot; ' +
-    recommendation.confidence +
-    ' confidence' +
-    '</div>';
-
-
-  html +=
     '</div>';
 
 
   /*
+   * PRIMARY PLAYER
+   */
+
+  html +=
+    '<div style="' +
+      'padding:10px;' +
+      'border-radius:10px;' +
+      'background:rgba(95,168,124,0.12);' +
+      'border:1px solid rgba(95,168,124,0.30);' +
+      'margin-bottom:7px;' +
+    '">' +
+
+      '<div style="' +
+        'font-size:1rem;' +
+        'font-weight:900;' +
+      '">' +
+
+        primary.name +
+
+        ' <span class="pos-pill pos-' +
+        primary.position +
+        '" style="margin-left:8px;">' +
+        primary.position +
+        '</span>' +
+
+      '</div>' +
+
+      '<div style="' +
+        'font-size:0.7rem;' +
+        'color:#a9c2ab;' +
+        'margin-top:3px;' +
+      '">' +
+
+        recommendation.recommendation +
+
+        ' &middot; Score ' +
+
+        Number(
+          primary.finalScore
+        ).toFixed(1) +
+
+      '</div>' +
+
+    '</div>';
+
+
+  /*
+   * WHY
+   */
+
+  html +=
+    buildReasonsHtml(
+      liveExplanation.reasons
+    );
+
+
+  /*
+   * NEXT ACTION
+   */
+
+  if (liveExplanation.nextAction) {
+
+    html +=
+      '<div style="' +
+        'margin-top:10px;' +
+        'padding:7px 9px;' +
+        'border-radius:8px;' +
+        'font-size:0.74rem;' +
+        'font-weight:800;' +
+        'background:rgba(95,168,124,0.08);' +
+      '">' +
+
+        '&#10140; ' +
+        liveExplanation.nextAction +
+
+      '</div>';
+
+  }
+
+
+  /*
    * -------------------------------------------------------
-   * CLOSE ALTERNATIVES
+   * ALTERNATIVES
    * -------------------------------------------------------
    */
 
-  state.scored
-    .slice(1, 3)
-    .forEach(function(player) {
+  var alternatives =
+    state.scored.slice(1, 3);
 
-      html +=
+
+  if (alternatives.length) {
+
+    html +=
+      '<div style="' +
+        'margin-top:11px;' +
+        'padding-top:8px;' +
+        'border-top:1px solid rgba(255,255,255,0.06);' +
+      '">' +
+
         '<div style="' +
-        'padding:6px 8px;' +
-        'border-radius:8px;' +
-        'margin-bottom:6px;' +
-        'background:rgba(255,255,255,0.02);' +
-        '">';
-
-
-      html +=
-        '<div style="font-weight:800;">' +
-        player.name +
-        ' <span class="pos-pill pos-' +
-        player.position +
-        '" style="margin-left:8px;">' +
-        player.position +
-        '</span>' +
-        '</div>';
-
-
-      html +=
-        '<div style="' +
-        'font-size:0.72rem;' +
-        'color:#a9c2ab;' +
+          'font-size:0.66rem;' +
+          'font-weight:900;' +
+          'letter-spacing:0.08em;' +
+          'color:#a9c2ab;' +
+          'margin-bottom:5px;' +
         '">' +
-        'Score: ' +
-        Number(
-          player.finalScore
-        ).toFixed(1) +
+          'ALTERNATIVES' +
         '</div>';
 
 
+    alternatives.forEach(function(player) {
+
       html +=
+        '<div style="' +
+          'display:flex;' +
+          'justify-content:space-between;' +
+          'align-items:center;' +
+          'gap:8px;' +
+          'font-size:0.73rem;' +
+          'padding:4px 0;' +
+        '">' +
+
+          '<div>' +
+            player.name +
+            ' <span class="pos-pill pos-' +
+            player.position +
+            '" style="margin-left:5px;">' +
+            player.position +
+            '</span>' +
+          '</div>' +
+
+          '<div style="' +
+            'color:#a9c2ab;' +
+          '">' +
+            Number(
+              player.finalScore
+            ).toFixed(1) +
+          '</div>' +
+
         '</div>';
 
     });
+
+
+    html +=
+      '</div>';
+
+  }
 
 
   html +=
