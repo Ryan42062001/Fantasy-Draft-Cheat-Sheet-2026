@@ -11358,6 +11358,9 @@ function calculateDraftDecisionScore(player, context){
 
   context = context || {};
 
+  var DEBUG_DRAFT_SCORING =
+  false;
+
   var draftPhase =
   getDraftPhase(
     Number(context.currentPick) || 0,
@@ -11533,14 +11536,18 @@ var lateAvailability =
 var timingScore =
   lateAvailability;
 
-console.log(
-  'TIMING SCORE:',
-  player.name,
-  'lateAvailability =',
-  lateAvailability,
-  'timingScore =',
-  timingScore
-);
+if (DEBUG_DRAFT_SCORING) {
+
+  console.log(
+    'TIMING SCORE:',
+    player.name,
+    'lateAvailability =',
+    lateAvailability,
+    'timingScore =',
+    timingScore
+  );
+
+}
 
 
 /*
@@ -11601,6 +11608,8 @@ var runOpportunityScore =
     context
   );
 
+
+if (DEBUG_DRAFT_SCORING) {
 console.log(
   'RUN OPPORTUNITY SCORE:',
   player.name,
@@ -11609,6 +11618,7 @@ console.log(
   'runOpportunityScore =',
   runOpportunityScore
 );
+}
 
 
 /*
@@ -11643,15 +11653,18 @@ var draftAwareVorpOpportunityScore =
     context
   );
 
+if (DEBUG_DRAFT_SCORING) [
+  
 console.log(
   'DRAFT-AWARE VORP OPPORTUNITY:',
   player.name,
   'score =',
   draftAwareVorpOpportunityScore
 );
+}
 
 
-
+if (DEBUG_DRAFT_SCORING) {
 console.log(
   'TIER CLIFF OPPORTUNITY:',
   player.name,
@@ -11660,6 +11673,7 @@ console.log(
   'tierCliffOpportunityScore =',
   tierCliffOpportunityScore
 );
+}
 
   var rosterConstructionScore =
   calculateRosterConstructionValue(
@@ -11763,6 +11777,7 @@ finalScore +=
 finalScore +=
   phaseAdjustedMultiPickScore;
 
+if (DEBUG_DRAFT_SCORING) {
   console.log(
   'STRATEGY SCORE DEBUG:',
   player.name,
@@ -11773,6 +11788,7 @@ finalScore +=
   'strategyScore =',
   strategyScore
 );
+}
 
   return {
 
