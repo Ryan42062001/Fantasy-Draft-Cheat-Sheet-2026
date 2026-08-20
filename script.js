@@ -3556,6 +3556,401 @@ function debugTurnDecisionScenario(
   };
 }
 
+function debugTurnSequencingAdvice(
+  teams,
+  draftSlot,
+  currentPick
+) {
+
+  teams =
+    Number(teams) || 12;
+
+  draftSlot =
+    Number(draftSlot) || 1;
+
+  currentPick =
+    Number(currentPick) || 1;
+
+
+  return draftEngineWithSimulatedPriorPicks(
+    currentPick,
+    function() {
+
+      /*
+       * -------------------------------------------------------
+       * TEMPORARILY EXPOSE CORRECT DRAFT STATE
+       * -------------------------------------------------------
+       */
+
+      var originalStateGetter =
+        getDraftAssistantState;
+
+      var baseState =
+        originalStateGetter();
+
+
+      getDraftAssistantState =
+        function() {
+
+          return Object.assign(
+            {},
+            baseState,
+            {
+              teams:
+                teams,
+
+              draftSlot:
+                draftSlot,
+
+              currentPick:
+                currentPick,
+
+              rounds:
+                16
+            }
+          );
+
+        };
+
+
+      try {
+
+        var state =
+          buildLiveDraftDebugState();
+
+
+        if (
+          !state ||
+          !state.scored ||
+          !state.scored.length
+        ) {
+
+          console.warn(
+            'TURN SEQUENCING: No scored players.'
+          );
+
+          return null;
+
+        }
+
+
+        var primary =
+          state.scored[0];
+
+
+        var recommendation =
+          calculateDraftRecommendation(
+            primary,
+            state.scored,
+            state.context
+          );
+
+
+        var nextPickInfo =
+          calculateMyNextDraftPick(
+            currentPick,
+            teams
+          );
+
+
+        var nextPick =
+          nextPickInfo
+            ? Number(nextPickInfo.nextPick)
+            : 0;
+
+
+        /*
+         * -------------------------------------------------------
+         * TOP CURRENT OPTIONS
+         * -------------------------------------------------------
+         */
+
+        var topCandidates =
+          state.scored
+            .slice(0, 10)
+            .map(function(player) {
+
+              var survival =
+                nextPick
+                  ? calculateNextPickSurvival(
+                      player,
+                      Object.assign(
+                        {},
+                        state.context,
+                        {
+                          calculatedNextPick:
+                            nextPick,
+
+                          nextPick:
+                            nextPick
+                        }
+                      )
+                    )
+                  : 0;
+
+
+              return {
+
+                name:
+                  player.name,
+
+                position:
+                  player.position,
+
+                rank:
+                  player.rank,
+
+                score:
+                  Number(
+                    player.finalScore
+                  ) || 0,
+
+                survival:
+                  Number(
+                    survival
+                  ) || 0,
+
+                player:
+                  player
+
+              };
+
+            });
+
+
+        /*
+         * -------------------------------------------------------
+         * SAFE-TO-WAIT PLAYER
+         * -------------------------------------------------------
+         *
+         * Start with the engine's primary recommendation.
+         */
+
+        var waitTarget =
+          topCandidates[0];
+
+
+        /*
+         * -------------------------------------------------------
+         * WHO SHOULD WE TAKE FIRST?
+         * -------------------------------------------------------
+         *
+         * If the primary is likely to survive to the immediate
+         * next pick, look for a strong alternative that is LESS
+         * likely to survive.
+         */
+
+        var takeNowOptions =
+          topCandidates
+            .filter(function(candidate) {
+
+              if (
+                !candidate ||
+                candidate.name ===
+                  waitTarget.name
+              ) {
+
+                return false;
+
+              }
+
+
+              /*
+               * Candidate should be reasonably close
+               * in current value.
+               */
+
+              var scoreGap =
+                waitTarget.score -
+                candidate.score;
+
+
+              return (
+                scoreGap <= 8 &&
+                candidate.survival <
+                  waitTarget.survival
+              );
+
+            })
+            .sort(function(a, b) {
+
+              /*
+               * Prefer players with strong current score
+               * AND high danger of disappearing.
+               */
+
+              var aUrgency =
+                a.score +
+                (
+                  (100 - a.survival) *
+                  0.15
+                );
+
+
+              var bUrgency =
+                b.score +
+                (
+                  (100 - b.survival) *
+                  0.15
+                );
+
+
+              return (
+                bUrgency -
+                aUrgency
+              );
+
+            });
+
+
+        var draftNow =
+          takeNowOptions.length
+            ? takeNowOptions[0]
+            : waitTarget;
+
+
+        /*
+         * -------------------------------------------------------
+         * OUTPUT
+         * -------------------------------------------------------
+         */
+
+        console.group(
+          'TURN SEQUENCING ADVICE — ' +
+          teams +
+          ' TEAM — SLOT ' +
+          draftSlot +
+          ' — PICK ' +
+          currentPick
+        );
+
+
+        console.log(
+          'Window:',
+          {
+            currentPick:
+              currentPick,
+
+            nextPick:
+              nextPick,
+
+            picksBetween:
+              nextPickInfo
+                ? nextPickInfo.picksBetween
+                : null
+          }
+        );
+
+
+        console.table(
+          topCandidates.map(function(candidate) {
+
+            return {
+
+              name:
+                candidate.name,
+
+              position:
+                candidate.position,
+
+              rank:
+                candidate.rank,
+
+              score:
+                candidate.score.toFixed(1),
+
+              survival:
+                candidate.survival.toFixed(1),
+
+              scoreGap:
+                (
+                  waitTarget.score -
+                  candidate.score
+                ).toFixed(1)
+
+            };
+
+          })
+        );
+
+
+        console.log(
+          'PRIMARY:',
+          waitTarget.name
+        );
+
+
+        console.log(
+          'ENGINE RECOMMENDATION:',
+          recommendation
+            ? recommendation.recommendation
+            : null
+        );
+
+
+        console.log(
+          'DRAFT NOW:',
+          draftNow.name
+        );
+
+
+        console.log(
+          'THEN TARGET:',
+          draftNow.name !==
+            waitTarget.name
+              ? waitTarget.name
+              : null
+        );
+
+
+        console.groupEnd();
+
+
+        return {
+
+          currentPick:
+            currentPick,
+
+          nextPick:
+            nextPick,
+
+          picksBetween:
+            nextPickInfo
+              ? nextPickInfo.picksBetween
+              : null,
+
+          primary:
+            waitTarget,
+
+          recommendation:
+            recommendation,
+
+          draftNow:
+            draftNow,
+
+          thenTarget:
+            draftNow.name !==
+              waitTarget.name
+                ? waitTarget
+                : null,
+
+          candidates:
+            topCandidates
+
+        };
+
+
+      } finally {
+
+        getDraftAssistantState =
+          originalStateGetter;
+
+      }
+
+    }
+  );
+}
+
   /*
    * -------------------------------------------------------
    * BUILD A DEBUG STATE FOR EACH PICK
