@@ -13264,7 +13264,9 @@ backToBackTurn:
 }
 
 function buildRecommendationExplanation(
-  recommendation
+  recommendation,
+  playerResult,
+  comparisonResult
 ) {
 
   if (!recommendation) {
@@ -13384,16 +13386,153 @@ function buildRecommendationExplanation(
    * -------------------------------------------------------
    */
 
-  if (recommendation.reason) {
+/*
+ * -------------------------------------------------------
+ * DEEP ENGINE EXPLANATION
+ * -------------------------------------------------------
+ */
+
+var deepExplanation =
+  playerResult
+    ? generateDecisionExplanation(
+        playerResult,
+        comparisonResult || null
+      )
+    : null;
+
+
+if (
+  deepExplanation &&
+  deepExplanation.primaryReason
+) {
+
+  reasons.push(
+    'Primary edge: ' +
+    deepExplanation.primaryReason +
+    '.'
+  );
+
+} else if (recommendation.reason) {
+
+  reasons.push(
+    recommendation.reason + '.'
+  );
+
+}
+
+/*
+ * -------------------------------------------------------
+ * DRAFT PHASE CONTEXT
+ * -------------------------------------------------------
+ */
+
+if (
+  playerResult &&
+  playerResult.draftPhase
+) {
+
+  if (
+    playerResult.draftPhase ===
+    'FOUNDATION'
+  ) {
 
     reasons.push(
-      recommendation.reason + '.'
+      'Foundation phase favors elite talent and value over forcing positional need.'
+    );
+
+  } else if (
+    playerResult.draftPhase ===
+    'STARTER BUILD'
+  ) {
+
+    reasons.push(
+      'Starter-build phase increases the importance of filling strong lineup needs.'
+    );
+
+  } else if (
+    playerResult.draftPhase ===
+    'VALUE / DEPTH'
+  ) {
+
+    reasons.push(
+      'Value/depth phase puts more weight on scarcity and remaining positional value.'
+    );
+
+  } else if (
+    playerResult.draftPhase ===
+    'UPSIDE / ENDGAME'
+  ) {
+
+    reasons.push(
+      'Endgame phase prioritizes upside, roster completion, and remaining positional requirements.'
+    );
+
+  }
+
+}
+
+/*
+ * -------------------------------------------------------
+ * SPECIAL STRATEGIC SIGNALS
+ * -------------------------------------------------------
+ */
+
+if (playerResult) {
+
+  if (
+    Number(
+      playerResult.tierCliffOpportunityScore
+    ) >= 5
+  ) {
+
+    reasons.push(
+      'A significant tier cliff makes this player more valuable to take now.'
     );
 
   }
 
 
-  var scoreGap =
+  if (
+    Number(
+      playerResult.scarcityScore
+    ) >= 90
+  ) {
+
+    reasons.push(
+      'This position currently has elite scarcity value.'
+    );
+
+  }
+
+
+  if (
+    Number(
+      playerResult.rosterSaturationPenalty
+    ) < 0
+  ) {
+
+    reasons.push(
+      'Roster saturation reduces the value of adding another player at this position.'
+    );
+
+  }
+
+
+  if (
+    Number(
+      playerResult.timingScore
+    ) >= 70
+  ) {
+
+    reasons.push(
+      'There is high risk this player will be gone before your next selection.'
+    );
+
+  }
+
+}
+
+ var scoreGap =
     Number(
       recommendation.scoreGap
     );
@@ -13537,7 +13676,7 @@ function buildRecommendationExplanation(
       confidence,
 
     reasons:
-      reasons.slice(0, 3),
+      reasons.slice(0, 4),
 
     nextAction:
       nextAction,
