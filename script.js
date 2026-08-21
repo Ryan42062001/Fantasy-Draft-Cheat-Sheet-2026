@@ -11589,6 +11589,13 @@ function calculateDraftScarcity(player, context){
 
 function calculateDraftDecisionScore(player, context){
 
+  window.__draftAwareReuseStats =
+  window.__draftAwareReuseStats ||
+  {
+    reused: 0,
+    recalculated: 0
+  };
+
   if(!player) return null;
 
   context = context || {};
@@ -11889,10 +11896,18 @@ var draftAwareVorpOpportunityScore =
 
 
 if (
-  !Number.isFinite(
+  Number.isFinite(
     draftAwareVorpOpportunityScore
   )
 ) {
+
+  window.__draftAwareReuseStats.reused +=
+    1;
+
+} else {
+
+  window.__draftAwareReuseStats.recalculated +=
+    1;
 
   draftAwareVorpOpportunityScore =
     calculateDraftAwareVorpOpportunity(
