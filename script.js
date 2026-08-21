@@ -13132,6 +13132,75 @@ var rank =
 
 var timing =
   Number(candidate.timingScore) || 0;
+
+  /*
+ * -------------------------------------------------------
+ * SURVIVAL RESULT CACHE
+ * -------------------------------------------------------
+ *
+ * Survival is recalculated thousands of times with the
+ * same player/window inputs during one engine refresh.
+ * Cache those duplicate calculations on the current
+ * draft context.
+ *
+ * Disable cache while DRAFT_DEBUG is active so debugging
+ * still records every calculation.
+ */
+
+var survivalCacheEnabled =
+  !(
+    typeof DRAFT_DEBUG !== 'undefined' &&
+    DRAFT_DEBUG &&
+    typeof DRAFT_DEBUG.add === 'function'
+  );
+
+
+if (
+  survivalCacheEnabled &&
+  !context.nextPickSurvivalCache
+) {
+
+  context.nextPickSurvivalCache =
+    {};
+
+}
+
+
+var currentRank =
+  Number(context.currentRank) || 0;
+
+
+var position =
+  candidate.position ||
+  candidate.pos ||
+  'N/A';
+
+
+var survivalCacheKey =
+  [
+    position,
+    rank,
+    timing,
+    currentPick,
+    nextPick,
+    picksBetween,
+    currentRank
+  ].join('|');
+
+
+if (
+  survivalCacheEnabled &&
+  Object.prototype.hasOwnProperty.call(
+    context.nextPickSurvivalCache,
+    survivalCacheKey
+  )
+) {
+
+  return context.nextPickSurvivalCache[
+    survivalCacheKey
+  ];
+
+}
   
   /*
    * Start with a neutral survival estimate.
@@ -13197,7 +13266,7 @@ var opponentThreatPenalty =
 
 var rankDistance =
   rank -
-  (Number(context.currentRank) || 0);
+  currentRank;
 
 var rankDistancePenalty =
   rankDistance <= 2
@@ -13300,7 +13369,17 @@ opponentThreatPenalty:
 
 }
 
-  return survival;
+  if (survivalCacheEnabled) {
+
+  context.nextPickSurvivalCache[
+    survivalCacheKey
+  ] =
+    survival;
+
+}
+
+
+return survival;
 }
 
 function calculateRecommendationConfidence(
