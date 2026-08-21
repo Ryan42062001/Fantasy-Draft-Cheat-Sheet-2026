@@ -7592,10 +7592,52 @@ function normalizeExpertPlayerName(name) {
 }
 
 
-function findDraftRowByExpertName(name) {
+/*
+ * ---------------------------------------------------------
+ * EXPERT NAME ALIASES
+ * ---------------------------------------------------------
+ *
+ * These are the same NFL player represented differently
+ * between the old board and the professional consensus.
+ */
+var EXPERT_PLAYER_ALIASES_2026 = {
+
+  "tre' harris": "tre harris",
+
+  "brian robinson":
+    "brian robinson jr",
+
+  "chigoziem okonkwo":
+    "chig okonkwo",
+
+  "adonai mitchell":
+    "ad mitchell",
+
+  "isaac teslaa":
+    "isaac tezlaw"
+
+};
+
+
+function canonicalExpertPlayerName(name) {
 
   var normalized =
     normalizeExpertPlayerName(name);
+
+  return (
+    EXPERT_PLAYER_ALIASES_2026[
+      normalized
+    ] ||
+    normalized
+  );
+
+}
+
+
+function findDraftRowByExpertName(name) {
+
+  var canonical =
+    canonicalExpertPlayerName(name);
 
   var rows =
     Array.from(
@@ -7607,9 +7649,9 @@ function findDraftRowByExpertName(name) {
   return rows.find(function(row) {
 
     return (
-      normalizeExpertPlayerName(
+      canonicalExpertPlayerName(
         row.getAttribute('data-name')
-      ) === normalized
+      ) === canonical
     );
 
   }) || null;
@@ -7719,7 +7761,7 @@ function createExpertPlayerRow(player) {
     '<td class="notecell">' +
       (
         player.note ||
-        'Added by 2026 expert ranking update.'
+        'Added by 2026 expert consensus update.'
       ) +
     '</td>';
 
@@ -7729,9 +7771,72 @@ function createExpertPlayerRow(player) {
 }
 
 
-function ensureExpertPlayerExists(
+function updateExpertPlayerRowMetadata(
+  row,
   player
 ) {
+
+  if (!row || !player) {
+    return;
+  }
+
+
+  row.setAttribute(
+    'data-pos',
+    player.pos
+  );
+
+  row.setAttribute(
+    'data-bye',
+    player.bye || ''
+  );
+
+
+  /*
+   * Update the team column while preserving
+   * the existing SOS badge.
+   */
+  var teamCell =
+    row.children[3];
+
+  if (teamCell) {
+
+    var sos =
+      teamCell.querySelector('.sos');
+
+    teamCell.textContent =
+      player.team || 'FA';
+
+    if (sos) {
+
+      teamCell.appendChild(
+        document.createTextNode(' ')
+      );
+
+      teamCell.appendChild(sos);
+
+    }
+
+  }
+
+
+  /*
+   * Update bye week.
+   */
+  var byeCell =
+    row.children[6];
+
+  if (byeCell) {
+
+    byeCell.textContent =
+      player.bye || '--';
+
+  }
+
+}
+
+
+function ensureExpertPlayerExists(player) {
 
   var existing =
     findDraftRowByExpertName(
@@ -7739,6 +7844,11 @@ function ensureExpertPlayerExists(
     );
 
   if (existing) {
+
+    updateExpertPlayerRowMetadata(
+      existing,
+      player
+    );
 
     return {
       row: existing,
@@ -7762,9 +7872,7 @@ function ensureExpertPlayerExists(
 }
 
 
-function getExpertTierBody(
-  tier
-) {
+function getExpertTierBody(tier) {
 
   return (
     document.getElementById(
@@ -7778,6 +7886,152 @@ function getExpertTierBody(
 }
 
 
+/*
+ * ---------------------------------------------------------
+ * REMOVE STALE SKILL PLAYERS
+ * ---------------------------------------------------------
+ *
+ * Expert consensus is authoritative for:
+ *
+ * QB / RB / WR / TE
+ *
+ * K and DST remain controlled by the existing
+ * draft-board/endgame system.
+ */
+function removePlayersOutsideExpertDataset() {
+
+  var skillPositions =
+    ['QB', 'RB', 'WR', 'TE'];
+
+  var expertNames =
+    new Set(
+      EXPERT_RANKINGS_2026.map(
+        function(player) {
+
+          return canonicalExpertPlayerName(
+            player.name
+          );
+
+        }
+      )
+    );
+
+  var removed = [];
+
+
+  Array.from(
+    document.querySelectorAll(
+      'tr.draftrow'
+    )
+  ).forEach(function(row) {
+
+    var position =
+      row.getAttribute(
+        'data-pos'
+      );
+
+    if (
+      !skillPositions.includes(
+        position
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    var name =
+      row.getAttribute(
+        'data-name'
+      );
+
+    var canonical =
+      canonicalExpertPlayerName(
+        name
+      );
+
+
+    if (
+      !expertNames.has(
+        canonical
+      )
+    ) {
+
+      removed.push(name);
+
+      row.remove();
+
+    }
+
+  });
+
+
+  return removed;
+
+}
+
+
+/*
+ * ---------------------------------------------------------
+ * PUT K / DST AT THE END
+ * ---------------------------------------------------------
+ *
+ * They still exist on the board, but expert skill-player
+ * rankings should not accidentally push them into the
+ * middle rounds.
+ */
+function moveKickerDefenseRowsToEnd() {
+
+  var fTier =
+    document.getElementById(
+      'tbody-F'
+    );
+
+  if (!fTier) {
+    return 0;
+  }
+
+
+  var specialTeams =
+    Array.from(
+      document.querySelectorAll(
+        'tr.draftrow'
+      )
+    ).filter(function(row) {
+
+      var pos =
+        row.getAttribute(
+          'data-pos'
+        );
+
+      return (
+        pos === 'K' ||
+        pos === 'DST'
+      );
+
+    });
+
+
+  specialTeams.forEach(
+    function(row) {
+
+      fTier.appendChild(row);
+
+    }
+  );
+
+
+  return specialTeams.length;
+
+}
+
+
+/*
+ * =========================================================
+ * APPLY 2026 EXPERT CONSENSUS RANKINGS
+ * =========================================================
+ */
 function apply2026ExpertRankings() {
 
   console.log(
@@ -7798,6 +8052,19 @@ function apply2026ExpertRankings() {
   var errors = [];
 
 
+  /*
+   * First remove outdated QB/RB/WR/TE
+   * players that are not part of the
+   * authoritative expert dataset.
+   */
+  var removedPlayers =
+    removePlayersOutsideExpertDataset();
+
+
+  /*
+   * Now rebuild the skill-player board
+   * in exact expert ranking order.
+   */
   EXPERT_RANKINGS_2026
     .forEach(function(player) {
 
@@ -7807,6 +8074,7 @@ function apply2026ExpertRankings() {
           ensureExpertPlayerExists(
             player
           );
+
 
         var row =
           result.row;
@@ -7842,9 +8110,11 @@ function apply2026ExpertRankings() {
         }
 
 
-        tbody.appendChild(
-          row
-        );
+        /*
+         * appendChild() also MOVES existing
+         * rows, giving us deterministic order.
+         */
+        tbody.appendChild(row);
 
 
         if (result.added) {
@@ -7869,6 +8139,7 @@ function apply2026ExpertRankings() {
           err
         );
 
+
         errors.push(
           player.name
         );
@@ -7879,11 +8150,17 @@ function apply2026ExpertRankings() {
 
 
   /*
-   * Recalculate all ranks using the
-   * ranking system already built
-   * into this project.
+   * Keep kickers and defenses, but force
+   * them behind the expert-ranked skill
+   * players.
    */
+  var specialTeamsPreserved =
+    moveKickerDefenseRowsToEnd();
 
+
+  /*
+   * Recalculate overall and positional ranks.
+   */
   if (
     typeof syncRankData ===
     'function'
@@ -7915,10 +8192,9 @@ function apply2026ExpertRankings() {
 
 
   /*
-   * Save the new order using the
-   * existing autosave system.
+   * Save through the project's existing
+   * autosave system.
    */
-
   if (
     typeof saveState ===
     'function'
@@ -7940,18 +8216,39 @@ function apply2026ExpertRankings() {
   }
 
 
+  var totalPlayers =
+    document.querySelectorAll(
+      'tr.draftrow'
+    ).length;
+
+
   console.log(
     'Expert rankings applied.'
   );
 
   console.log(
-    'Existing players moved:',
+    'Existing expert players reused:',
     movedPlayers.length
   );
 
   console.log(
-    'New players added:',
+    'New expert players created:',
     addedPlayers.length
+  );
+
+  console.log(
+    'Old skill players removed:',
+    removedPlayers.length
+  );
+
+  console.log(
+    'K/DST rows preserved:',
+    specialTeamsPreserved
+  );
+
+  console.log(
+    'Total board size:',
+    totalPlayers
   );
 
 
@@ -7972,6 +8269,23 @@ function apply2026ExpertRankings() {
   }
 
 
+  if (removedPlayers.length) {
+
+    console.table(
+      removedPlayers.map(
+        function(name) {
+
+          return {
+            removedPlayer: name
+          };
+
+        }
+      )
+    );
+
+  }
+
+
   if (errors.length) {
 
     console.warn(
@@ -7982,31 +8296,29 @@ function apply2026ExpertRankings() {
   }
 
 
-  console.log(
-    'Total board size:',
-    document.querySelectorAll(
-      'tr.draftrow'
-    ).length
-  );
-
-
   return {
+
     rankings:
       EXPERT_RANKINGS_2026.length,
 
-    moved:
+    reused:
       movedPlayers.length,
 
     added:
       addedPlayers,
 
+    removed:
+      removedPlayers,
+
     errors:
       errors,
 
+    specialTeamsPreserved:
+      specialTeamsPreserved,
+
     totalPlayers:
-      document.querySelectorAll(
-        'tr.draftrow'
-      ).length
+      totalPlayers
+
   };
 
 }
