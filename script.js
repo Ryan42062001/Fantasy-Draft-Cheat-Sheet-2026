@@ -2924,24 +2924,48 @@ function summarizeOpponentDraftThreat(
   }
 
 
-  var threateningTeams =
-    details.teams.filter(function(team) {
+/*
+ * -------------------------------------------------------
+ * MEANINGFUL OPPONENT DEMAND
+ * -------------------------------------------------------
+ *
+ * Very small demand values represent soft bench/depth
+ * interest and should not be described as a team that
+ * is likely to take the position.
+ */
 
-      return (
-        Number(team.demand) > 0
-      );
+var threateningTeams =
+  details.teams.filter(function(team) {
 
-    });
+    return (
+      Number(team.demand) >= 1
+    );
+
+  });
 
 
-  var strongThreatTeams =
-    details.teams.filter(function(team) {
+var strongThreatTeams =
+  details.teams.filter(function(team) {
 
-      return (
-        Number(team.demand) >= 2
-      );
+    return (
+      Number(team.demand) >= 2
+    );
 
-    });
+  });
+
+
+var softThreatTeams =
+  details.teams.filter(function(team) {
+
+    var demand =
+      Number(team.demand) || 0;
+
+    return (
+      demand > 0 &&
+      demand < 1
+    );
+
+  });
 
 
   var picksAtRisk =
@@ -2989,18 +3013,18 @@ function summarizeOpponentDraftThreat(
     if (label === 'HIGH') {
 
       summary =
-        threateningTeams.length +
-        ' teams picking before your next turn have ' +
-        position +
-        ' demand. Waiting is risky.';
+  threateningTeams.length +
+  ' teams picking before your next turn have meaningful ' +
+  position +
+  ' demand. Waiting is risky.';
 
     } else if (label === 'MODERATE') {
 
       summary =
-        threateningTeams.length +
-        ' teams before your next pick could target ' +
-        position +
-        '.';
+  threateningTeams.length +
+  ' teams picking before your next turn have meaningful ' +
+  position +
+  ' demand. Waiting is risky.';
 
     } else {
 
@@ -3036,6 +3060,9 @@ function summarizeOpponentDraftThreat(
 
     threateningTeams:
       threateningTeams.length,
+
+    softThreatTeams:
+  softThreatTeams.length,
 
     strongThreatTeams:
       strongThreatTeams.length,
@@ -18275,6 +18302,12 @@ test.equal(
     40,
     10
   );
+
+  test.assert(
+  'Opponent summary separates soft demand from meaningful threat',
+  opponentSummaryLow.softThreatTeams >= 0 &&
+  opponentSummaryLow.threateningTeams >= 0
+);
 
 test.equal(
   'Opponent window: pick 21 to 40 has 18 picks',
