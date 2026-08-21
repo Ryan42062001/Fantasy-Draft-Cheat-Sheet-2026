@@ -10097,16 +10097,60 @@ document.addEventListener('DOMContentLoaded', function() {
       'position-scarcity-details'
     );
 
-  if (positionScarcityDetails) {
+// ==== SINGLE DOM READY LISTENER ====
+document.addEventListener('DOMContentLoaded', function() {
+  
+  // 1. Initialize core application state safely
+  try {
+    initApp();
+  } catch (err) {
+    console.error("Initialization failed inside initApp():", err);
+  }
 
-    if (
-      window.innerWidth >= 769
-    ) {
+  // 2. Safely clean buttons once without MutationObserver loops
+  removeExportImportButtons();
 
-      positionScarcityDetails.open =
-        true;
 
-    }
+  /*
+   * -------------------------------------------------------
+   * PHASE 13 — POSITION SCARCITY COLLAPSE
+   * -------------------------------------------------------
+   */
+
+  var positionScarcityDetails =
+    document.getElementById(
+      'position-scarcity-details'
+    );
+
+  if (
+    positionScarcityDetails &&
+    window.innerWidth >= 769
+  ) {
+
+    positionScarcityDetails.open =
+      true;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * PHASE 13D — DRAFT SETTINGS RESPONSIVE DEFAULT
+   * -------------------------------------------------------
+   */
+
+  var draftSettingsDetails =
+    document.getElementById(
+      'draft-settings-details'
+    );
+
+  if (
+    draftSettingsDetails &&
+    window.innerWidth >= 769
+  ) {
+
+    draftSettingsDetails.open =
+      true;
 
   }
 
@@ -10129,30 +10173,6 @@ if (
 
   draftSettingsDetails.open =
     true;
-
-}
-
-/*
- * -------------------------------------------------------
- * PHASE 13 — RECOMMENDATION DETAILS RESPONSIVE DEFAULT
- * -------------------------------------------------------
- */
-
-var recommendationDetails =
-  document.querySelector(
-    '#recommended-pick-box details'
-  );
-
-if (recommendationDetails) {
-
-  if (
-    window.innerWidth >= 769
-  ) {
-
-    recommendationDetails.open =
-      true;
-
-  }
 
 }
   
