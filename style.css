@@ -985,3 +985,78 @@ details[open] .details-label-less {
   }
 
 }
+
+/* =========================================================
+   TIER & SCARCITY ALERTS — RESPONSIVE COLLAPSE
+   ========================================================= */
+
+.scarcity-alerts-collapse {
+  margin-top: 10px;
+  background: rgba(224, 168, 63, 0.06);
+  border: 1px solid rgba(224, 168, 63, 0.30);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.scarcity-alerts-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 900;
+  color: #d7c58d;
+}
+
+.scarcity-alerts-summary::-webkit-details-marker {
+  display: none;
+}
+
+.scarcity-alerts-arrow {
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+}
+
+.scarcity-alerts-collapse[open] .scarcity-alerts-arrow {
+  transform: rotate(180deg);
+}
+
+.scarcity-alerts-content {
+  margin-top: 10px;
+}
+
+
+/* DESKTOP — always show alerts */
+@media (min-width: 769px) {
+
+  .scarcity-alerts-collapse > .scarcity-alerts-content {
+    display: block !important;
+  }
+
+  .scarcity-alerts-collapse > .scarcity-alerts-summary {
+    pointer-events: none;
+  }
+
+  .scarcity-alerts-arrow {
+    display: none;
+  }
+}
+
+
+/* MOBILE — collapsed by default */
+@media (max-width: 768px) {
+
+  .scarcity-alerts-collapse {
+    padding: 12px 14px;
+  }
+
+  .scarcity-alerts-summary {
+    font-size: 0.95rem;
+  }
+
+  .scarcity-alerts-collapse:not([open])
+  > .scarcity-alerts-content {
+    display: none;
+  }
+
+}
