@@ -23281,6 +23281,51 @@ scored.sort(function(a, b) {
 
 /*
  * -------------------------------------------------------
+ * PHASE 12 — DYNAMIC STRATEGY SNAPSHOT
+ * -------------------------------------------------------
+ *
+ * Build strategy only after the initial scoring pass.
+ *
+ * This avoids recursion because the supplied state is
+ * reused instead of building a new live draft state.
+ */
+
+var dynamicStrategyAudit =
+  buildDynamicStrategyAudit({
+    players:
+      players,
+
+    available:
+      available,
+
+    vorpResult:
+      vorpResult,
+
+    draftState:
+      draftState,
+
+    draftWindow:
+      draftWindow,
+
+    context:
+      context,
+
+    scored:
+      scored
+  });
+
+
+var dynamicStrategyState =
+  buildDynamicStrategyState(
+    dynamicStrategyAudit
+  );
+
+
+context.dynamicStrategyState =
+  dynamicStrategyState;
+
+/*
+ * -------------------------------------------------------
  * EXPENSIVE MULTI-PICK SECOND PASS
  * -------------------------------------------------------
  *
