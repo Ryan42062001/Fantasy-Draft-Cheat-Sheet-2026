@@ -2464,8 +2464,6 @@ function buildDynamicStrategyAudit(
 
 }
 
-function buildDynamicStrategyState() {
-
 function buildDynamicStrategyState(
   suppliedAudit
 ) {
@@ -23065,9 +23063,6 @@ function buildLiveDraftDebugState() {
     });
 
 
-  var vorpResult =
-    calculateAllFantasyVorp(players);
-  
   var vorpResult =
     calculateAllFantasyVorp(players);
 
