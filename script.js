@@ -10788,10 +10788,7 @@ return calculateVorpProfile(
 
 function calculateDraftAwareVorpOpportunity(player, context){
 
-  );
-
   if(!player || !context){
-    console.log('DRAFT-AWARE EXIT: missing player/context');
     return 0;
   }
 
