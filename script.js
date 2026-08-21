@@ -11696,11 +11696,13 @@ console.log(
     context
   );
 
-  var futureDepthOpportunityScore =
-  calculateFutureDepthOpportunity(
-    player,
-    context
-  );
+var futureDepthOpportunityScore =
+  context.skipFutureDepth
+    ? 0
+    : calculateFutureDepthOpportunity(
+        player,
+        context
+      );
 
 var multiPickPlanningScore =
   context.skipMultiPickPlanning
@@ -18616,6 +18618,9 @@ function __perfMark(label) {
     skipMultiPickPlanning:
       true,
 
+    skipFutureDepth:
+      true,
+
     nextPick:
       draftWindow.nextPick,
 
@@ -18777,6 +18782,9 @@ scored.sort(function(a, b) {
  */
 
 context.skipMultiPickPlanning =
+  false;
+
+context.skipFutureDepth =
   false;
 
 
