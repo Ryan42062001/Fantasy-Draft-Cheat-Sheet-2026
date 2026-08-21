@@ -5141,6 +5141,341 @@ function updateNextPickMarker() {
 }
 
 function updateScarcityAlerts() { safeCall('updateScarcityAlertsCustom'); }
+
+function updateScarcityAlertsCustom() {
+
+  var container =
+    document.getElementById(
+      'scarcity-alerts'
+    );
+
+
+  if (!container) {
+    return;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * BUILD CURRENT ENGINE STATE
+   * -------------------------------------------------------
+   */
+
+  var liveState =
+    buildLiveDraftDebugState();
+
+
+  if (
+    !liveState ||
+    !liveState.players
+  ) {
+
+    container.innerHTML =
+      '';
+
+    return;
+  }
+
+
+  var profiles =
+    liveState.vorpResult &&
+    Array.isArray(
+      liveState.vorpResult.profiles
+    )
+      ? liveState.vorpResult.profiles
+      : [];
+
+
+  var scarcityState =
+    buildLiveTierScarcityState(
+      liveState.players,
+      profiles
+    );
+
+
+  if (!scarcityState) {
+
+    container.innerHTML =
+      '';
+
+    return;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * NOTHING URGENT
+   * -------------------------------------------------------
+   */
+
+  if (
+    !scarcityState.alerts ||
+    !scarcityState.alerts.length
+  ) {
+
+    container.innerHTML =
+      '';
+
+    return;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * ALERT HELPERS
+   * -------------------------------------------------------
+   */
+
+  function getAlertSymbol(status) {
+
+    if (
+      status ===
+      'CRITICAL CLIFF'
+    ) {
+
+      return '&#128680;';
+
+    }
+
+
+    if (
+      status ===
+      'TIER CLOSING'
+    ) {
+
+      return '&#9888;';
+
+    }
+
+
+    if (
+      status ===
+      'HIGH SCARCITY'
+    ) {
+
+      return '&#9888;';
+
+    }
+
+
+    return '&#9651;';
+
+  }
+
+
+  function buildAlertText(alert) {
+
+    if (!alert) {
+      return '';
+    }
+
+
+    var position =
+      alert.position ||
+      'N/A';
+
+
+    /*
+     * -------------------------------------------------------
+     * CRITICAL CLIFF
+     * -------------------------------------------------------
+     */
+
+    if (
+      alert.status ===
+      'CRITICAL CLIFF'
+    ) {
+
+      return (
+        alert.playersBeforeCliff +
+        ' ' +
+        position +
+        (
+          alert.playersBeforeCliff === 1
+            ? ''
+            : 's'
+        ) +
+        ' remain before the ' +
+        (
+          alert.fromTier ||
+          '?'
+        ) +
+        ' &rarr; ' +
+        (
+          alert.toTier ||
+          '?'
+        ) +
+        ' tier drop'
+      );
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * TIER CLOSING
+     * -------------------------------------------------------
+     */
+
+    if (
+      alert.status ===
+      'TIER CLOSING'
+    ) {
+
+      return (
+        alert.playersBeforeCliff +
+        ' ' +
+        position +
+        (
+          alert.playersBeforeCliff === 1
+            ? ''
+            : 's'
+        ) +
+        ' remain before the ' +
+        (
+          alert.fromTier ||
+          '?'
+        ) +
+        ' &rarr; ' +
+        (
+          alert.toTier ||
+          '?'
+        ) +
+        ' tier drop'
+      );
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * HIGH SCARCITY
+     * -------------------------------------------------------
+     */
+
+    if (
+      alert.status ===
+      'HIGH SCARCITY'
+    ) {
+
+      return (
+        (
+          alert.bestAvailableName ||
+          'Best available player'
+        ) +
+        ' leads a thin ' +
+        position +
+        ' pool'
+      );
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * LIMITED DEPTH
+     * -------------------------------------------------------
+     */
+
+    return (
+      position +
+      ' depth is becoming limited'
+    );
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * RENDER
+   * -------------------------------------------------------
+   */
+
+  var html =
+    '<div class="widget-box" style="' +
+      'margin-top:10px;' +
+      'background:rgba(224,168,63,0.06);' +
+      'border-color:rgba(224,168,63,0.30);' +
+    '">' +
+
+      '<div class="widget-title" style="' +
+        'text-align:left;' +
+        'margin-bottom:8px;' +
+        'color:#d7c58d;' +
+      '">' +
+        '&#9888; Tier &amp; Scarcity Alerts' +
+      '</div>';
+
+
+  scarcityState.alerts
+    .slice(0, 4)
+    .forEach(function(alert) {
+
+      html +=
+        '<div style="' +
+          'padding:8px 9px;' +
+          'margin-bottom:6px;' +
+          'border-radius:8px;' +
+          'background:rgba(255,255,255,0.025);' +
+          'border:1px solid rgba(255,255,255,0.05);' +
+        '">' +
+
+          '<div style="' +
+            'font-size:0.71rem;' +
+            'font-weight:900;' +
+            'letter-spacing:0.03em;' +
+            'color:#e0c98a;' +
+          '">' +
+
+            getAlertSymbol(
+              alert.status
+            ) +
+
+            ' ' +
+
+            alert.position +
+
+            ' &middot; ' +
+
+            alert.status +
+
+          '</div>' +
+
+
+          '<div style="' +
+            'font-size:0.69rem;' +
+            'line-height:1.35;' +
+            'color:#a9c2ab;' +
+            'margin-top:3px;' +
+          '">' +
+
+            buildAlertText(
+              alert
+            ) +
+
+          '</div>' +
+
+        '</div>';
+
+    });
+
+
+  html +=
+    '</div>';
+
+
+  container.innerHTML =
+    html;
+
+
+  /*
+   * Useful for console inspection.
+   */
+
+  window.latestTierScarcityState =
+    scarcityState;
+
+}
 function addEditControls() { safeCall('addEditControlsCustom'); }
 
 function updatePickSettings() {
