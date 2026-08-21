@@ -69,14 +69,73 @@
 </div>
 
     <div class="widget-box" id="pick-counter-box">
-    <div class="widget-title" style="margin-bottom:6px;">&#128203; Draft Position</div>
-    <div class="pc-inputs">
-      <label>Teams <input type="number" id="pcTeams" value="10" min="2" max="20" onchange="updatePickSettings()"></label>
-      <label>Your Pick # <input type="number" id="pcSlot" value="10" min="1" max="20" onchange="updatePickSettings()"></label>
-      <label>Rounds <input type="number" id="pcRounds" value="16" min="5" max="30" onchange="updatePickSettings()"></label>
-    </div>
-    <div id="pick-counter-text">Pick 1 of 160 &middot; your next pick: <b>#10</b></div>
+
+  <div class="widget-title" style="margin-bottom:6px;">
+    &#128203; Draft Position
   </div>
+
+  <details
+    class="draft-settings-details"
+    id="draft-settings-details"
+  >
+
+    <summary class="draft-settings-summary">
+      <span class="draft-settings-more">
+        Edit draft settings &#9662;
+      </span>
+
+      <span class="draft-settings-less">
+        Hide draft settings &#9652;
+      </span>
+    </summary>
+
+    <div class="pc-inputs">
+
+      <label>
+        Teams
+        <input
+          type="number"
+          id="pcTeams"
+          value="10"
+          min="2"
+          max="20"
+          onchange="updatePickSettings()"
+        >
+      </label>
+
+      <label>
+        Your Pick #
+        <input
+          type="number"
+          id="pcSlot"
+          value="10"
+          min="1"
+          max="20"
+          onchange="updatePickSettings()"
+        >
+      </label>
+
+      <label>
+        Rounds
+        <input
+          type="number"
+          id="pcRounds"
+          value="16"
+          min="5"
+          max="30"
+          onchange="updatePickSettings()"
+        >
+      </label>
+
+    </div>
+
+  </details>
+
+  <div id="pick-counter-text">
+    Pick 1 of 160 &middot; your next pick: <b>#10</b>
+  </div>
+
+</div>
 
   <div class="widget-box" id="recommended-pick-box">
     <div class="widget-title" style="text-align:left;">&#127919; Recommended Pick</div>
