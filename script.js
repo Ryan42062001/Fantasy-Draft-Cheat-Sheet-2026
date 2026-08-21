@@ -10872,29 +10872,6 @@ var profiles =
 
   });
 
-  /*
-   * Keep detailed VORP logging disabled during
-   * normal production updates.
-   */
-
-  /*
-  console.log(
-    'VORP PROFILE TEST:',
-    profiles.slice(0, 5).map(function(p) {
-
-      return {
-        name:
-          p.player.name,
-
-        scarcity:
-          p.scarcity
-      };
-
-    })
-  );
-  */
-
-
   return {
 
     settings:
@@ -11758,13 +11735,6 @@ function calculateDraftScarcity(player, context){
 
 function calculateDraftDecisionScore(player, context){
 
-  window.__draftAwareReuseStats =
-  window.__draftAwareReuseStats ||
-  {
-    reused: 0,
-    recalculated: 0
-  };
-
   if(!player) return null;
 
   context = context || {};
@@ -12068,15 +12038,7 @@ if (
   Number.isFinite(
     draftAwareVorpOpportunityScore
   )
-) {
-
-  window.__draftAwareReuseStats.reused +=
-    1;
-
-} else {
-
-  window.__draftAwareReuseStats.recalculated +=
-    1;
+) else {
 
   draftAwareVorpOpportunityScore =
     calculateDraftAwareVorpOpportunity(
@@ -19059,13 +19021,8 @@ function runDraftEngineScenario(name) {
 
 function buildLiveDraftDebugState() {
 
-  var __perfStart =
-  performance.now();
-
-function __perfMark(label) {
-
-  var now =
-    performance.now();
+  var players =
+    getDraftAssistantPlayers();
 
 
   var available =
@@ -19074,8 +19031,8 @@ function __perfMark(label) {
     });
 
 
-  var __contextPerf =
-  performance.now();
+  var vorpResult =
+    calculateAllFantasyVorp(players);
   
   var vorpResult =
     calculateAllFantasyVorp(players);
@@ -19430,11 +19387,6 @@ scored.sort(function(a, b) {
 
 });
 
-  __perfMark(
-  'after sorting'
-);
-
-
 /*
  * Cache base scored players for projection lookup.
  */
@@ -19470,10 +19422,6 @@ applyPackagePathAdjustments(
   scored,
   context,
   8
-);
-
-  __perfMark(
-  'complete'
 );
 
   return {
