@@ -2134,73 +2134,6 @@ function getTeamsPickingBeforeMyNextTurn(
   };
 }
 
-function getDraftedRosterByTeam(
-  teams
-) {
-
-  teams =
-    Number(teams) || 10;
-
-  var rosters = {};
-
-  for (
-    var team = 1;
-    team <= teams;
-    team++
-  ) {
-
-    rosters[team] = {
-      QB: 0,
-      RB: 0,
-      WR: 0,
-      TE: 0,
-      K: 0,
-      DST: 0
-    };
-
-  }
-
-
-  document
-    .querySelectorAll(
-      'tr.draftrow.drafted-other, ' +
-      'tr.draftrow.drafted-mine'
-    )
-    .forEach(function(row) {
-
-      var position =
-        row.getAttribute(
-          'data-pos'
-        );
-
-      var teamSlot =
-        Number(
-          row.getAttribute(
-            'data-team-slot'
-          )
-        ) || 0;
-
-
-      if (
-        !position ||
-        !teamSlot ||
-        !rosters[teamSlot] ||
-        rosters[teamSlot][position] === undefined
-      ) {
-        return;
-      }
-
-
-      rosters[
-        teamSlot
-      ][position]++;
-
-    });
-
-
-  return rosters;
-}
-
 function calculateOpponentRosterNeeds(
   roster
 ) {
@@ -6620,140 +6553,6 @@ function buildUrgencyIndicatorHtml(
 
 }
 
-function buildUrgencyIndicatorHtml(
-  recommendation,
-  primary,
-  state
-) {
-
-  if (
-    !recommendation ||
-    !primary ||
-    !state ||
-    !state.context
-  ) {
-
-    return '';
-
-  }
-
-  if (
-    recommendation.turnPackageActive
-  ) {
-
-    return (
-      '<div style="' +
-        'font-size:0.69rem;' +
-        'font-weight:900;' +
-        'margin-bottom:9px;' +
-        'color:#a9c2ab;' +
-      '">' +
-        '&#10003; TURN SAFE &middot; no opponent picks between selections' +
-      '</div>'
-    );
-
-  }
-
-  var timingScore =
-    Number(
-      primary.timingScore
-    ) || 0;
-
-  var tierCliffScore =
-    Number(
-      primary.tierCliffOpportunityScore
-    ) || 0;
-
-  var scarcityScore =
-    Number(
-      primary.scarcityScore
-    ) || 0;
-
-  var picksBetween =
-    Number(
-      state.context.calculatedPicksUntilNext
-    );
-
-  if (!Number.isFinite(picksBetween)) {
-
-    var teams =
-      Number(
-        state.context.teams
-      ) || 10;
-
-    var currentPick =
-      Number(
-        state.context.currentPick
-      ) || 0;
-
-    var nextPickInfo =
-      calculateMyNextDraftPick(
-        currentPick,
-        teams
-      );
-
-    picksBetween =
-      nextPickInfo
-        ? Number(
-            nextPickInfo.picksBetween
-          )
-        : 0;
-
-  }
-
-  var label =
-    'LOW RISK TO WAIT';
-
-  var symbol =
-    '&#10003;';
-
-  if (tierCliffScore >= 5) {
-
-    label =
-      'TIER CLIFF — ACT NOW';
-
-    symbol =
-      '&#9888;';
-
-  } else if (timingScore >= 70) {
-
-    label =
-      'HIGH RISK TO WAIT';
-
-    symbol =
-      '&#9888;';
-
-  } else if (
-    timingScore >= 50 ||
-    (
-      scarcityScore >= 90 &&
-      picksBetween >= 10
-    )
-  ) {
-
-    label =
-      'MODERATE RISK TO WAIT';
-
-    symbol =
-      '&#9888;';
-
-  }
-
-  return (
-    '<div style="' +
-      'font-size:0.69rem;' +
-      'font-weight:900;' +
-      'margin-bottom:9px;' +
-      'color:#a9c2ab;' +
-    '">' +
-      symbol +
-      ' ' +
-      label +
-    '</div>'
-  );
-
-}
-
 var roundMarkerCache = {
   leagueSize: null,
   rowCount: 0,
@@ -10677,10 +10476,6 @@ var draftAwareVorpOpportunity =
  */
 function calculateAllFantasyVorp(players) {
 
-  var perfStart =
-    performance.now();
-
-
   var available =
     getAvailableVorpPlayers(
       players
@@ -11938,27 +11733,6 @@ if (DEBUG_DRAFT_SCORING) {
  */
 
 var strategyScore = 0;
-
-  console.log(
-  'STRATEGY INPUT DEBUG:',
-  player.name,
-  {
-    position: position,
-    hasStrategy: !!context.strategy,
-    targetPosition:
-      context.strategy
-        ? context.strategy.targetPosition
-        : undefined,
-    targetPressure:
-      context.strategy
-        ? context.strategy.targetPressure
-        : undefined,
-    strategy:
-      context.strategy
-        ? context.strategy.strategy
-        : undefined
-  }
-);
 
 if (
   context.strategy &&
