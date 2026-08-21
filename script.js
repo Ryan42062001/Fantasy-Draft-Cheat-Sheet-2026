@@ -9899,28 +9899,78 @@ function calculateLateAvailability(
 
 function detectDraftRuns(){
 
-  var rows =
-    Array.from(
-      document.querySelectorAll(
-        'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
-      )
-    );
+var rows =
+  Array.from(
+    document.querySelectorAll(
+      'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
+    )
+  );
 
-  /*
-   * -------------------------------------------------------
-   * 1. RECENT PICK WINDOW
-   * -------------------------------------------------------
-   *
-   * We examine the most recent 8 picks.
-   *
-   * This keeps the detector responsive without allowing
-   * old draft activity to distort the current state.
-   */
 
-  var recentCount = 8;
+/*
+ * -------------------------------------------------------
+ * TRUE DRAFT ORDER
+ * -------------------------------------------------------
+ *
+ * The board itself is sorted by player rank, not by
+ * when players were drafted.
+ *
+ * Use each row's stored draft-pick number so positional
+ * runs are based on the actual most recent selections.
+ */
 
-  var recentRows =
-    rows.slice(-recentCount);
+var draftedRows =
+  rows
+    .map(function(row) {
+
+      var pick =
+        Number(
+          row.getAttribute('data-pick') ||
+          row.getAttribute('data-draft-pick') ||
+          row.dataset.pick ||
+          row.dataset.draftPick
+        ) || 0;
+
+
+      return {
+        row:
+          row,
+
+        pick:
+          pick
+      };
+
+    })
+    .filter(function(entry) {
+
+      return (
+        entry.row &&
+        entry.pick > 0
+      );
+
+    })
+    .sort(function(a, b) {
+
+      return (
+        Number(a.pick) -
+        Number(b.pick)
+      );
+
+    });
+
+
+var recentCount =
+  8;
+
+
+var recentRows =
+  draftedRows
+    .slice(-recentCount)
+    .map(function(entry) {
+
+      return entry.row;
+
+    });
 
 
   /*
@@ -10236,12 +10286,26 @@ function detectDraftRuns(){
     runs:
       runs,
 
-    recentCount:
-      recentRows.length,
+recentCount:
+  recentRows.length,
 
-    /*
-     * Helpful debugging information.
-     */
+recentStartPick:
+  draftedRows.length
+    ? draftedRows[
+        Math.max(
+          0,
+          draftedRows.length -
+          recentRows.length
+        )
+      ].pick
+    : 0,
+
+recentEndPick:
+  draftedRows.length
+    ? draftedRows[
+        draftedRows.length - 1
+      ].pick
+    : 0,
 
     counts:
       positions.reduce(
