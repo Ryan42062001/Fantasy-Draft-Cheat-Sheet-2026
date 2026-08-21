@@ -12996,23 +12996,55 @@ function calculateNextPickSurvival(
   context =
     context || {};
 
-  var currentPick =
+var currentPick =
   Number(context.currentPick) || 0;
 
+
 var nextPick =
-  Number(context.calculatedNextPick) || 0;
+  Number(
+    context.calculatedNextPick ||
+    context.nextPick
+  ) || 0;
 
-var draftState =
-  getDraftAssistantState();
 
-var draftWindow =
-  calculateMyNextDraftPick(
-    Number(draftState.currentPick) || 0,
-    Number(draftState.teams) || 0
-  );
+/*
+ * -------------------------------------------------------
+ * REUSE PRECOMPUTED DRAFT WINDOW
+ * -------------------------------------------------------
+ *
+ * The live draft context already knows how many picks
+ * occur before our next selection. Do not rebuild the
+ * draft state thousands of times during survival
+ * projections.
+ */
 
 var picksUntilNext =
-  Number(draftWindow.picksBetween) || 0;
+  Number(
+    context.calculatedPicksUntilNext
+  );
+
+
+if (!Number.isFinite(picksUntilNext)) {
+
+  var teams =
+    Number(context.teams) || 10;
+
+
+  var draftWindow =
+    calculateMyNextDraftPick(
+      currentPick,
+      teams
+    );
+
+
+  picksUntilNext =
+    draftWindow
+      ? Number(
+          draftWindow.picksBetween
+        ) || 0
+      : 0;
+
+}
 
   /*
  * -------------------------------------------------------
