@@ -10148,47 +10148,85 @@ function buildLiveTierScarcityState(
      */
 
     var status =
-      'HEALTHY DEPTH';
+  'HEALTHY DEPTH';
 
 
-    if (
-      severity === 'HIGH' &&
-      playersBeforeCliff <= 2
-    ) {
+/*
+ * -------------------------------------------------------
+ * CRITICAL CLIFF
+ * -------------------------------------------------------
+ *
+ * Reserve this for genuinely severe, immediate drops.
+ */
 
-      status =
-        'CRITICAL CLIFF';
+if (
+  severity === 'HIGH' &&
+  playersBeforeCliff <= 2
+) {
 
-    } else if (
-      severity === 'HIGH'
-    ) {
+  status =
+    'CRITICAL CLIFF';
 
-      status =
-        'TIER CLOSING';
 
-    } else if (
-      severity === 'MODERATE' &&
-      playersBeforeCliff <= 3
-    ) {
+/*
+ * -------------------------------------------------------
+ * HIGH-SEVERITY TIER CLOSING
+ * -------------------------------------------------------
+ */
 
-      status =
-        'TIER CLOSING';
+} else if (
+  severity === 'HIGH'
+) {
 
-    } else if (
-      scarcity >= 90
-    ) {
+  status =
+    'TIER CLOSING';
 
-      status =
-        'HIGH SCARCITY';
 
-    } else if (
-      scarcity >= 75
-    ) {
+/*
+ * -------------------------------------------------------
+ * MODERATE TIER CLOSING
+ * -------------------------------------------------------
+ *
+ * A moderate tier transition should only become a
+ * live alert when the position is ALSO meaningfully
+ * scarce.
+ *
+ * This prevents healthy positions such as QB from
+ * generating an alert just because the next player
+ * happens to be in a lower tier.
+ */
 
-      status =
-        'LIMITED DEPTH';
+} else if (
+  severity === 'MODERATE' &&
+  playersBeforeCliff <= 3 &&
+  scarcity >= 75
+) {
 
-    }
+  status =
+    'TIER CLOSING';
+
+
+/*
+ * -------------------------------------------------------
+ * PURE SCARCITY
+ * -------------------------------------------------------
+ */
+
+} else if (
+  scarcity >= 90
+) {
+
+  status =
+    'HIGH SCARCITY';
+
+} else if (
+  scarcity >= 75
+) {
+
+  status =
+    'LIMITED DEPTH';
+
+}
 
 
     /*
