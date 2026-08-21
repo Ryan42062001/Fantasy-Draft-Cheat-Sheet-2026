@@ -10686,37 +10686,10 @@ function calculateAllFantasyVorp(players) {
       players
     );
 
-
-  console.log(
-    '[VORP PERF] available pool',
-    (
-      performance.now() -
-      perfStart
-    ).toFixed(2) + ' ms'
-  );
-
-
-  perfStart =
-    performance.now();
-
-
   var replacements =
     calculateReplacementLevels(
       available
     );
-
-
-  console.log(
-    '[VORP PERF] replacements',
-    (
-      performance.now() -
-      perfStart
-    ).toFixed(2) + ' ms'
-  );
-
-
-  perfStart =
-    performance.now();
 
   /*
  * -------------------------------------------------------
@@ -10898,16 +10871,6 @@ var profiles =
     );
 
   });
-
-
-  console.log(
-    '[VORP PERF] profiles',
-    (
-      performance.now() -
-      perfStart
-    ).toFixed(2) + ' ms'
-  );
-
 
   /*
    * Keep detailed VORP logging disabled during
@@ -19104,20 +19067,6 @@ function __perfMark(label) {
   var now =
     performance.now();
 
-  console.log(
-    '[LIVE STATE PERF]',
-    label,
-    (now - __perfStart).toFixed(2) + ' ms'
-  );
-
-}
-
-  var players =
-    getDraftAssistantPlayers();
-
-  __perfMark(
-  'after player rows'
-);
 
   var available =
     players.filter(function(player) {
@@ -19130,17 +19079,6 @@ function __perfMark(label) {
   
   var vorpResult =
     calculateAllFantasyVorp(players);
-
-  console.log(
-  '[CONTEXT PERF] VORP',
-  (
-    performance.now() -
-    __contextPerf
-  ).toFixed(2) + ' ms'
-);
-
-__contextPerf =
-  performance.now();
 
   var draftState =
     getDraftAssistantState();
@@ -19157,30 +19095,8 @@ __contextPerf =
   var draftRuns =
     detectDraftRuns();
 
-  console.log(
-  '[CONTEXT PERF] draft runs',
-  (
-    performance.now() -
-    __contextPerf
-  ).toFixed(2) + ' ms'
-);
-
-__contextPerf =
-  performance.now();
-
   var draftStrategy =
     calculateDraftStrategy();
-
-  console.log(
-  '[CONTEXT PERF] strategy',
-  (
-    performance.now() -
-    __contextPerf
-  ).toFixed(2) + ' ms'
-);
-
-__contextPerf =
-  performance.now();
 
   var tierCliffs = {};
 
@@ -19197,17 +19113,6 @@ __contextPerf =
     }
   );
 
-  console.log(
-  '[CONTEXT PERF] tier cliffs',
-  (
-    performance.now() -
-    __contextPerf
-  ).toFixed(2) + ' ms'
-);
-
-__contextPerf =
-  performance.now();
-
   var vorpMax =
     Math.max.apply(
       null,
@@ -19218,15 +19123,6 @@ __contextPerf =
 
   var rosterNeeds =
   calculateDecisionRosterNeeds();
-
-
-console.log(
-  '[CONTEXT PERF] roster needs',
-  (
-    performance.now() -
-    __contextPerf
-  ).toFixed(2) + ' ms'
-);
 
   var context = {
 
@@ -19289,10 +19185,6 @@ opponentThreatCache:
 
   };
 
-  __perfMark(
-  'after context'
-);
-
   var scored =
     vorpResult.profiles
       .filter(function(profile) {
@@ -19326,10 +19218,6 @@ opponentThreatCache:
         );
 
       });
-
-  __perfMark(
-  'after scoring'
-);
   
   /*
  * -------------------------------------------------------
