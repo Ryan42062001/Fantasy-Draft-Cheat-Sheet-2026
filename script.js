@@ -7359,6 +7359,267 @@ function syncRankData(){
    - Current injury / depth-chart adjustments
    ========================================================= */
 
+/*
+ * =========================================================
+ * 2026 EXPERT CONSENSUS MASTER DATASET
+ * Snapshot: 2026-08-21
+ * League target: 10-team Full PPR
+ *
+ * Expert-panel consensus is the ranking authority.
+ * Previous manually tuned board rankings do not override
+ * the professional-source consensus.
+ * =========================================================
+ */
+
+var EXPERT_RANKINGS_2026 = [
+
+  // =========================
+  // S+ — ELITE
+  // =========================
+
+  { name:"ja'marr chase", pos:"WR", team:"CIN", tier:"Sp" },
+  { name:"jahmyr gibbs", pos:"RB", team:"DET", tier:"Sp" },
+  { name:"puka nacua", pos:"WR", team:"LAR", tier:"Sp" },
+  { name:"bijan robinson", pos:"RB", team:"ATL", tier:"Sp" },
+
+  // =========================
+  // S — BLUE CHIPS
+  // =========================
+
+  { name:"jaxon smith-njigba", pos:"WR", team:"SEA", tier:"S" },
+  { name:"amon-ra st. brown", pos:"WR", team:"DET", tier:"S" },
+  { name:"jonathan taylor", pos:"RB", team:"IND", tier:"S" },
+  { name:"ceedee lamb", pos:"WR", team:"DAL", tier:"S" },
+  { name:"justin jefferson", pos:"WR", team:"MIN", tier:"S" },
+  { name:"christian mccaffrey", pos:"RB", team:"SF", tier:"S" },
+
+  // =========================
+  // A — HIGH-END STARTERS
+  // =========================
+
+  { name:"james cook iii", pos:"RB", team:"BUF", tier:"A" },
+  { name:"drake london", pos:"WR", team:"ATL", tier:"A" },
+  { name:"ashton jeanty", pos:"RB", team:"LV", tier:"A" },
+  { name:"a.j. brown", pos:"WR", team:"NE", tier:"A" },
+  { name:"nico collins", pos:"WR", team:"HOU", tier:"A" },
+  { name:"brock bowers", pos:"TE", team:"LV", tier:"A" },
+  { name:"chase brown", pos:"RB", team:"CIN", tier:"A" },
+  { name:"trey mcbride", pos:"TE", team:"ARI", tier:"A" },
+  { name:"de'von achane", pos:"RB", team:"MIA", tier:"A" },
+  { name:"george pickens", pos:"WR", team:"DAL", tier:"A" },
+  { name:"chris olave", pos:"WR", team:"NO", tier:"A" },
+  { name:"rashee rice", pos:"WR", team:"KC", tier:"A" },
+  { name:"saquon barkley", pos:"RB", team:"PHI", tier:"A" },
+  { name:"derrick henry", pos:"RB", team:"BAL", tier:"A" },
+
+  // =========================
+  // B — STRONG STARTERS
+  // =========================
+
+  { name:"kenneth walker iii", pos:"RB", team:"KC", tier:"B" },
+  { name:"malik nabers", pos:"WR", team:"NYG", tier:"B" },
+  { name:"zay flowers", pos:"WR", team:"BAL", tier:"B" },
+  { name:"kyren williams", pos:"RB", team:"LAR", tier:"B" },
+  { name:"devonta smith", pos:"WR", team:"PHI", tier:"B" },
+  { name:"emeka egbuka", pos:"WR", team:"TB", tier:"B" },
+  { name:"bucky irving", pos:"RB", team:"TB", tier:"B" },
+  { name:"jameson williams", pos:"WR", team:"DET", tier:"B" },
+  { name:"ladd mcconkey", pos:"WR", team:"LAC", tier:"B" },
+  { name:"garrett wilson", pos:"WR", team:"NYJ", tier:"B" },
+  { name:"tetairoa mcmillan", pos:"WR", team:"CAR", tier:"B" },
+  { name:"omarion hampton", pos:"RB", team:"LAC", tier:"B" },
+  { name:"josh jacobs", pos:"RB", team:"GB", tier:"B" },
+  { name:"terry mclaurin", pos:"WR", team:"WAS", tier:"B" },
+  { name:"colston loveland", pos:"TE", team:"CHI", tier:"B" },
+  { name:"josh allen", pos:"QB", team:"BUF", tier:"B" },
+
+  // =========================
+  // C — CORE DRAFT TARGETS
+  // =========================
+
+  { name:"davante adams", pos:"WR", team:"LAR", tier:"C" },
+  { name:"jaylen waddle", pos:"WR", team:"MIA", tier:"C" },
+  { name:"d'andre swift", pos:"RB", team:"CHI", tier:"C" },
+  { name:"mike evans", pos:"WR", team:"SF", tier:"C" },
+  { name:"jayden daniels", pos:"QB", team:"WAS", tier:"C" },
+  { name:"lamar jackson", pos:"QB", team:"BAL", tier:"C" },
+  { name:"jalen hurts", pos:"QB", team:"PHI", tier:"C" },
+  { name:"rome odunze", pos:"WR", team:"CHI", tier:"C" },
+  { name:"treveyon henderson", pos:"RB", team:"NE", tier:"C" },
+  { name:"dj moore", pos:"WR", team:"CHI", tier:"C" },
+  { name:"sam laporta", pos:"TE", team:"DET", tier:"C" },
+  { name:"alvin kamara", pos:"RB", team:"NO", tier:"C" },
+  { name:"jordan addison", pos:"WR", team:"MIN", tier:"C" },
+  { name:"ricky pearsall", pos:"WR", team:"SF", tier:"C" },
+  { name:"xavier worthy", pos:"WR", team:"KC", tier:"C" },
+  { name:"calvin ridley", pos:"WR", team:"TEN", tier:"C" },
+  { name:"jerry jeudy", pos:"WR", team:"CLE", tier:"C" },
+  { name:"jauan jennings", pos:"WR", team:"SF", tier:"C" },
+  { name:"joe burrow", pos:"QB", team:"CIN", tier:"C" },
+  { name:"breece hall", pos:"RB", team:"NYJ", tier:"C" },
+  { name:"tucker kraft", pos:"TE", team:"GB", tier:"C" },
+  { name:"david montgomery", pos:"RB", team:"DET", tier:"C" },
+  { name:"courtland sutton", pos:"WR", team:"DEN", tier:"C" },
+  { name:"jakobi meyers", pos:"WR", team:"LV", tier:"C" },
+  { name:"tony pollard", pos:"RB", team:"TEN", tier:"C" },
+
+  // =========================
+  // D
+  // =========================
+
+  { name:"caleb williams", pos:"QB", team:"CHI", tier:"D" },
+  { name:"rj harvey", pos:"RB", team:"DEN", tier:"D" },
+  { name:"bhayshul tuten", pos:"RB", team:"JAX", tier:"D" },
+  { name:"chuba hubbard", pos:"RB", team:"CAR", tier:"D" },
+  { name:"tyrone tracy jr.", pos:"RB", team:"NYG", tier:"D" },
+  { name:"jayden reed", pos:"WR", team:"GB", tier:"D" },
+  { name:"brian thomas jr.", pos:"WR", team:"JAX", tier:"D" },
+  { name:"jordan mason", pos:"RB", team:"MIN", tier:"D" },
+  { name:"patrick mahomes", pos:"QB", team:"KC", tier:"D" },
+  { name:"marvin harrison jr.", pos:"WR", team:"ARI", tier:"D" },
+  { name:"travis hunter", pos:"WR", team:"JAX", tier:"D" },
+  { name:"dalton kincaid", pos:"TE", team:"BUF", tier:"D" },
+  { name:"david njoku", pos:"TE", team:"CLE", tier:"D" },
+  { name:"kyle pitts", pos:"TE", team:"ATL", tier:"D" },
+  { name:"george kittle", pos:"TE", team:"SF", tier:"D" },
+  { name:"j.k. dobbins", pos:"RB", team:"DEN", tier:"D" },
+  { name:"isiah pacheco", pos:"RB", team:"DET", tier:"D" },
+  { name:"rhamondre stevenson", pos:"RB", team:"NE", tier:"D" },
+  { name:"cam skattebo", pos:"RB", team:"NYG", tier:"D" },
+  { name:"quentin johnston", pos:"WR", team:"LAC", tier:"D" },
+  { name:"rashid shaheed", pos:"WR", team:"NO", tier:"D" },
+  { name:"khalil shakir", pos:"WR", team:"BUF", tier:"D" },
+  { name:"keon coleman", pos:"WR", team:"BUF", tier:"D" },
+  { name:"josh downs", pos:"WR", team:"IND", tier:"D" },
+  { name:"tre harris", pos:"WR", team:"LAC", tier:"D" },
+  { name:"baker mayfield", pos:"QB", team:"TB", tier:"D" },
+  { name:"bo nix", pos:"QB", team:"DEN", tier:"D" },
+  { name:"brock purdy", pos:"QB", team:"SF", tier:"D" },
+  { name:"drake maye", pos:"QB", team:"NE", tier:"D" },
+  { name:"brian robinson jr.", pos:"RB", team:"ATL", tier:"D" },
+
+  // =========================
+  // E
+  // =========================
+
+  { name:"jordan love", pos:"QB", team:"GB", tier:"E" },
+  { name:"mark andrews", pos:"TE", team:"BAL", tier:"E" },
+  { name:"tyler warren", pos:"TE", team:"IND", tier:"E" },
+  { name:"cade otton", pos:"TE", team:"TB", tier:"E" },
+  { name:"evan engram", pos:"TE", team:"DEN", tier:"E" },
+  { name:"brenton strange", pos:"TE", team:"JAX", tier:"E" },
+  { name:"stefon diggs", pos:"WR", team:"NE", tier:"E" },
+  { name:"michael pittman jr.", pos:"WR", team:"IND", tier:"E" },
+  { name:"christian kirk", pos:"WR", team:"HOU", tier:"E" },
+  { name:"darnell mooney", pos:"WR", team:"ATL", tier:"E" },
+  { name:"romeo doubs", pos:"WR", team:"GB", tier:"E" },
+  { name:"cooper kupp", pos:"WR", team:"SEA", tier:"E" },
+  { name:"jalen mcmillan", pos:"WR", team:"TB", tier:"E" },
+  { name:"xavier legette", pos:"WR", team:"CAR", tier:"E" },
+  { name:"jalen coker", pos:"WR", team:"CAR", tier:"E" },
+  { name:"kayshon boutte", pos:"WR", team:"NE", tier:"E" },
+  { name:"marquise brown", pos:"WR", team:"KC", tier:"E" },
+  { name:"matthew golden", pos:"WR", team:"GB", tier:"E" },
+  { name:"jordyn tyson", pos:"WR", team:"DEN", tier:"E" },
+  { name:"trey benson", pos:"RB", team:"ARI", tier:"E" },
+  { name:"ray davis", pos:"RB", team:"BUF", tier:"E" },
+  { name:"rico dowdle", pos:"RB", team:"CAR", tier:"E" },
+  { name:"jaylen wright", pos:"RB", team:"MIA", tier:"E" },
+  { name:"tyjae spears", pos:"RB", team:"TEN", tier:"E" },
+  { name:"blake corum", pos:"RB", team:"LAR", tier:"E" },
+  { name:"woody marks", pos:"RB", team:"HOU", tier:"E" },
+  { name:"trevor lawrence", pos:"QB", team:"JAX", tier:"E" },
+  { name:"dak prescott", pos:"QB", team:"DAL", tier:"E" },
+  { name:"kyler murray", pos:"QB", team:"ARI", tier:"E" },
+  { name:"justin herbert", pos:"QB", team:"LAC", tier:"E" },
+  { name:"tua tagovailoa", pos:"QB", team:"MIA", tier:"E" },
+  { name:"jared goff", pos:"QB", team:"DET", tier:"E" },
+  { name:"sam darnold", pos:"QB", team:"SEA", tier:"E" },
+  { name:"dallas goedert", pos:"TE", team:"PHI", tier:"E" },
+  { name:"kc concepcion", pos:"WR", team:"CAR", tier:"E" },
+
+  // =========================
+  // F — DEPTH / LATE ROUND
+  // =========================
+
+  { name:"zach ertz", pos:"TE", team:"WAS", tier:"F" },
+  { name:"hunter henry", pos:"TE", team:"NE", tier:"F" },
+  { name:"mason taylor", pos:"TE", team:"NYJ", tier:"F" },
+  { name:"aj barner", pos:"TE", team:"SEA", tier:"F" },
+  { name:"pat freiermuth", pos:"TE", team:"PIT", tier:"F" },
+  { name:"isaiah likely", pos:"TE", team:"BAL", tier:"F" },
+  { name:"rashod bateman", pos:"WR", team:"BAL", tier:"F" },
+  { name:"adam thielen", pos:"WR", team:"MIN", tier:"F" },
+  { name:"alec pierce", pos:"WR", team:"IND", tier:"F" },
+  { name:"dontayvion wicks", pos:"WR", team:"GB", tier:"F" },
+  { name:"demario douglas", pos:"WR", team:"NE", tier:"F" },
+  { name:"de'zhaun stribling", pos:"WR", team:"HOU", tier:"F" },
+  { name:"devaughn vele", pos:"WR", team:"NO", tier:"F" },
+  { name:"malik washington", pos:"WR", team:"MIA", tier:"F" },
+  { name:"tank dell", pos:"WR", team:"HOU", tier:"F" },
+  { name:"nicholas singleton", pos:"RB", team:"NYG", tier:"F" },
+  { name:"zach charbonnet", pos:"RB", team:"SEA", tier:"F" },
+  { name:"chris rodriguez", pos:"RB", team:"JAX", tier:"F" },
+  { name:"keaton mitchell", pos:"RB", team:"LAC", tier:"F" },
+  { name:"kendre miller", pos:"RB", team:"NO", tier:"F" },
+  { name:"marshawn lloyd", pos:"RB", team:"GB", tier:"F" },
+  { name:"will shipley", pos:"RB", team:"PHI", tier:"F" },
+  { name:"roschon johnson", pos:"RB", team:"CHI", tier:"F" },
+  { name:"audric estime", pos:"RB", team:"NO", tier:"F" },
+  { name:"jerome ford", pos:"RB", team:"CLE", tier:"F" },
+  { name:"kimani vidal", pos:"RB", team:"LAC", tier:"F" },
+  { name:"jalen milroe", pos:"QB", team:"SEA", tier:"F" },
+  { name:"michael penix jr.", pos:"QB", team:"ATL", tier:"F" },
+  { name:"j.j. mccarthy", pos:"QB", team:"MIN", tier:"F" },
+  { name:"geno smith", pos:"QB", team:"LV", tier:"F" },
+  { name:"c.j. stroud", pos:"QB", team:"HOU", tier:"F" },
+  { name:"bryce young", pos:"QB", team:"CAR", tier:"F" },
+  { name:"aaron rodgers", pos:"QB", team:"PIT", tier:"F" },
+  { name:"derek carr", pos:"QB", team:"NO", tier:"F" },
+  { name:"dalton schultz", pos:"TE", team:"HOU", tier:"F" },
+  { name:"chig okonkwo", pos:"TE", team:"TEN", tier:"F" },
+  { name:"noah fant", pos:"TE", team:"CIN", tier:"F" },
+  { name:"mike gesicki", pos:"TE", team:"CIN", tier:"F" },
+  { name:"cole kmet", pos:"TE", team:"CHI", tier:"F" },
+  { name:"cade stover", pos:"TE", team:"HOU", tier:"F" },
+  { name:"jaylin noel", pos:"WR", team:"HOU", tier:"F" },
+  { name:"pat bryant", pos:"WR", team:"DEN", tier:"F" },
+  { name:"tory horton", pos:"WR", team:"SEA", tier:"F" },
+  { name:"jayden higgins", pos:"WR", team:"HOU", tier:"F" },
+  { name:"tai felton", pos:"WR", team:"MIN", tier:"F" },
+  { name:"luther burden iii", pos:"WR", team:"CHI", tier:"F" },
+  { name:"jack bech", pos:"WR", team:"LV", tier:"F" },
+  { name:"isaac tezlaw", pos:"WR", team:"DET", tier:"F" },
+  { name:"andrei iosivas", pos:"WR", team:"CIN", tier:"F" },
+  { name:"dyami brown", pos:"WR", team:"JAX", tier:"F" },
+  { name:"jalen tolbert", pos:"WR", team:"DAL", tier:"F" },
+  { name:"marvin mims jr.", pos:"WR", team:"DEN", tier:"F" },
+  { name:"cedric tillman", pos:"WR", team:"CLE", tier:"F" },
+  { name:"roman wilson", pos:"WR", team:"PIT", tier:"F" },
+  { name:"ad mitchell", pos:"WR", team:"IND", tier:"F" },
+  { name:"ricky white iii", pos:"WR", team:"SEA", tier:"F" },
+  { name:"brashard smith", pos:"RB", team:"KC", tier:"F" },
+  { name:"ollie gordon ii", pos:"RB", team:"MIA", tier:"F" },
+  { name:"jarquez hunter", pos:"RB", team:"LAR", tier:"F" },
+  { name:"damien martinez", pos:"RB", team:"SEA", tier:"F" },
+  { name:"lequint allen", pos:"RB", team:"JAX", tier:"F" },
+  { name:"dylan sampson", pos:"RB", team:"CLE", tier:"F" },
+  { name:"kaleb johnson", pos:"RB", team:"PIT", tier:"F" },
+  { name:"jaydon blue", pos:"RB", team:"DAL", tier:"F" },
+  { name:"devin neal", pos:"RB", team:"NO", tier:"F" },
+  { name:"cam ward", pos:"QB", team:"TEN", tier:"F" },
+  { name:"shedeur sanders", pos:"QB", team:"CLE", tier:"F" },
+  { name:"tyler shough", pos:"QB", team:"NO", tier:"F" },
+  { name:"mason rudolph", pos:"QB", team:"PIT", tier:"F" },
+  { name:"spencer rattler", pos:"QB", team:"NO", tier:"F" },
+  { name:"jake ferguson", pos:"TE", team:"DAL", tier:"F" },
+  { name:"theo johnson", pos:"TE", team:"NYG", tier:"F" },
+  { name:"ben sinnott", pos:"TE", team:"WAS", tier:"F" },
+  { name:"ja'tavion sanders", pos:"TE", team:"CAR", tier:"F" },
+  { name:"tip reiman", pos:"TE", team:"ARI", tier:"F" }
+
+];
+
 function normalizeExpertPlayerName(name) {
 
   return String(name || '')
