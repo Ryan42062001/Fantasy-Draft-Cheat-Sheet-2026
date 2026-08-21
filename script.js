@@ -10542,7 +10542,8 @@ function calculateDraftRunOpportunity(player, context){
 function calculateVorpProfile(
   player,
   players,
-  replacements
+  replacements,
+  draftState
 ) {
 
   var replacement =
@@ -10571,14 +10572,19 @@ function calculateVorpProfile(
     );
 
 
-  /*
-   * -------------------------------------------------------
-   * DRAFT STATE
-   * -------------------------------------------------------
-   */
+/*
+ * -------------------------------------------------------
+ * DRAFT STATE
+ * -------------------------------------------------------
+ *
+ * Prefer the shared draft-state snapshot supplied by the
+ * caller. Only rebuild it when this function is used
+ * independently.
+ */
 
-  var draftState =
-    getDraftAssistantState();
+draftState =
+  draftState ||
+  getDraftAssistantState();
 
 
   /*
@@ -10708,15 +10714,27 @@ function calculateAllFantasyVorp(players) {
   perfStart =
     performance.now();
 
+  /*
+ * -------------------------------------------------------
+ * SHARED DRAFT STATE
+ * -------------------------------------------------------
+ *
+ * Every VORP profile in this batch sees the same draft
+ * state, so calculate it once instead of once per player.
+ */
+
+var draftState =
+  getDraftAssistantState();
 
   var profiles =
     available.map(function(player) {
 
-      return calculateVorpProfile(
-        player,
-        available,
-        replacements
-      );
+return calculateVorpProfile(
+  player,
+  available,
+  replacements,
+  draftState
+);
 
     });
 
