@@ -929,3 +929,59 @@ details[open] .details-label-less {
   display: inline;
 }
 
+/* -------------------------------------------------------
+   MOBILE COLLAPSIBLE INTELLIGENCE PANELS
+   ------------------------------------------------------- */
+
+.mobile-collapse-summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: #a9c2ab;
+}
+
+.mobile-collapse-summary::-webkit-details-marker {
+  display: none;
+}
+
+.mobile-collapse-summary::marker {
+  content: "";
+}
+
+.mobile-collapse-content {
+  margin-top: 10px;
+}
+
+.mobile-collapse-arrow::after {
+  content: "▾";
+}
+
+.mobile-collapse-panel[open]
+.mobile-collapse-arrow::after {
+  content: "▴";
+}
+
+
+/*
+ * Desktop:
+ * keep intelligence panels expanded
+ * and hide the collapse arrow.
+ */
+
+@media (min-width: 769px) {
+
+  .mobile-collapse-panel >
+  .mobile-collapse-summary {
+    pointer-events: none;
+  }
+
+  .mobile-collapse-arrow {
+    display: none;
+  }
+
+}
