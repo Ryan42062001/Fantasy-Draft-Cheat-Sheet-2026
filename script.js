@@ -11348,36 +11348,25 @@ function initApp() {
   addMobileHandcuffLabels();
 
   ['pcTeams', 'pcSlot', 'pcRounds'].forEach(function(id) {
-
-    var el =
-      document.getElementById(id);
+    var el = document.getElementById(id);
 
     if (el) {
-
-      el.addEventListener(
-        'change',
-        updatePickSettings
-      );
-
-      el.addEventListener(
-        'input',
-        updatePickSettings
-      );
-
+      el.addEventListener('change', updatePickSettings);
+      el.addEventListener('input', updatePickSettings);
     }
-
   });
 
 
   /*
-   * Expert rankings define the authoritative
-   * player population and order.
+   * Build the authoritative 2026 expert board
+   * BEFORE restoring saved draft state.
    */
   build2026ExpertBoardStructure();
 
 
   /*
-   * Restore user draft state onto that board.
+   * Restore league settings and drafted/taken
+   * state onto the rebuilt board.
    */
   loadState();
 
