@@ -83,10 +83,28 @@
     <div id="recommended-pick-text">Tap a player to start tracking your team, and I'll suggest your best pick here.</div>
   </div>
 
-  <div class="widget-box" id="dashboard-widget" style="background: rgba(95, 168, 124, 0.1); border-color: #5fa87c;">
-    <div class="widget-title" style="color: #a9c2ab;">📊 Position Scarcity</div>
-    <div id="draft-day-dashboard" style="min-height: 80px;"></div>
-  </div>
+<div class="widget-box" id="dashboard-widget" style="background: rgba(95, 168, 124, 0.1); border-color: #5fa87c;">
+
+  <details class="mobile-collapse-panel" id="position-scarcity-details">
+
+    <summary class="mobile-collapse-summary">
+
+      <span>📊 Position Scarcity</span>
+
+      <span class="mobile-collapse-more">▾</span>
+      <span class="mobile-collapse-less">▴</span>
+
+    </summary>
+
+    <div class="mobile-collapse-content">
+
+      <div id="draft-day-dashboard" style="min-height: 80px;"></div>
+
+    </div>
+
+  </details>
+
+</div>
 
   <div id="scarcity-alerts"></div>
 
@@ -720,3 +738,60 @@
 
 </body>
 </html>
+
+/* -------------------------------------------------------
+   MOBILE COLLAPSIBLE INTELLIGENCE PANELS
+   ------------------------------------------------------- */
+
+.mobile-collapse-summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: #a9c2ab;
+}
+
+.mobile-collapse-summary::-webkit-details-marker {
+  display: none;
+}
+
+.mobile-collapse-less {
+  display: none;
+}
+
+.mobile-collapse-panel[open] .mobile-collapse-more {
+  display: none;
+}
+
+.mobile-collapse-panel[open] .mobile-collapse-less {
+  display: inline;
+}
+
+.mobile-collapse-content {
+  margin-top: 10px;
+}
+
+
+/*
+ * Desktop:
+ * keep Position Scarcity expanded.
+ */
+
+@media (min-width: 769px) {
+
+  .mobile-collapse-panel > .mobile-collapse-summary {
+    pointer-events: none;
+  }
+
+  .mobile-collapse-panel > .mobile-collapse-summary
+  .mobile-collapse-more,
+  .mobile-collapse-panel > .mobile-collapse-summary
+  .mobile-collapse-less {
+    display: none;
+  }
+
+}
