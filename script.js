@@ -8494,6 +8494,11 @@ if (fallbackPath) {
     state
   );
 
+  turnHtml +=
+  buildDynamicStrategyHtml(
+    state
+  );
+
     /*
      * PICK 1
      */
