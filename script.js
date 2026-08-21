@@ -2005,6 +2005,218 @@ function debugDraftPathForecast() {
 
 }
 
+function compareDraftPathForecasts(
+  scoredPlayers,
+  context,
+  limit
+) {
+
+  scoredPlayers =
+    Array.isArray(scoredPlayers)
+      ? scoredPlayers
+      : [];
+
+  context =
+    context || {};
+
+  limit =
+    Number(limit) || 3;
+
+
+  var candidates =
+    scoredPlayers
+      .filter(function(player) {
+
+        return (
+          player &&
+          player.available !== false
+        );
+
+      })
+      .slice(
+        0,
+        Math.max(
+          limit,
+          1
+        )
+      );
+
+
+  var forecasts =
+    candidates
+      .map(function(player) {
+
+        return buildDraftPathForecast(
+          player,
+          context
+        );
+
+      })
+      .filter(Boolean);
+
+
+  forecasts.sort(function(a, b) {
+
+    return (
+      Number(b.packageValue || 0) -
+      Number(a.packageValue || 0)
+    );
+
+  });
+
+
+  var bestPackageValue =
+    forecasts.length
+      ? Number(
+          forecasts[0].packageValue
+        ) || 0
+      : 0;
+
+
+  forecasts.forEach(
+    function(path, index) {
+
+      var nextPath =
+        forecasts[index + 1] ||
+        null;
+
+
+      path.rank =
+        index + 1;
+
+
+      path.gapFromBest =
+        Number(
+          (
+            bestPackageValue -
+            Number(
+              path.packageValue || 0
+            )
+          ).toFixed(2)
+        );
+
+
+      path.gapToNext =
+        nextPath
+          ? Number(
+              (
+                Number(
+                  path.packageValue || 0
+                ) -
+                Number(
+                  nextPath.packageValue || 0
+                )
+              ).toFixed(2)
+            )
+          : 0;
+
+
+      path.isBestPath =
+        index === 0;
+
+    }
+  );
+
+
+  return {
+
+    bestPath:
+      forecasts.length
+        ? forecasts[0]
+        : null,
+
+    forecasts:
+      forecasts,
+
+    count:
+      forecasts.length
+
+  };
+
+}
+
+function debugDraftPathComparison() {
+
+  var state =
+    buildLiveDraftDebugState();
+
+
+  if (
+    !state ||
+    !state.scored ||
+    !state.scored.length
+  ) {
+
+    console.warn(
+      'No live scored players available.'
+    );
+
+    return null;
+
+  }
+
+
+  var comparison =
+    compareDraftPathForecasts(
+      state.scored,
+      state.context,
+      3
+    );
+
+
+  console.table(
+    comparison.forecasts.map(
+      function(path) {
+
+        return {
+
+          rank:
+            path.rank,
+
+          current:
+            path.currentPlayer,
+
+          path:
+            path.positionPath,
+
+          packageValue:
+            Number(
+              path.packageValue
+            ).toFixed(1),
+
+          gapFromBest:
+            Number(
+              path.gapFromBest
+            ).toFixed(1),
+
+          gapToNext:
+            Number(
+              path.gapToNext
+            ).toFixed(1),
+
+          confidence:
+            path.confidence,
+
+          avgFutureSurvival:
+            Number(
+              path.averageFutureSurvival
+            ).toFixed(1)
+
+        };
+
+      }
+    )
+  );
+
+
+  window.latestDraftPathComparison =
+    comparison;
+
+
+  return comparison;
+
+}
+
 function calculatePackagePathAdvantage(
   player,
   scoredPlayers,
@@ -20623,6 +20835,50 @@ test.assert(
       rounds: 16
     }
   ) < 0
+);
+
+  var phase11Comparison =
+  compareDraftPathForecasts(
+    [rbOne, rbReplacement],
+    context,
+    2
+  );
+
+
+test.assert(
+  'Draft path comparison returns result',
+  !!phase11Comparison
+);
+
+
+test.assert(
+  'Draft path comparison returns forecast array',
+  Array.isArray(
+    phase11Comparison.forecasts
+  )
+);
+
+
+test.assert(
+  'Draft path comparison ranks best path first',
+  !phase11Comparison.bestPath ||
+  phase11Comparison.bestPath.rank === 1
+);
+
+
+test.assert(
+  'Draft path comparison gap from best is non-negative',
+  phase11Comparison.forecasts.every(
+    function(path) {
+
+      return (
+        Number(
+          path.gapFromBest
+        ) >= 0
+      );
+
+    }
+  )
 );
 
 test.assert(
