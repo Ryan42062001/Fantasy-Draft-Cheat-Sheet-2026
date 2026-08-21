@@ -10543,7 +10543,8 @@ function calculateVorpProfile(
   player,
   players,
   replacements,
-  draftState
+  draftState,
+  draftAwareContext
 ) {
 
   var replacement =
@@ -10616,17 +10617,20 @@ draftState =
    * before our next pick.
    */
 
-  var draftAwareVorpOpportunity =
-    calculateDraftAwareVorpOpportunity(
-      player,
-      {
-        players:
-          players,
+var draftAwareVorpOpportunity =
+  calculateDraftAwareVorpOpportunity(
+    player,
+    draftAwareContext || {
+      players:
+        players,
 
-        replacements:
-          replacements
-      }
-    );
+      replacements:
+        replacements,
+
+      draftState:
+        draftState
+    }
+  );
 
 
   /*
@@ -10726,17 +10730,174 @@ function calculateAllFantasyVorp(players) {
 var draftState =
   getDraftAssistantState();
 
-  var profiles =
-    available.map(function(player) {
 
-return calculateVorpProfile(
-  player,
-  available,
-  replacements,
-  draftState
+/*
+ * -------------------------------------------------------
+ * SHARED DRAFT-AWARE VORP DATA
+ * -------------------------------------------------------
+ *
+ * Every profile in this batch uses the same available
+ * player pool and draft window.
+ *
+ * Build the expensive sorted positional pools and
+ * pressure sample once rather than once per player.
+ */
+
+var draftWindow =
+  calculateMyNextDraftPick(
+    Number(draftState.currentPick) || 0,
+    Number(draftState.teams) || 10
+  );
+
+
+var draftAwarePositionPools = {};
+
+
+['QB', 'RB', 'WR', 'TE'].forEach(
+  function(position) {
+
+    draftAwarePositionPools[position] =
+      available
+        .filter(function(candidate) {
+
+          return (
+            candidate &&
+            candidate.available !== false &&
+            (
+              candidate.position ||
+              candidate.pos
+            ) === position &&
+            candidate.rank
+          );
+
+        })
+        .slice()
+        .sort(function(a, b) {
+
+          return (
+            Number(a.rank) -
+            Number(b.rank)
+          );
+
+        });
+
+  }
 );
 
-    });
+
+var pressureSampleSize =
+  Math.min(
+    100,
+    available.length
+  );
+
+
+var draftAwarePressureSample =
+  available
+    .filter(function(candidate) {
+
+      return (
+        candidate &&
+        candidate.available !== false &&
+        candidate.rank &&
+        VORP_POSITIONS.includes(
+          candidate.position
+        )
+      );
+
+    })
+    .slice()
+    .sort(function(a, b) {
+
+      return (
+        Number(a.rank) -
+        Number(b.rank)
+      );
+
+    })
+    .slice(
+      0,
+      pressureSampleSize
+    );
+
+
+var draftAwarePositionShares = {};
+
+
+['QB', 'RB', 'WR', 'TE'].forEach(
+  function(position) {
+
+    var positionCount =
+      draftAwarePressureSample
+        .filter(function(candidate) {
+
+          return (
+            candidate.position ===
+            position
+          );
+
+        })
+        .length;
+
+
+    var positionShare =
+      draftAwarePressureSample.length > 0
+        ? positionCount /
+          draftAwarePressureSample.length
+        : 0;
+
+
+    draftAwarePositionShares[position] =
+      Math.max(
+        0.05,
+        Math.min(
+          0.45,
+          positionShare
+        )
+      );
+
+  }
+);
+
+
+var sharedDraftAwareContext = {
+
+  players:
+    available,
+
+  replacements:
+    replacements,
+
+  draftState:
+    draftState,
+
+  draftWindow:
+    draftWindow,
+
+  positionPools:
+    draftAwarePositionPools,
+
+  pressureSample:
+    draftAwarePressureSample,
+
+  positionShares:
+    draftAwarePositionShares
+
+};
+
+
+var profiles =
+  available.map(function(player) {
+
+    return calculateVorpProfile(
+      player,
+      available,
+      replacements,
+      draftState,
+      sharedDraftAwareContext
+    );
+
+  });
 
 
   console.log(
@@ -10861,26 +11022,41 @@ function calculateDraftAwareVorpOpportunity(player, context){
   }
 
 
- var draftState =
+var draftState =
+  context.draftState ||
   getDraftAssistantState();
 
+
 var currentPick =
-  Number(draftState.currentPick) || 0;
+  Number(
+    draftState.currentPick
+  ) || 0;
+
 
 var teams =
-  Number(draftState.teams) || 10;
+  Number(
+    draftState.teams
+  ) || 10;
+
 
 var draftWindow =
+  context.draftWindow ||
   calculateMyNextDraftPick(
     currentPick,
     teams
   );
 
+
 var nextPick =
-  draftWindow.nextPick;
+  Number(
+    draftWindow.nextPick
+  ) || 0;
+
 
 var picksUntilNext =
-  draftWindow.picksBetween;
+  Number(
+    draftWindow.picksBetween
+  ) || 0;
 
   /*
    * If we're already on the clock, there is no waiting
@@ -10897,23 +11073,33 @@ var picksUntilNext =
    * -------------------------------------------------------
    */
 
-  var positionPool =
-    players
-      .filter(function(candidate){
+var positionPool =
+  context.positionPools &&
+  context.positionPools[position]
+    ? context.positionPools[position]
+    : players
+        .filter(function(candidate) {
 
-        return candidate &&
-          candidate.available &&
-          (candidate.position ||
-           candidate.pos) === position &&
-          candidate.rank;
+          return (
+            candidate &&
+            candidate.available !== false &&
+            (
+              candidate.position ||
+              candidate.pos
+            ) === position &&
+            candidate.rank
+          );
 
-      })
-      .sort(function(a,b){
+        })
+        .slice()
+        .sort(function(a, b) {
 
-        return Number(a.rank) -
-               Number(b.rank);
+          return (
+            Number(a.rank) -
+            Number(b.rank)
+          );
 
-      });
+        });
 
 
   if(!positionPool.length){
@@ -10985,6 +11171,25 @@ var picksUntilNext =
    * We look at the top available players and determine
    * how frequently this position occurs.
    */
+ var positionShare;
+
+
+if (
+  context.positionShares &&
+  Number.isFinite(
+    Number(
+      context.positionShares[position]
+    )
+  )
+) {
+
+  positionShare =
+    Number(
+      context.positionShares[position]
+    );
+
+} else {
+
   var pressureSampleSize =
     Math.min(
       100,
@@ -10994,21 +11199,25 @@ var picksUntilNext =
 
   var pressureSample =
     players
-      .filter(function(candidate){
+      .filter(function(candidate) {
 
-        return candidate &&
-          candidate.available &&
+        return (
+          candidate &&
+          candidate.available !== false &&
           candidate.rank &&
           VORP_POSITIONS.includes(
             candidate.position
-          );
+          )
+        );
 
       })
       .slice()
-      .sort(function(a,b){
+      .sort(function(a, b) {
 
-        return Number(a.rank) -
-               Number(b.rank);
+        return (
+          Number(a.rank) -
+          Number(b.rank)
+        );
 
       })
       .slice(
@@ -11018,30 +11227,25 @@ var picksUntilNext =
 
 
   var positionCount =
-    pressureSample.filter(function(candidate){
+    pressureSample
+      .filter(function(candidate) {
 
-      return (
-        candidate.position ===
-        position
-      );
+        return (
+          candidate.position ===
+          position
+        );
 
-    }).length;
+      })
+      .length;
 
 
-  var positionShare =
+  positionShare =
     pressureSample.length > 0
       ? positionCount /
         pressureSample.length
       : 0;
 
 
-  /*
-   * Don't allow the estimate to become absurdly
-   * aggressive or conservative.
-   *
-   * Minimum 5%
-   * Maximum 45%
-   */
   positionShare =
     Math.max(
       0.05,
@@ -11050,6 +11254,8 @@ var picksUntilNext =
         positionShare
       )
     );
+
+}
 
 
   /*
