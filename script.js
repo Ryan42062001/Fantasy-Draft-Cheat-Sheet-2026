@@ -6080,6 +6080,12 @@ window.latestDraftExplanation =
     state
   );
 
+    turnHtml +=
+  buildDraftIntelligenceHtml(
+    primary,
+    state
+  );
+
     /*
      * PICK 1
      */
@@ -6282,6 +6288,12 @@ window.latestDraftExplanation =
   html +=
   buildUrgencyIndicatorHtml(
     recommendation,
+    primary,
+    state
+  );
+
+  html +=
+  buildDraftIntelligenceHtml(
     primary,
     state
   );
@@ -6737,6 +6749,235 @@ function buildUrgencyIndicatorHtml(
       symbol +
       ' ' +
       label +
+    '</div>'
+  );
+
+}
+
+function buildDraftIntelligenceHtml(
+  primary,
+  state
+) {
+
+  if (
+    !primary ||
+    !state ||
+    !state.context
+  ) {
+
+    return '';
+
+  }
+
+
+  var context =
+    state.context;
+
+
+  var output =
+    '';
+
+
+  /*
+   * -------------------------------------------------------
+   * OPPONENT THREAT
+   * -------------------------------------------------------
+   *
+   * Only show this when opponents actually pick before
+   * our next selection.
+   */
+
+  var picksBetween =
+    Number(
+      context.calculatedPicksUntilNext
+    );
+
+
+  if (!Number.isFinite(picksBetween)) {
+
+    var teams =
+      Number(context.teams) || 10;
+
+    var currentPick =
+      Number(context.currentPick) || 0;
+
+    var nextPickInfo =
+      calculateMyNextDraftPick(
+        currentPick,
+        teams
+      );
+
+
+    picksBetween =
+      nextPickInfo
+        ? Number(
+            nextPickInfo.picksBetween
+          ) || 0
+        : 0;
+
+  }
+
+
+  if (picksBetween > 0) {
+
+    var threatSummary =
+      summarizeOpponentDraftThreat(
+        primary,
+        context
+      );
+
+
+    if (
+      threatSummary &&
+      threatSummary.position
+    ) {
+
+      var threatLabel =
+        threatSummary.label ||
+        'LOW';
+
+
+      var threatSymbol =
+        threatLabel === 'HIGH'
+          ? '&#9888;'
+          : threatLabel === 'MODERATE'
+            ? '&#9651;'
+            : '&#10003;';
+
+
+      output +=
+        '<div style="' +
+          'font-size:0.68rem;' +
+          'line-height:1.35;' +
+          'margin-bottom:5px;' +
+          'color:#a9c2ab;' +
+        '">' +
+
+          threatSymbol +
+          ' <b>OPPONENTS</b> &middot; ' +
+
+          threatSummary.threateningTeams +
+          ' team' +
+          (
+            threatSummary.threateningTeams === 1
+              ? ''
+              : 's'
+          ) +
+
+          ' have meaningful ' +
+          threatSummary.position +
+          ' demand' +
+
+          ' &middot; ' +
+          threatLabel +
+          ' threat' +
+
+        '</div>';
+
+    }
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * LIVE POSITIONAL RUN
+   * -------------------------------------------------------
+   */
+
+  var draftRuns =
+    context.draftRuns;
+
+
+  if (
+    draftRuns &&
+    draftRuns.isRun &&
+    draftRuns.position
+  ) {
+
+    var runPosition =
+      draftRuns.position;
+
+
+    var runCount =
+      Number(
+        draftRuns.count
+      ) || 0;
+
+
+    var runStrength =
+      draftRuns.strength ||
+      'NONE';
+
+
+    var startPick =
+      Number(
+        draftRuns.recentStartPick
+      ) || 0;
+
+
+    var endPick =
+      Number(
+        draftRuns.recentEndPick
+      ) || 0;
+
+
+    output +=
+      '<div style="' +
+        'font-size:0.68rem;' +
+        'line-height:1.35;' +
+        'margin-bottom:5px;' +
+        'color:#a9c2ab;' +
+      '">' +
+
+        '&#9889; <b>' +
+        runPosition +
+        ' RUN</b> &middot; ' +
+
+        runCount +
+        ' ' +
+        runPosition +
+        (
+          runCount === 1
+            ? ''
+            : 's'
+        ) +
+        ' taken' +
+
+        (
+          startPick > 0 &&
+          endPick > 0
+            ? ' in picks ' +
+              startPick +
+              '&ndash;' +
+              endPick
+            : ''
+        ) +
+
+        ' &middot; ' +
+        runStrength +
+
+      '</div>';
+
+  }
+
+
+  if (!output) {
+
+    return '';
+
+  }
+
+
+  return (
+    '<div style="' +
+      'margin-bottom:9px;' +
+      'padding:7px 9px;' +
+      'border-radius:8px;' +
+      'background:rgba(255,255,255,0.025);' +
+      'border:1px solid rgba(255,255,255,0.05);' +
+    '">' +
+      output +
     '</div>'
   );
 
