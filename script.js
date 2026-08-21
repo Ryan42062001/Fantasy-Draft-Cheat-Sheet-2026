@@ -18780,6 +18780,12 @@ function __perfMark(label) {
     skipFutureDepth:
       true,
 
+    nextPickSurvivalCache:
+  {},
+
+opponentThreatCache:
+  {},
+
     nextPick:
       draftWindow.nextPick,
 
