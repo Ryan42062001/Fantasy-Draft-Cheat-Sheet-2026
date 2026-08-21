@@ -640,11 +640,45 @@ function calculateMultiPickPositionPath(
    * -------------------------------------------------------
    */
 
-  var positions =
-    ['QB', 'RB', 'WR', 'TE'];
+var positions =
+  ['QB', 'RB', 'WR', 'TE'];
 
-  var priorities =
-    positions.map(function(pos) {
+
+/*
+ * -------------------------------------------------------
+ * CACHE FUTURE POSITION DEPTH
+ * -------------------------------------------------------
+ *
+ * Positional depth does not change between the first
+ * and second future-pick priority calculations.
+ * Calculate it once per position and reuse it.
+ */
+
+var futureDepthByPosition = {};
+
+
+positions.forEach(function(pos) {
+
+  futureDepthByPosition[pos] =
+    calculateFuturePositionDepth(
+      {
+        position:
+          pos,
+
+        rank:
+          Number(player.rank) || 999,
+
+        name:
+          '__PATH_' + pos
+      },
+      context
+    );
+
+});
+
+
+var priorities =
+  positions.map(function(pos) {
 
       var need =
         Number(needs[pos]) || 0;
@@ -687,20 +721,10 @@ function calculateMultiPickPositionPath(
        * Thin positions deserve more priority.
        */
 
-      var depth =
-        calculateFuturePositionDepth(
-          {
-            position:
-              pos,
-
-            rank:
-              Number(player.rank) || 999,
-
-            name:
-              '__PATH_' + pos
-          },
-          context
-        );
+var depth =
+  Number(
+    futureDepthByPosition[pos]
+  ) || 0;
 
       var depthUrgency =
         Math.max(
@@ -858,20 +882,10 @@ var secondPriorities =
      * Future positional depth.
      */
 
-    var depth =
-      calculateFuturePositionDepth(
-        {
-          position:
-            pos,
-
-          rank:
-            Number(player.rank) || 999,
-
-          name:
-            '__SECOND_PATH_' + pos
-        },
-        context
-      );
+var depth =
+  Number(
+    futureDepthByPosition[pos]
+  ) || 0;
 
 
     var depthUrgency =
