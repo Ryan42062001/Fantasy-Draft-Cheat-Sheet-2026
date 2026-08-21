@@ -2656,6 +2656,44 @@ function calculateOpponentDraftThreat(
     return 0;
   }
 
+  /*
+ * -------------------------------------------------------
+ * OPPONENT THREAT CACHE
+ * -------------------------------------------------------
+ *
+ * Threat is identical for players at the same position
+ * when the draft window is identical.
+ */
+
+if (!context.opponentThreatCache) {
+
+  context.opponentThreatCache =
+    {};
+
+}
+
+
+var threatCacheKey =
+  [
+    teams,
+    currentPick,
+    nextPick,
+    position
+  ].join('|');
+
+
+if (
+  context.opponentThreatCache[
+    threatCacheKey
+  ] !== undefined
+) {
+
+  return context.opponentThreatCache[
+    threatCacheKey
+  ];
+
+}
+
 
   var window =
     getTeamsPickingBeforeMyNextTurn(
@@ -2750,9 +2788,19 @@ threatPoints +=
     );
 
 
-  return Math.round(
+var roundedThreatScore =
+  Math.round(
     threatScore
   );
+
+
+context.opponentThreatCache[
+  threatCacheKey
+] =
+  roundedThreatScore;
+
+
+return roundedThreatScore;
 }
 
 function getOpponentDraftThreatDetails(
