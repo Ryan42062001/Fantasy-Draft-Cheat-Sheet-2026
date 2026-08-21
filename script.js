@@ -7359,53 +7359,6 @@ function syncRankData(){
    - Current injury / depth-chart adjustments
    ========================================================= */
 
-var EXPERT_RANKINGS_2026 = [
-  { name:"ja'marr chase", pos:"WR", team:"CIN", tier:"Sp" },
-  { name:"jahmyr gibbs", pos:"RB", team:"DET", tier:"Sp" },
-  { name:"puka nacua", pos:"WR", team:"LAR", tier:"Sp" },
-  { name:"bijan robinson", pos:"RB", team:"ATL", tier:"Sp" },
-
-  { name:"jaxon smith-njigba", pos:"WR", team:"SEA", tier:"S" },
-  { name:"amon-ra st. brown", pos:"WR", team:"DET", tier:"S" },
-  { name:"jonathan taylor", pos:"RB", team:"IND", tier:"S" },
-  { name:"ceedee lamb", pos:"WR", team:"DAL", tier:"S" },
-  { name:"justin jefferson", pos:"WR", team:"MIN", tier:"S" },
-  { name:"christian mccaffrey", pos:"RB", team:"SF", tier:"S" },
-
-  { name:"james cook iii", pos:"RB", team:"BUF", tier:"A" },
-  { name:"drake london", pos:"WR", team:"ATL", tier:"A" },
-  { name:"de'von achane", pos:"RB", team:"MIA", tier:"A" },
-  { name:"ashton jeanty", pos:"RB", team:"LV", tier:"A" },
-  { name:"chase brown", pos:"RB", team:"CIN", tier:"A" },
-  { name:"nico collins", pos:"WR", team:"HOU", tier:"A" },
-  { name:"a.j. brown", pos:"WR", team:"PHI", tier:"A" },
-  { name:"george pickens", pos:"WR", team:"DAL", tier:"A" },
-  { name:"saquon barkley", pos:"RB", team:"PHI", tier:"A" },
-  { name:"chris olave", pos:"WR", team:"NO", tier:"A" },
-  { name:"brock bowers", pos:"TE", team:"LV", tier:"A" },
-  { name:"trey mcbride", pos:"TE", team:"ARI", tier:"A" },
-  { name:"derrick henry", pos:"RB", team:"BAL", tier:"A" },
-  { name:"rashee rice", pos:"WR", team:"KC", tier:"A" },
-
-  { name:"zay flowers", pos:"WR", team:"BAL", tier:"B" },
-  { name:"kenneth walker iii", pos:"RB", team:"KC", tier:"B" },
-  { name:"kyren williams", pos:"RB", team:"LAR", tier:"B" },
-  { name:"devonta smith", pos:"WR", team:"PHI", tier:"B" },
-  { name:"emeka egbuka", pos:"WR", team:"TB", tier:"B" },
-  { name:"malik nabers", pos:"WR", team:"NYG", tier:"B" },
-  { name:"bucky irving", pos:"RB", team:"TB", tier:"B" },
-  { name:"jeremiyah love", pos:"RB", team:"ARI", tier:"B" },
-  { name:"jameson williams", pos:"WR", team:"DET", tier:"B" },
-  { name:"ladd mcconkey", pos:"WR", team:"LAC", tier:"B" },
-  { name:"garrett wilson", pos:"WR", team:"NYJ", tier:"B" },
-  { name:"tetairoa mcmillan", pos:"WR", team:"CAR", tier:"B" },
-  { name:"omarion hampton", pos:"RB", team:"LAC", tier:"B" },
-  { name:"josh jacobs", pos:"RB", team:"GB", tier:"B" },
-  { name:"colston loveland", pos:"TE", team:"CHI", tier:"B" },
-  { name:"terry mclaurin", pos:"WR", team:"WAS", tier:"B" }
-];
-
-
 function normalizeExpertPlayerName(name) {
 
   return String(name || '')
