@@ -7345,6 +7345,498 @@ function syncRankData(){
   });
 }
 
+/* =========================================================
+   2026 EXPERT MASTER RANKINGS UPDATER
+
+   League:
+   10-team PPR
+   1 QB / 2 RB / 2 WR / 1 TE / 1 FLEX / 1 K / 1 DST
+
+   Philosophy:
+   - Expert consensus backbone
+   - Paulsen / Koerner / FullTime conviction adjustments
+   - 10-team positional replacement-value adjustments
+   - Current injury / depth-chart adjustments
+   ========================================================= */
+
+var EXPERT_RANKINGS_2026 = [
+  { name:"ja'marr chase", pos:"WR", team:"CIN", tier:"Sp" },
+  { name:"jahmyr gibbs", pos:"RB", team:"DET", tier:"Sp" },
+  { name:"puka nacua", pos:"WR", team:"LAR", tier:"Sp" },
+  { name:"bijan robinson", pos:"RB", team:"ATL", tier:"Sp" },
+
+  { name:"jaxon smith-njigba", pos:"WR", team:"SEA", tier:"S" },
+  { name:"amon-ra st. brown", pos:"WR", team:"DET", tier:"S" },
+  { name:"jonathan taylor", pos:"RB", team:"IND", tier:"S" },
+  { name:"ceedee lamb", pos:"WR", team:"DAL", tier:"S" },
+  { name:"justin jefferson", pos:"WR", team:"MIN", tier:"S" },
+  { name:"christian mccaffrey", pos:"RB", team:"SF", tier:"S" },
+
+  { name:"james cook iii", pos:"RB", team:"BUF", tier:"A" },
+  { name:"drake london", pos:"WR", team:"ATL", tier:"A" },
+  { name:"de'von achane", pos:"RB", team:"MIA", tier:"A" },
+  { name:"ashton jeanty", pos:"RB", team:"LV", tier:"A" },
+  { name:"chase brown", pos:"RB", team:"CIN", tier:"A" },
+  { name:"nico collins", pos:"WR", team:"HOU", tier:"A" },
+  { name:"a.j. brown", pos:"WR", team:"PHI", tier:"A" },
+  { name:"george pickens", pos:"WR", team:"DAL", tier:"A" },
+  { name:"saquon barkley", pos:"RB", team:"PHI", tier:"A" },
+  { name:"chris olave", pos:"WR", team:"NO", tier:"A" },
+  { name:"brock bowers", pos:"TE", team:"LV", tier:"A" },
+  { name:"trey mcbride", pos:"TE", team:"ARI", tier:"A" },
+  { name:"derrick henry", pos:"RB", team:"BAL", tier:"A" },
+  { name:"rashee rice", pos:"WR", team:"KC", tier:"A" },
+
+  { name:"zay flowers", pos:"WR", team:"BAL", tier:"B" },
+  { name:"kenneth walker iii", pos:"RB", team:"KC", tier:"B" },
+  { name:"kyren williams", pos:"RB", team:"LAR", tier:"B" },
+  { name:"devonta smith", pos:"WR", team:"PHI", tier:"B" },
+  { name:"emeka egbuka", pos:"WR", team:"TB", tier:"B" },
+  { name:"malik nabers", pos:"WR", team:"NYG", tier:"B" },
+  { name:"bucky irving", pos:"RB", team:"TB", tier:"B" },
+  { name:"jeremiyah love", pos:"RB", team:"ARI", tier:"B" },
+  { name:"jameson williams", pos:"WR", team:"DET", tier:"B" },
+  { name:"ladd mcconkey", pos:"WR", team:"LAC", tier:"B" },
+  { name:"garrett wilson", pos:"WR", team:"NYJ", tier:"B" },
+  { name:"tetairoa mcmillan", pos:"WR", team:"CAR", tier:"B" },
+  { name:"omarion hampton", pos:"RB", team:"LAC", tier:"B" },
+  { name:"josh jacobs", pos:"RB", team:"GB", tier:"B" },
+  { name:"colston loveland", pos:"TE", team:"CHI", tier:"B" },
+  { name:"terry mclaurin", pos:"WR", team:"WAS", tier:"B" }
+];
+
+
+function normalizeExpertPlayerName(name) {
+
+  return String(name || '')
+    .toLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/\./g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+}
+
+
+function findDraftRowByExpertName(name) {
+
+  var normalized =
+    normalizeExpertPlayerName(name);
+
+  var rows =
+    Array.from(
+      document.querySelectorAll(
+        'tr.draftrow'
+      )
+    );
+
+  return rows.find(function(row) {
+
+    return (
+      normalizeExpertPlayerName(
+        row.getAttribute('data-name')
+      ) === normalized
+    );
+
+  }) || null;
+
+}
+
+
+function createExpertPlayerRow(player) {
+
+  var row =
+    document.createElement('tr');
+
+  row.className =
+    'draftrow';
+
+  row.setAttribute(
+    'data-name',
+    normalizeExpertPlayerName(
+      player.name
+    )
+  );
+
+  row.setAttribute(
+    'data-pos',
+    player.pos
+  );
+
+  row.setAttribute(
+    'data-bye',
+    player.bye || ''
+  );
+
+  row.onclick =
+    function() {
+
+      if (
+        typeof toggleDraft ===
+        'function'
+      ) {
+
+        toggleDraft(row);
+
+      }
+
+    };
+
+
+  var displayName =
+    player.name
+      .split(' ')
+      .map(function(word) {
+
+        return word
+          ? word.charAt(0).toUpperCase() +
+            word.slice(1)
+          : word;
+
+      })
+      .join(' ');
+
+
+  row.innerHTML =
+    '<td>--</td>' +
+
+    '<td class="pname">' +
+      displayName +
+      ' <span class="posrk">' +
+        player.pos +
+        '--' +
+      '</span>' +
+    '</td>' +
+
+    '<td>' +
+      '<span class="pos-pill pos-' +
+        player.pos +
+      '">' +
+        player.pos +
+      '</span>' +
+    '</td>' +
+
+    '<td>' +
+      (player.team || 'FA') +
+      ' <span class="sos sos-neu">-</span>' +
+    '</td>' +
+
+    '<td>' +
+      (
+        player.adp !== undefined
+          ? player.adp
+          : '--'
+      ) +
+    '</td>' +
+
+    '<td class="valzero" ' +
+      'data-sortval="0">' +
+      '+0' +
+    '</td>' +
+
+    '<td>' +
+      (player.bye || '--') +
+    '</td>' +
+
+    '<td class="hc">' +
+      (player.handcuff || '—') +
+    '</td>' +
+
+    '<td class="notecell">' +
+      (
+        player.note ||
+        'Added by 2026 expert ranking update.'
+      ) +
+    '</td>';
+
+
+  return row;
+
+}
+
+
+function ensureExpertPlayerExists(
+  player
+) {
+
+  var existing =
+    findDraftRowByExpertName(
+      player.name
+    );
+
+  if (existing) {
+
+    return {
+      row: existing,
+      added: false
+    };
+
+  }
+
+
+  var newRow =
+    createExpertPlayerRow(
+      player
+    );
+
+
+  return {
+    row: newRow,
+    added: true
+  };
+
+}
+
+
+function getExpertTierBody(
+  tier
+) {
+
+  return (
+    document.getElementById(
+      'tbody-' + tier
+    ) ||
+    document.getElementById(
+      'tbody-F'
+    )
+  );
+
+}
+
+
+function apply2026ExpertRankings() {
+
+  console.log(
+    '===================================='
+  );
+
+  console.log(
+    'APPLYING 2026 EXPERT RANKINGS'
+  );
+
+  console.log(
+    '===================================='
+  );
+
+
+  var addedPlayers = [];
+  var movedPlayers = [];
+  var errors = [];
+
+
+  EXPERT_RANKINGS_2026
+    .forEach(function(player) {
+
+      try {
+
+        var result =
+          ensureExpertPlayerExists(
+            player
+          );
+
+        var row =
+          result.row;
+
+
+        if (!row) {
+
+          errors.push(
+            player.name
+          );
+
+          return;
+
+        }
+
+
+        var tbody =
+          getExpertTierBody(
+            player.tier
+          );
+
+
+        if (!tbody) {
+
+          errors.push(
+            player.name +
+            ' — missing tier ' +
+            player.tier
+          );
+
+          return;
+
+        }
+
+
+        tbody.appendChild(
+          row
+        );
+
+
+        if (result.added) {
+
+          addedPlayers.push(
+            player.name
+          );
+
+        } else {
+
+          movedPlayers.push(
+            player.name
+          );
+
+        }
+
+      } catch (err) {
+
+        console.error(
+          'Ranking update failed:',
+          player.name,
+          err
+        );
+
+        errors.push(
+          player.name
+        );
+
+      }
+
+    });
+
+
+  /*
+   * Recalculate all ranks using the
+   * ranking system already built
+   * into this project.
+   */
+
+  if (
+    typeof syncRankData ===
+    'function'
+  ) {
+
+    syncRankData();
+
+  }
+
+
+  if (
+    typeof syncEditControls ===
+    'function'
+  ) {
+
+    syncEditControls();
+
+  }
+
+
+  if (
+    typeof triggerAllBoardUpdates ===
+    'function'
+  ) {
+
+    triggerAllBoardUpdates();
+
+  }
+
+
+  /*
+   * Save the new order using the
+   * existing autosave system.
+   */
+
+  if (
+    typeof saveState ===
+    'function'
+  ) {
+
+    try {
+
+      saveState();
+
+    } catch (err) {
+
+      console.warn(
+        'Ranking applied, but saveState failed:',
+        err
+      );
+
+    }
+
+  }
+
+
+  console.log(
+    'Expert rankings applied.'
+  );
+
+  console.log(
+    'Existing players moved:',
+    movedPlayers.length
+  );
+
+  console.log(
+    'New players added:',
+    addedPlayers.length
+  );
+
+
+  if (addedPlayers.length) {
+
+    console.table(
+      addedPlayers.map(
+        function(name) {
+
+          return {
+            addedPlayer: name
+          };
+
+        }
+      )
+    );
+
+  }
+
+
+  if (errors.length) {
+
+    console.warn(
+      'Players with errors:',
+      errors
+    );
+
+  }
+
+
+  console.log(
+    'Total board size:',
+    document.querySelectorAll(
+      'tr.draftrow'
+    ).length
+  );
+
+
+  return {
+    rankings:
+      EXPERT_RANKINGS_2026.length,
+
+    moved:
+      movedPlayers.length,
+
+    added:
+      addedPlayers,
+
+    errors:
+      errors,
+
+    totalPlayers:
+      document.querySelectorAll(
+        'tr.draftrow'
+      ).length
+  };
+
+}
+
 // ==== EDIT RANKS ====
 
 function toggleEditMode(){
