@@ -12035,10 +12035,10 @@ var draftAwareVorpOpportunityScore =
 
 
 if (
-  Number.isFinite(
+  !Number.isFinite(
     draftAwareVorpOpportunityScore
   )
-) else {
+) {
 
   draftAwareVorpOpportunityScore =
     calculateDraftAwareVorpOpportunity(
