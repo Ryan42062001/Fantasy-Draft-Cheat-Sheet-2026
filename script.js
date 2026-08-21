@@ -11653,14 +11653,15 @@ var draftAwareVorpOpportunityScore =
     context
   );
 
-if (DEBUG_DRAFT_SCORING) [
-  
-console.log(
-  'DRAFT-AWARE VORP OPPORTUNITY:',
-  player.name,
-  'score =',
-  draftAwareVorpOpportunityScore
-);
+if (DEBUG_DRAFT_SCORING) {
+
+  console.log(
+    'DRAFT-AWARE VORP OPPORTUNITY:',
+    player.name,
+    'score =',
+    draftAwareVorpOpportunityScore
+  );
+
 }
 
 
