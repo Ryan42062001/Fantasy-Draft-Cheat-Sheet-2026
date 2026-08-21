@@ -7909,11 +7909,15 @@ window.latestDraftExplanation =
       wait.length
     ) {
 
-      reason =
-        prioritize.join(' / ') +
-        ' currently carries more urgency while ' +
-        wait.join(' / ') +
-        ' can be delayed.';
+reason =
+  prioritize.join(' / ') +
+  (
+    prioritize.length === 1
+      ? ' currently carries more urgency while '
+      : ' currently carry more urgency while '
+  ) +
+  wait.join(' / ') +
+  ' can be delayed.';
 
     } else if (
       prioritize.length
