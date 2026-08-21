@@ -10114,6 +10114,25 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /*
+ * PHASE 13D — DRAFT SETTINGS RESPONSIVE DEFAULT
+ */
+
+var draftSettingsDetails =
+  document.getElementById(
+    'draft-settings-details'
+  );
+
+if (
+  draftSettingsDetails &&
+  window.innerWidth >= 769
+) {
+
+  draftSettingsDetails.open =
+    true;
+
+}
+
+/*
  * -------------------------------------------------------
  * PHASE 13 — RECOMMENDATION DETAILS RESPONSIVE DEFAULT
  * -------------------------------------------------------
