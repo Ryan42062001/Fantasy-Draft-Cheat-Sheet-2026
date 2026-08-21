@@ -1060,3 +1060,64 @@ details[open] .details-label-less {
   }
 
 }
+
+/* =========================================================
+   PHASE 13D — DRAFT POSITION COMPRESSION
+   ========================================================= */
+
+.draft-settings-summary {
+  cursor: pointer;
+  list-style: none;
+  margin-bottom: 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #a9c2ab;
+}
+
+.draft-settings-summary::-webkit-details-marker {
+  display: none;
+}
+
+.draft-settings-less {
+  display: none;
+}
+
+.draft-settings-details[open]
+.draft-settings-more {
+  display: none;
+}
+
+.draft-settings-details[open]
+.draft-settings-less {
+  display: inline;
+}
+
+
+/* Desktop keeps the normal full controls visible. */
+@media (min-width: 769px) {
+
+  .draft-settings-details {
+    display: block;
+  }
+
+  .draft-settings-details > .draft-settings-summary {
+    display: none;
+  }
+
+}
+
+
+/* Mobile starts compact. */
+@media (max-width: 768px) {
+
+  .draft-settings-details:not([open])
+  .pc-inputs {
+    display: none;
+  }
+
+  #pick-counter-box {
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+
+}
