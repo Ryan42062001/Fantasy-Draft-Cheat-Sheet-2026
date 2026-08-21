@@ -1564,6 +1564,447 @@ if (!Number.isFinite(currentScore)) {
   };
 }
 
+/*
+ * =======================================================
+ * PHASE 11 — DRAFT PATH FORECAST
+ * =======================================================
+ *
+ * Converts the existing projected-package machinery into
+ * one standardized, UI-friendly draft path.
+ *
+ * This does NOT create new scoring logic.
+ */
+function buildDraftPathForecast(
+  player,
+  context
+) {
+
+  if (!player) {
+    return null;
+  }
+
+
+  context =
+    context || {};
+
+
+  var projectedPackage =
+    getProjectedDraftPackageCached(
+      player,
+      context
+    );
+
+
+  if (!projectedPackage) {
+    return null;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT PICK
+   * -------------------------------------------------------
+   */
+
+  var currentPick =
+    Number(
+      context.currentPick
+    ) || 0;
+
+
+  var currentPosition =
+    player.position ||
+    player.pos ||
+    projectedPackage.currentPosition ||
+    null;
+
+
+  /*
+   * -------------------------------------------------------
+   * PATH CONFIDENCE
+   * -------------------------------------------------------
+   *
+   * Confidence describes how believable the FUTURE path is.
+   *
+   * It is deliberately separate from recommendation
+   * confidence.
+   */
+
+  var firstSurvival =
+    Number(
+      projectedPackage.firstSurvival
+    ) || 0;
+
+
+  var secondSurvival =
+    Number(
+      projectedPackage.secondSurvival
+    ) || 0;
+
+
+  var completeFuturePicks =
+    Number(
+      projectedPackage.completeFuturePicks
+    ) || 0;
+
+
+  var averageFutureSurvival =
+    0;
+
+
+  if (completeFuturePicks === 2) {
+
+    averageFutureSurvival =
+      (
+        firstSurvival +
+        secondSurvival
+      ) / 2;
+
+  } else if (
+    completeFuturePicks === 1
+  ) {
+
+    averageFutureSurvival =
+      firstSurvival ||
+      secondSurvival;
+
+  }
+
+
+  var confidenceScore =
+    averageFutureSurvival;
+
+
+  /*
+   * Missing projected selections should lower confidence.
+   */
+
+  if (completeFuturePicks === 1) {
+
+    confidenceScore -= 20;
+
+  } else if (
+    completeFuturePicks === 0
+  ) {
+
+    confidenceScore = 0;
+
+  }
+
+
+  confidenceScore =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        confidenceScore
+      )
+    );
+
+
+  var confidence =
+    confidenceScore >= 75
+      ? 'HIGH'
+      : confidenceScore >= 50
+        ? 'MODERATE'
+        : 'LOW';
+
+
+  /*
+   * -------------------------------------------------------
+   * PATH STEPS
+   * -------------------------------------------------------
+   */
+
+  var steps = [
+    {
+      order:
+        1,
+
+      pick:
+        currentPick,
+
+      player:
+        player.name || null,
+
+      position:
+        currentPosition,
+
+      projected:
+        false,
+
+      score:
+        Number(
+          projectedPackage.currentScore
+        ) || 0,
+
+      survival:
+        100
+    }
+  ];
+
+
+  if (
+    projectedPackage.firstPick
+  ) {
+
+    steps.push({
+      order:
+        2,
+
+      pick:
+        Number(
+          projectedPackage.firstPick
+        ) || 0,
+
+      player:
+        projectedPackage.firstPlayer ||
+        null,
+
+      position:
+        projectedPackage.firstPosition ||
+        null,
+
+      projected:
+        true,
+
+      score:
+        Number(
+          projectedPackage.firstPlayerScore
+        ) || 0,
+
+      survival:
+        firstSurvival,
+
+      projectedValue:
+        Number(
+          projectedPackage.firstProjectedValue
+        ) || 0
+    });
+
+  }
+
+
+  if (
+    projectedPackage.secondPick
+  ) {
+
+    steps.push({
+      order:
+        3,
+
+      pick:
+        Number(
+          projectedPackage.secondPick
+        ) || 0,
+
+      player:
+        projectedPackage.secondPlayer ||
+        null,
+
+      position:
+        projectedPackage.secondPosition ||
+        null,
+
+      projected:
+        true,
+
+      score:
+        Number(
+          projectedPackage.secondPlayerScore
+        ) || 0,
+
+      survival:
+        secondSurvival,
+
+      projectedValue:
+        Number(
+          projectedPackage.secondProjectedValue
+        ) || 0
+    });
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * PATH LABEL
+   * -------------------------------------------------------
+   */
+
+  var positionPath =
+    steps
+      .map(function(step) {
+
+        return (
+          step.position ||
+          '?'
+        );
+
+      })
+      .join(' → ');
+
+
+  return {
+
+    currentPlayer:
+      player.name || null,
+
+    currentPosition:
+      currentPosition,
+
+    currentPick:
+      currentPick,
+
+    positionPath:
+      positionPath,
+
+    steps:
+      steps,
+
+    packageValue:
+      Number(
+        projectedPackage.packageValue
+      ) || 0,
+
+    completeFuturePicks:
+      completeFuturePicks,
+
+    averageFutureSurvival:
+      Number(
+        averageFutureSurvival.toFixed(1)
+      ),
+
+    confidenceScore:
+      Number(
+        confidenceScore.toFixed(1)
+      ),
+
+    confidence:
+      confidence,
+
+    firstPick:
+      projectedPackage.firstPick,
+
+    firstPlayer:
+      projectedPackage.firstPlayer,
+
+    firstPosition:
+      projectedPackage.firstPosition,
+
+    firstSurvival:
+      firstSurvival,
+
+    secondPick:
+      projectedPackage.secondPick,
+
+    secondPlayer:
+      projectedPackage.secondPlayer,
+
+    secondPosition:
+      projectedPackage.secondPosition,
+
+    secondSurvival:
+      secondSurvival,
+
+    rawPackage:
+      projectedPackage
+
+  };
+
+}
+
+function debugDraftPathForecast() {
+
+  var state =
+    buildLiveDraftDebugState();
+
+
+  if (
+    !state ||
+    !state.scored ||
+    !state.scored.length
+  ) {
+
+    console.warn(
+      'No live recommendation state available.'
+    );
+
+    return null;
+
+  }
+
+
+  var topPlayers =
+    state.scored.slice(
+      0,
+      3
+    );
+
+
+  var forecasts =
+    topPlayers
+      .map(function(player) {
+
+        return buildDraftPathForecast(
+          player,
+          state.context
+        );
+
+      })
+      .filter(Boolean);
+
+
+  console.table(
+    forecasts.map(function(path) {
+
+      return {
+
+        current:
+          path.currentPlayer,
+
+        path:
+          path.positionPath,
+
+        nextPick:
+          path.firstPick,
+
+        nextPlayer:
+          path.firstPlayer,
+
+        nextSurvival:
+          path.firstSurvival,
+
+        secondPick:
+          path.secondPick,
+
+        secondPlayer:
+          path.secondPlayer,
+
+        secondSurvival:
+          path.secondSurvival,
+
+        packageValue:
+          Number(
+            path.packageValue
+          ).toFixed(1),
+
+        confidence:
+          path.confidence
+      };
+
+    })
+  );
+
+
+  window.latestDraftPathForecasts =
+    forecasts;
+
+
+  return forecasts;
+
+}
+
 function calculatePackagePathAdvantage(
   player,
   scoredPlayers,
@@ -20087,6 +20528,52 @@ if (scored) {
     }
   ).recommendation,
   'DRAFT'
+);
+
+var phase11Forecast =
+  buildDraftPathForecast(
+    rbOne,
+    context
+  );
+
+
+test.assert(
+  'Draft path forecast returns result',
+  !!phase11Forecast
+);
+
+
+test.assert(
+  'Draft path forecast returns three-step array',
+  !!(
+    phase11Forecast &&
+    Array.isArray(
+      phase11Forecast.steps
+    ) &&
+    phase11Forecast.steps.length >= 1 &&
+    phase11Forecast.steps.length <= 3
+  )
+);
+
+
+test.assert(
+  'Draft path forecast returns position path',
+  !!(
+    phase11Forecast &&
+    typeof phase11Forecast.positionPath ===
+      'string' &&
+    phase11Forecast.positionPath.length > 0
+  )
+);
+
+
+test.between(
+  'Draft path confidence stays 0–100',
+  phase11Forecast
+    ? phase11Forecast.confidenceScore
+    : 0,
+  0,
+  100
 );
 
 test.assert(
