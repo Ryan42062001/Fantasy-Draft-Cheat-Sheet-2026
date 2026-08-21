@@ -7394,6 +7394,249 @@ threatLabel +
 
   }
 
+  /*
+ * -------------------------------------------------------
+ * TIER & SCARCITY INTELLIGENCE
+ * -------------------------------------------------------
+ *
+ * Only show information for the recommended player's
+ * position.
+ *
+ * This keeps the On-the-Clock card focused instead of
+ * reproducing the full Tier & Scarcity alert panel.
+ */
+
+var primaryPosition =
+  primary.position ||
+  primary.pos ||
+  null;
+
+
+if (
+  primaryPosition &&
+  ['QB', 'RB', 'WR', 'TE'].includes(
+    primaryPosition
+  )
+) {
+
+  var profiles =
+    state.vorpResult &&
+    Array.isArray(
+      state.vorpResult.profiles
+    )
+      ? state.vorpResult.profiles
+      : [];
+
+
+  var playerPool =
+    Array.isArray(
+      state.players
+    )
+      ? state.players
+      : [];
+
+
+  var tierScarcityState =
+    buildLiveTierScarcityState(
+      playerPool,
+      profiles
+    );
+
+
+  var positionState =
+    tierScarcityState &&
+    tierScarcityState.positions
+      ? tierScarcityState.positions[
+          primaryPosition
+        ]
+      : null;
+
+
+  if (positionState) {
+
+    /*
+     * -------------------------------------------------------
+     * CRITICAL CLIFF
+     * -------------------------------------------------------
+     */
+
+    if (
+      positionState.status ===
+      'CRITICAL CLIFF'
+    ) {
+
+      output +=
+        '<div style="' +
+          'font-size:0.68rem;' +
+          'line-height:1.35;' +
+          'margin-bottom:5px;' +
+          'color:#a9c2ab;' +
+        '">' +
+
+          '&#128680; <b>' +
+          primaryPosition +
+          ' CLIFF</b> &middot; ' +
+
+          positionState.playersBeforeCliff +
+          ' player' +
+          (
+            positionState.playersBeforeCliff === 1
+              ? ''
+              : 's'
+          ) +
+          ' remain before ' +
+
+          (
+            positionState.fromTier ||
+            '?'
+          ) +
+          ' &rarr; ' +
+          (
+            positionState.toTier ||
+            '?'
+          ) +
+
+          ' &middot; CRITICAL' +
+
+        '</div>';
+
+
+    /*
+     * -------------------------------------------------------
+     * TIER CLOSING
+     * -------------------------------------------------------
+     */
+
+    } else if (
+      positionState.status ===
+      'TIER CLOSING'
+    ) {
+
+      output +=
+        '<div style="' +
+          'font-size:0.68rem;' +
+          'line-height:1.35;' +
+          'margin-bottom:5px;' +
+          'color:#a9c2ab;' +
+        '">' +
+
+          '&#9888; <b>' +
+          primaryPosition +
+          ' TIER CLOSING</b> &middot; ' +
+
+          positionState.playersBeforeCliff +
+          ' player' +
+          (
+            positionState.playersBeforeCliff === 1
+              ? ''
+              : 's'
+          ) +
+          ' remain before the ' +
+
+          (
+            positionState.fromTier ||
+            '?'
+          ) +
+          ' &rarr; ' +
+          (
+            positionState.toTier ||
+            '?'
+          ) +
+          ' drop' +
+
+        '</div>';
+
+
+    /*
+     * -------------------------------------------------------
+     * HIGH SCARCITY
+     * -------------------------------------------------------
+     */
+
+    } else if (
+      positionState.status ===
+      'HIGH SCARCITY'
+    ) {
+
+      output +=
+        '<div style="' +
+          'font-size:0.68rem;' +
+          'line-height:1.35;' +
+          'margin-bottom:5px;' +
+          'color:#a9c2ab;' +
+        '">' +
+
+          '&#9888; <b>' +
+          primaryPosition +
+          ' SCARCITY</b> &middot; ' +
+
+          'high-value ' +
+          primaryPosition +
+          ' depth is thin' +
+
+        '</div>';
+
+
+    /*
+     * -------------------------------------------------------
+     * LIMITED DEPTH
+     * -------------------------------------------------------
+     */
+
+    } else if (
+      positionState.status ===
+      'LIMITED DEPTH'
+    ) {
+
+      output +=
+        '<div style="' +
+          'font-size:0.68rem;' +
+          'line-height:1.35;' +
+          'margin-bottom:5px;' +
+          'color:#a9c2ab;' +
+        '">' +
+
+          '&#9651; <b>' +
+          primaryPosition +
+          ' DEPTH</b> &middot; ' +
+
+          'remaining quality is becoming limited' +
+
+        '</div>';
+
+
+    /*
+     * -------------------------------------------------------
+     * HEALTHY DEPTH
+     * -------------------------------------------------------
+     */
+
+    } else if (
+      positionState.status ===
+      'HEALTHY DEPTH'
+    ) {
+
+      output +=
+        '<div style="' +
+          'font-size:0.68rem;' +
+          'line-height:1.35;' +
+          'margin-bottom:5px;' +
+          'color:#a9c2ab;' +
+        '">' +
+
+          '&#10003; <b>' +
+          primaryPosition +
+          ' DEPTH</b> &middot; ' +
+
+          'waiting remains reasonable' +
+
+        '</div>';
+
+    }
+
+  }
+
+}
 
   if (!output) {
 
