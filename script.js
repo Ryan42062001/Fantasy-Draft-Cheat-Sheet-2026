@@ -8024,7 +8024,8 @@ reason =
         'color:#a9c2ab;' +
       '">' +
 
-        'More details &#9662;' +
+        '<span class="details-label-more">More details &#9662;</span>' +
+'<span class="details-label-less">Less details &#9652;</span>' +
 
       '</summary>' +
 
