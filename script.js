@@ -21709,6 +21709,75 @@ test.equal(
       'Expected a positive wait-risk bonus.'
     );
 
+    /*
+ * =======================================================
+ * PHASE 12 — DYNAMIC STRATEGY STATE
+ * =======================================================
+ */
+
+test.assert(
+  'Dynamic strategy state builder exists',
+  typeof buildDynamicStrategyState ===
+    'function'
+);
+
+
+var dynamicStrategyState =
+  buildDynamicStrategyState();
+
+
+test.assert(
+  'Dynamic strategy state returns position map',
+  !!(
+    dynamicStrategyState &&
+    dynamicStrategyState.positions &&
+    dynamicStrategyState.positions.QB &&
+    dynamicStrategyState.positions.RB &&
+    dynamicStrategyState.positions.WR &&
+    dynamicStrategyState.positions.TE
+  )
+);
+
+
+test.assert(
+  'Dynamic strategy states use valid labels',
+  Object.keys(
+    dynamicStrategyState.positions
+  ).every(function(position) {
+
+    return [
+      'PRIORITIZE',
+      'MONITOR',
+      'WAIT',
+      'NEUTRAL'
+    ].includes(
+      dynamicStrategyState
+        .positions[position]
+        .state
+    );
+
+  })
+);
+
+
+test.assert(
+  'Dynamic strategy classification arrays are valid',
+  (
+    Array.isArray(
+      dynamicStrategyState
+        .priorityPositions
+    ) &&
+    Array.isArray(
+      dynamicStrategyState
+        .monitorPositions
+    ) &&
+    Array.isArray(
+      dynamicStrategyState
+        .waitPositions
+    )
+  )
+);
+
     test.equal(
       'Draft-aware VORP: missing replacements returns 0',
       calculateDraftAwareVorpOpportunity(rbOne, { players: players }),
