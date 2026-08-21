@@ -8006,8 +8006,16 @@ reason =
   }
 
 
-  return (
-    '<details style="' +
+var defaultOpen =
+  window.innerWidth >= 769
+    ? ' open'
+    : '';
+
+
+return (
+  '<details' +
+    defaultOpen +
+    ' style="' +
       'margin-top:9px;' +
     '">' +
 
