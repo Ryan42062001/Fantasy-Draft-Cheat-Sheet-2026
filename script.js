@@ -5459,6 +5459,104 @@ function updateScarcityAlertsCustom() {
 
     });
 
+  /*
+ * -------------------------------------------------------
+ * HEALTHY DEPTH SIGNAL
+ * -------------------------------------------------------
+ *
+ * Warnings tell us where we may need to act.
+ *
+ * This gives one useful counter-signal showing a
+ * position where waiting remains reasonable.
+ */
+
+var healthyPositions =
+  ['QB', 'RB', 'WR', 'TE']
+    .map(function(position) {
+
+      return (
+        scarcityState.positions[
+          position
+        ] || null
+      );
+
+    })
+    .filter(function(positionState) {
+
+      return (
+        positionState &&
+        positionState.status ===
+          'HEALTHY DEPTH'
+      );
+
+    });
+
+
+/*
+ * Prefer the position with the LOWEST scarcity.
+ *
+ * Lower scarcity means greater positional depth and
+ * therefore the strongest "safe to wait" signal.
+ */
+
+healthyPositions.sort(
+  function(a, b) {
+
+    return (
+      Number(a.scarcity || 0) -
+      Number(b.scarcity || 0)
+    );
+
+  }
+);
+
+
+var healthiestPosition =
+  healthyPositions[0] ||
+  null;
+
+
+if (healthiestPosition) {
+
+  html +=
+    '<div style="' +
+      'padding:8px 9px;' +
+      'margin-top:8px;' +
+      'border-radius:8px;' +
+      'background:rgba(95,168,124,0.06);' +
+      'border:1px solid rgba(95,168,124,0.18);' +
+    '">' +
+
+      '<div style="' +
+        'font-size:0.71rem;' +
+        'font-weight:900;' +
+        'letter-spacing:0.03em;' +
+        'color:#a9c2ab;' +
+      '">' +
+
+        '&#10003; ' +
+        healthiestPosition.position +
+        ' &middot; DEPTH HEALTHY' +
+
+      '</div>' +
+
+
+      '<div style="' +
+        'font-size:0.69rem;' +
+        'line-height:1.35;' +
+        'color:#8faa92;' +
+        'margin-top:3px;' +
+      '">' +
+
+        'Waiting at ' +
+        healthiestPosition.position +
+        ' remains reasonable' +
+
+      '</div>' +
+
+    '</div>';
+
+}
 
   html +=
     '</div>';
