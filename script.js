@@ -10082,7 +10082,33 @@ document.addEventListener('DOMContentLoaded', function() {
   // 2. Safely clean buttons once without MutationObserver loops
   removeExportImportButtons();
 
-  });
+
+  /*
+   * -------------------------------------------------------
+   * PHASE 13 — POSITION SCARCITY COLLAPSE
+   * -------------------------------------------------------
+   */
+
+  var positionScarcityDetails =
+    document.getElementById(
+      'position-scarcity-details'
+    );
+
+  if (positionScarcityDetails) {
+
+    if (
+      window.innerWidth >= 769
+    ) {
+
+      positionScarcityDetails.open =
+        true;
+
+    }
+
+  }
+
+
+});
   
   /* =========================================================
    DRAFT ASSISTANT — STAGE 1 DATA LAYER
