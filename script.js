@@ -10788,24 +10788,6 @@ return calculateVorpProfile(
 
 function calculateDraftAwareVorpOpportunity(player, context){
 
-  console.log(
-    'DRAFT-AWARE ENTER:',
-    player && player.name,
-    {
-      hasContext: !!context,
-      hasReplacements: !!(
-        context &&
-        context.replacements
-      ),
-      hasPlayers: !!(
-        context &&
-        context.players &&
-        context.players.length
-      ),
-      playerPosition:
-        player &&
-        player.position
-    }
   );
 
   if(!player || !context){
@@ -11089,20 +11071,6 @@ var picksUntilNext =
       )
     );
 
-
-  console.log(
-    'DRAFT PRESSURE:',
-    player.name,
-    'position =',
-    position,
-    'positionShare =',
-    positionShare,
-    'picksUntilNext =',
-    picksUntilNext,
-    'expectedLoss =',
-    expectedLoss
-  );
-
   /*
    * -------------------------------------------------------
    * FUTURE REPLACEMENT
@@ -11273,27 +11241,6 @@ var picksUntilNext =
     opportunityScore = 0;
 
   }
-
-
-  console.log(
-    'DRAFT-AWARE VORP:',
-    player.name,
-    'position =',
-    position,
-    'currentReplacement =',
-    currentReplacement.name,
-    currentRank,
-    'futureReplacement =',
-    futureReplacement.name,
-    futureRank,
-    'rankDrop =',
-    rankDrop,
-    'playerAdvantage =',
-    playerAdvantage,
-    'opportunityScore =',
-    opportunityScore
-  );
-
 
   return opportunityScore;
 
@@ -11939,10 +11886,24 @@ var tierCliffOpportunityScore =
   );
 
 var draftAwareVorpOpportunityScore =
-  calculateDraftAwareVorpOpportunity(
-    player,
-    context
+  Number(
+    player.draftAware
   );
+
+
+if (
+  !Number.isFinite(
+    draftAwareVorpOpportunityScore
+  )
+) {
+
+  draftAwareVorpOpportunityScore =
+    calculateDraftAwareVorpOpportunity(
+      player,
+      context
+    );
+
+}
 
 if (DEBUG_DRAFT_SCORING) {
 
