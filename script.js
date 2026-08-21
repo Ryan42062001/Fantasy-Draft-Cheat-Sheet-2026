@@ -2217,9 +2217,12 @@ function debugDraftPathComparison() {
 
 }
 
-function buildDynamicStrategyAudit() {
+function buildDynamicStrategyAudit(
+  suppliedState
+) {
 
   var state =
+    suppliedState ||
     buildLiveDraftDebugState();
 
 
@@ -2463,7 +2466,12 @@ function buildDynamicStrategyAudit() {
 
 function buildDynamicStrategyState() {
 
+function buildDynamicStrategyState(
+  suppliedAudit
+) {
+
   var audit =
+    suppliedAudit ||
     buildDynamicStrategyAudit();
 
 
