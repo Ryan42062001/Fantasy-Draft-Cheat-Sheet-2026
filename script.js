@@ -11371,6 +11371,38 @@ function initApp() {
   loadState();
 
 }
+
+function runAppInitialization() {
+
+  try {
+    initApp();
+  } catch (err) {
+    console.error(
+      'Initialization failed inside initApp():',
+      err
+    );
+  }
+
+}
+
+
+/*
+ * Run initialization whether this script loads
+ * before or after DOMContentLoaded.
+ */
+if (document.readyState === 'loading') {
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    runAppInitialization,
+    { once: true }
+  );
+
+} else {
+
+  runAppInitialization();
+
+}
   
   /* =========================================================
    DRAFT ASSISTANT — STAGE 1 DATA LAYER
