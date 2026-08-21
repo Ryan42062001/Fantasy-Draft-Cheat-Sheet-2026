@@ -6857,20 +6857,20 @@ function buildDraftIntelligenceHtml(
           ' <b>OPPONENTS</b> &middot; ' +
 
           threatSummary.threateningTeams +
-          ' team' +
-          (
-            threatSummary.threateningTeams === 1
-              ? ''
-              : 's'
-          ) +
+' team' +
+(
+  threatSummary.threateningTeams === 1
+    ? ''
+    : 's'
+) +
 
-          ' have meaningful ' +
-          threatSummary.position +
-          ' demand' +
+' could target ' +
+threatSummary.position +
+' before your next pick' +
 
-          ' &middot; ' +
-          threatLabel +
-          ' threat' +
+' &middot; ' +
+threatLabel +
+' DEMAND' +
 
         '</div>';
 
