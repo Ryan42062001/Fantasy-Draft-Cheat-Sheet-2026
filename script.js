@@ -11688,11 +11688,13 @@ console.log(
     context
   );
 
-  var multiPickPlanningScore =
-  calculateMultiPickPlanningScore(
-    player,
-    context
-  );
+var multiPickPlanningScore =
+  context.skipMultiPickPlanning
+    ? 0
+    : calculateMultiPickPlanningScore(
+        player,
+        context
+      );
 
   /*
  * -------------------------------------------------------
@@ -18597,6 +18599,9 @@ function __perfMark(label) {
     currentPick:
       draftState.currentPick,
 
+    skipMultiPickPlanning:
+      true,
+
     nextPick:
       draftWindow.nextPick,
 
@@ -18738,6 +18743,140 @@ players
     }
 
   });
+
+scored.sort(function(a, b) {
+
+  return (
+    Number(b.finalScore || 0) -
+    Number(a.finalScore || 0)
+  );
+
+});
+
+/*
+ * -------------------------------------------------------
+ * EXPENSIVE MULTI-PICK SECOND PASS
+ * -------------------------------------------------------
+ *
+ * Only the strongest first-pass candidates need the
+ * expensive multi-pick planning calculation.
+ */
+
+context.skipMultiPickPlanning =
+  false;
+
+
+var multiPickShortlist =
+  scored.slice(0, 20);
+
+
+multiPickShortlist.forEach(
+  function(scoredPlayer) {
+
+    if (
+      !scoredPlayer ||
+      !scoredPlayer.name
+    ) {
+
+      return;
+
+    }
+
+
+    var playerName =
+      String(
+        scoredPlayer.name
+      ).toLowerCase();
+
+
+    var profile =
+      vorpResult.profiles.find(
+        function(candidateProfile) {
+
+          return (
+            candidateProfile &&
+            candidateProfile.player &&
+            candidateProfile.player.name &&
+            String(
+              candidateProfile.player.name
+            ).toLowerCase() ===
+              playerName
+          );
+
+        }
+      );
+
+
+    if (!profile) {
+
+      return;
+
+    }
+
+
+    var sourcePlayer =
+      Object.assign(
+        {},
+        profile.player,
+        {
+          vorp:
+            profile.vorp,
+
+          scarcity:
+            profile.scarcity,
+
+          draftAware:
+            profile.draftAware
+        }
+      );
+
+
+    var rescoredPlayer =
+      calculateDraftDecisionScore(
+        sourcePlayer,
+        context
+      );
+
+
+    if (!rescoredPlayer) {
+
+      return;
+
+    }
+
+
+    var existingIndex =
+      scored.findIndex(
+        function(candidate) {
+
+          return (
+            candidate &&
+            candidate.name &&
+            String(
+              candidate.name
+            ).toLowerCase() ===
+              playerName
+          );
+
+        }
+      );
+
+
+    if (existingIndex >= 0) {
+
+      scored[existingIndex] =
+        rescoredPlayer;
+
+    }
+
+  }
+);
+
+
+/*
+ * The expensive adjustment can change the order,
+ * so rank the pool again.
+ */
 
 scored.sort(function(a, b) {
 
