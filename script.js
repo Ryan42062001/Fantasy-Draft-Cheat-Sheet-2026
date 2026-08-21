@@ -15653,6 +15653,25 @@ var multiPickPlanningScore =
         context
       );
 
+  var dynamicStrategyState =
+  context.dynamicStrategyState ||
+  null;
+
+
+if (!dynamicStrategyState) {
+
+  dynamicStrategyState =
+    buildDynamicStrategyState();
+
+}
+
+
+var dynamicStrategyAdjustment =
+  calculateDynamicStrategyAdjustment(
+    player,
+    dynamicStrategyState
+  );
+
   /*
  * -------------------------------------------------------
  * DRAFT-PHASE ADJUSTMENTS
@@ -15706,6 +15725,9 @@ var finalScore =
 
 finalScore +=
   strategyScore;
+
+finalScore +=
+  dynamicStrategyAdjustment;
 
 finalScore +=
   phaseAdjustedTierCliffScore;
@@ -15796,6 +15818,9 @@ phaseCoreRosterNeedAdjustment:
 
   mandatoryEndgameAdjustment:
   mandatoryEndgameAdjustment,
+
+  dynamicStrategyAdjustment:
+  dynamicStrategyAdjustment,
 
     scarcityScore:
       scarcityScore,
@@ -19980,6 +20005,94 @@ var targetDedicatedNeed = -1;
 
 }
 
+function calculateDynamicStrategyAdjustment(
+  player,
+  strategyState
+) {
+
+  if (
+    !player ||
+    !strategyState ||
+    !strategyState.positions
+  ) {
+
+    return 0;
+
+  }
+
+
+  var position =
+    player.position ||
+    player.pos ||
+    null;
+
+
+  if (!position) {
+    return 0;
+  }
+
+
+  var positionState =
+    strategyState.positions[
+      position
+    ];
+
+
+  if (!positionState) {
+    return 0;
+  }
+
+
+  var state =
+    positionState.state ||
+    'NEUTRAL';
+
+
+  var adjustment = 0;
+
+
+  if (
+    state === 'PRIORITIZE'
+  ) {
+
+    adjustment =
+      1.25;
+
+  } else if (
+    state === 'MONITOR'
+  ) {
+
+    adjustment =
+      0.50;
+
+  } else if (
+    state === 'WAIT'
+  ) {
+
+    adjustment =
+      -0.75;
+
+  }
+
+
+  /*
+   * Keep Phase 12 intentionally bounded.
+   */
+
+  adjustment =
+    Math.max(
+      -1,
+      Math.min(
+        1.5,
+        adjustment
+      )
+    );
+
+
+  return adjustment;
+
+}
+
 function generateDraftStrategyExplanation(strategy) {
 
   if(!strategy){
@@ -21894,6 +22007,54 @@ if (scored) {
     -1000,
     1000
   );
+
+  test.equal(
+  'Dynamic strategy adjustment PRIORITIZE is positive',
+  calculateDynamicStrategyAdjustment(
+    { position: 'RB' },
+    {
+      positions: {
+        RB: {
+          state: 'PRIORITIZE'
+        }
+      }
+    }
+  ),
+  1.25
+);
+
+
+test.equal(
+  'Dynamic strategy adjustment WAIT is negative',
+  calculateDynamicStrategyAdjustment(
+    { position: 'QB' },
+    {
+      positions: {
+        QB: {
+          state: 'WAIT'
+        }
+      }
+    }
+  ),
+  -0.75
+);
+
+
+test.between(
+  'Dynamic strategy adjustment stays bounded',
+  calculateDynamicStrategyAdjustment(
+    { position: 'WR' },
+    {
+      positions: {
+        WR: {
+          state: 'PRIORITIZE'
+        }
+      }
+    }
+  ),
+  -1,
+  1.5
+);
 
   test.equal(
   'Recommendation: back-to-back turn does not return WAIT',
