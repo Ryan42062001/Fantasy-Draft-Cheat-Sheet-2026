@@ -913,3 +913,19 @@ body.edit-mode tr.draftrow:hover td {
   }
 }
 
+/* -------------------------------------------------------
+   RECOMMENDATION DETAILS TOGGLE
+   ------------------------------------------------------- */
+
+.details-label-less {
+  display: none;
+}
+
+details[open] .details-label-more {
+  display: none;
+}
+
+details[open] .details-label-less {
+  display: inline;
+}
+
