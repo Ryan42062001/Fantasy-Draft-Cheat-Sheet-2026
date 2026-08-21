@@ -7997,6 +7997,50 @@ reason =
 
   }
 
+  function buildRecommendationDetailsToggleHtml(
+  detailsHtml
+) {
+
+  if (!detailsHtml) {
+    return '';
+  }
+
+
+  return (
+    '<details style="' +
+      'margin-top:9px;' +
+    '">' +
+
+      '<summary style="' +
+        'cursor:pointer;' +
+        'list-style:none;' +
+        'padding:8px 9px;' +
+        'border-radius:8px;' +
+        'font-size:0.72rem;' +
+        'font-weight:900;' +
+        'text-align:center;' +
+        'background:rgba(255,255,255,0.035);' +
+        'border:1px solid rgba(255,255,255,0.06);' +
+        'color:#a9c2ab;' +
+      '">' +
+
+        'More details &#9662;' +
+
+      '</summary>' +
+
+      '<div style="' +
+        'margin-top:8px;' +
+      '">' +
+
+        detailsHtml +
+
+      '</div>' +
+
+    '</details>'
+  );
+
+}
+
   function buildDraftPlanHtml(
   primary,
   state
@@ -8761,25 +8805,33 @@ if (fallbackPath) {
 
     '</div>';
 
-  html +=
+var detailsHtml =
+  '';
+
+
+detailsHtml +=
   buildDraftPlanHtml(
     primary,
     state
   );
 
-    html +=
-    buildDynamicStrategyHtml(
-      state
-    );
 
-  /*
-   * WHY
-   */
+detailsHtml +=
+  buildDynamicStrategyHtml(
+    state
+  );
 
-  html +=
-    buildReasonsHtml(
-      liveExplanation.reasons
-    );
+
+detailsHtml +=
+  buildReasonsHtml(
+    liveExplanation.reasons
+  );
+
+
+html +=
+  buildRecommendationDetailsToggleHtml(
+    detailsHtml
+  );
 
 
   /*
