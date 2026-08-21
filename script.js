@@ -10074,32 +10074,7 @@ function initApp() {
 
 // ==== SINGLE DOM READY LISTENER ====
 document.addEventListener('DOMContentLoaded', function() {
-  
-  // 1. Initialize core application state safely
-  try {
-    initApp();
-  } catch (err) {
-    console.error("Initialization failed inside initApp():", err);
-  }
 
-  // 2. Safely clean buttons once without MutationObserver loops
-  removeExportImportButtons();
-
-
-  /*
-   * -------------------------------------------------------
-   * PHASE 13 — POSITION SCARCITY COLLAPSE
-   * -------------------------------------------------------
-   */
-
-  var positionScarcityDetails =
-    document.getElementById(
-      'position-scarcity-details'
-    );
-
-// ==== SINGLE DOM READY LISTENER ====
-document.addEventListener('DOMContentLoaded', function() {
-  
   // 1. Initialize core application state safely
   try {
     initApp();
@@ -10126,10 +10101,7 @@ document.addEventListener('DOMContentLoaded', function() {
     positionScarcityDetails &&
     window.innerWidth >= 769
   ) {
-
-    positionScarcityDetails.open =
-      true;
-
+    positionScarcityDetails.open = true;
   }
 
 
@@ -10148,33 +10120,10 @@ document.addEventListener('DOMContentLoaded', function() {
     draftSettingsDetails &&
     window.innerWidth >= 769
   ) {
-
-    draftSettingsDetails.open =
-      true;
-
+    draftSettingsDetails.open = true;
   }
 
-
 });
-
-/*
- * PHASE 13D — DRAFT SETTINGS RESPONSIVE DEFAULT
- */
-
-var draftSettingsDetails =
-  document.getElementById(
-    'draft-settings-details'
-  );
-
-if (
-  draftSettingsDetails &&
-  window.innerWidth >= 769
-) {
-
-  draftSettingsDetails.open =
-    true;
-
-}
   
   /* =========================================================
    DRAFT ASSISTANT — STAGE 1 DATA LAYER
