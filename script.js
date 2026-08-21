@@ -2894,6 +2894,168 @@ function getOpponentDraftThreatDetails(
   };
 }
 
+function summarizeOpponentDraftThreat(
+  player,
+  context
+) {
+
+  var details =
+    getOpponentDraftThreatDetails(
+      player,
+      context
+    );
+
+
+  if (
+    !details ||
+    !Array.isArray(details.teams)
+  ) {
+
+    return {
+      position: null,
+      overallThreat: 0,
+      threateningTeams: 0,
+      strongThreatTeams: 0,
+      picksAtRisk: 0,
+      label: 'LOW',
+      summary: ''
+    };
+
+  }
+
+
+  var threateningTeams =
+    details.teams.filter(function(team) {
+
+      return (
+        Number(team.demand) > 0
+      );
+
+    });
+
+
+  var strongThreatTeams =
+    details.teams.filter(function(team) {
+
+      return (
+        Number(team.demand) >= 2
+      );
+
+    });
+
+
+  var picksAtRisk =
+    threateningTeams.reduce(
+      function(total, team) {
+
+        return (
+          total +
+          (
+            Number(
+              team.picksBeforeNextTurn
+            ) || 0
+          )
+        );
+
+      },
+      0
+    );
+
+
+  var overallThreat =
+    Number(
+      details.overallThreat
+    ) || 0;
+
+
+  var label =
+    overallThreat >= 65
+      ? 'HIGH'
+      : overallThreat >= 35
+        ? 'MODERATE'
+        : 'LOW';
+
+
+  var position =
+    details.position ||
+    null;
+
+
+  var summary = '';
+
+
+  if (position) {
+
+    if (label === 'HIGH') {
+
+      summary =
+        threateningTeams.length +
+        ' teams picking before your next turn have ' +
+        position +
+        ' demand. Waiting is risky.';
+
+    } else if (label === 'MODERATE') {
+
+      summary =
+        threateningTeams.length +
+        ' teams before your next pick could target ' +
+        position +
+        '.';
+
+    } else {
+
+      summary =
+        'Most teams before your next pick show limited ' +
+        position +
+        ' demand.';
+
+    }
+
+  }
+
+
+  return {
+
+    player:
+      details.player || null,
+
+    position:
+      position,
+
+    currentPick:
+      details.currentPick || 0,
+
+    nextPick:
+      details.nextPick || 0,
+
+    picksBetween:
+      details.picksBetween || 0,
+
+    overallThreat:
+      overallThreat,
+
+    threateningTeams:
+      threateningTeams.length,
+
+    strongThreatTeams:
+      strongThreatTeams.length,
+
+    picksAtRisk:
+      picksAtRisk,
+
+    label:
+      label,
+
+    summary:
+      summary,
+
+    teams:
+      details.teams
+
+  };
+
+}
+
 function debugOpponentDraftThreat(
   playerName,
   context
@@ -18641,6 +18803,36 @@ test.equal(
     }
   ),
   -4
+);
+
+var opponentSummaryLow =
+  summarizeOpponentDraftThreat(
+    { position: 'QB', name: 'Test QB' },
+    {
+      teams: 10,
+      currentPick: 10,
+      calculatedNextPick: 11
+    }
+  );
+
+
+test.assert(
+  'Opponent summary returns valid threat label',
+  [
+    'LOW',
+    'MODERATE',
+    'HIGH'
+  ].includes(
+    opponentSummaryLow.label
+  )
+);
+
+
+test.assert(
+  'Opponent summary returns numeric threatening-team count',
+  Number.isFinite(
+    opponentSummaryLow.threateningTeams
+  )
 );
 
 test.equal(
