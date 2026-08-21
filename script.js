@@ -15653,25 +15653,6 @@ var multiPickPlanningScore =
         context
       );
 
-  var dynamicStrategyState =
-  context.dynamicStrategyState ||
-  null;
-
-
-if (!dynamicStrategyState) {
-
-  dynamicStrategyState =
-    buildDynamicStrategyState();
-
-}
-
-
-var dynamicStrategyAdjustment =
-  calculateDynamicStrategyAdjustment(
-    player,
-    dynamicStrategyState
-  );
-
   /*
  * -------------------------------------------------------
  * DRAFT-PHASE ADJUSTMENTS
@@ -15725,9 +15706,6 @@ var finalScore =
 
 finalScore +=
   strategyScore;
-
-finalScore +=
-  dynamicStrategyAdjustment;
 
 finalScore +=
   phaseAdjustedTierCliffScore;
@@ -15818,9 +15796,6 @@ phaseCoreRosterNeedAdjustment:
 
   mandatoryEndgameAdjustment:
   mandatoryEndgameAdjustment,
-
-  dynamicStrategyAdjustment:
-  dynamicStrategyAdjustment,
 
     scarcityScore:
       scarcityScore,
