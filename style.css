@@ -1231,3 +1231,25 @@ details[open] .details-label-less {
   }
 
 }
+
+/* =========================================================
+   PHASE 13E — MOBILE HANDCUFF LABELS
+   ========================================================= */
+
+.mobile-handcuff {
+  display: none;
+}
+
+
+@media (max-width: 768px) {
+
+  .mobile-handcuff {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.56rem;
+    line-height: 1.2;
+    font-weight: 500;
+    color: #8faa92;
+  }
+
+}
