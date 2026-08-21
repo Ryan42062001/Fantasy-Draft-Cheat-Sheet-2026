@@ -6737,20 +6737,15 @@ function updateScarcityAlertsCustom() {
    * -------------------------------------------------------
    */
 
-  var html =
-    '<div class="widget-box" style="' +
-      'margin-top:10px;' +
-      'background:rgba(224,168,63,0.06);' +
-      'border-color:rgba(224,168,63,0.30);' +
-    '">' +
+var html =
+  '<details class="scarcity-alerts-collapse">' +
 
-      '<div class="widget-title" style="' +
-        'text-align:left;' +
-        'margin-bottom:8px;' +
-        'color:#d7c58d;' +
-      '">' +
-        '&#9888; Tier &amp; Scarcity Alerts' +
-      '</div>';
+    '<summary class="scarcity-alerts-summary">' +
+      '<span>&#9888; Tier &amp; Scarcity Alerts</span>' +
+      '<span class="scarcity-alerts-arrow">&#9662;</span>' +
+    '</summary>' +
+
+    '<div class="scarcity-alerts-content">';
 
 
   scarcityState.alerts
@@ -6904,12 +6899,12 @@ if (healthiestPosition) {
 
 }
 
-  html +=
-    '</div>';
+html +=
+    '</div>' +
+  '</details>';
 
-
-  container.innerHTML =
-    html;
+container.innerHTML =
+  html;
 
 
   /*
