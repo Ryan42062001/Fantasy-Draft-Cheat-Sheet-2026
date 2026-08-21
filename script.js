@@ -7081,6 +7081,206 @@ window.latestDraftExplanation =
 
   }
 
+  function buildDraftPlanHtml(
+  primary,
+  state
+) {
+
+  if (
+    !primary ||
+    !state ||
+    !state.context
+  ) {
+
+    return '';
+
+  }
+
+
+  var forecast =
+    buildDraftPathForecast(
+      primary,
+      state.context
+    );
+
+
+  if (
+    !forecast ||
+    !Array.isArray(
+      forecast.steps
+    ) ||
+    !forecast.steps.length
+  ) {
+
+    return '';
+
+  }
+
+
+  var output =
+    '<div style="' +
+      'margin-top:9px;' +
+      'margin-bottom:9px;' +
+      'padding:9px;' +
+      'border-radius:9px;' +
+      'background:rgba(95,168,124,0.05);' +
+      'border:1px solid rgba(95,168,124,0.16);' +
+    '">' +
+
+
+      '<div style="' +
+        'font-size:0.67rem;' +
+        'font-weight:900;' +
+        'letter-spacing:0.08em;' +
+        'color:#a9c2ab;' +
+        'margin-bottom:7px;' +
+      '">' +
+        'DRAFT PLAN' +
+      '</div>';
+
+
+  /*
+   * -------------------------------------------------------
+   * PATH STEPS
+   * -------------------------------------------------------
+   */
+
+  forecast.steps.forEach(
+    function(step, index) {
+
+      var label =
+        index === 0
+          ? 'NOW'
+          : index === 1
+            ? 'NEXT'
+            : 'THEN';
+
+
+      output +=
+        '<div style="' +
+          'display:flex;' +
+          'justify-content:space-between;' +
+          'align-items:flex-start;' +
+          'gap:8px;' +
+          'padding:5px 0;' +
+          (
+            index > 0
+              ? 'border-top:1px solid rgba(255,255,255,0.04);'
+              : ''
+          ) +
+        '">' +
+
+
+          '<div style="' +
+            'min-width:42px;' +
+            'font-size:0.64rem;' +
+            'font-weight:900;' +
+            'color:#8faa92;' +
+          '">' +
+
+            label +
+            (
+              step.pick
+                ? ' #' +
+                  step.pick
+                : ''
+            ) +
+
+          '</div>' +
+
+
+          '<div style="' +
+            'flex:1;' +
+            'font-size:0.73rem;' +
+            'font-weight:800;' +
+          '">' +
+
+            (
+              step.player ||
+              'Best available'
+            ) +
+
+            (
+              step.position
+                ? ' <span class="pos-pill pos-' +
+                  step.position +
+                  '" style="' +
+                    'margin-left:5px;' +
+                    'font-size:0.58rem;' +
+                  '">' +
+                    step.position +
+                  '</span>'
+                : ''
+            ) +
+
+          '</div>';
+
+
+      /*
+       * Future selections show survival.
+       */
+
+      if (step.projected) {
+
+        output +=
+          '<div style="' +
+            'font-size:0.65rem;' +
+            'color:#a9c2ab;' +
+            'white-space:nowrap;' +
+          '">' +
+
+            Number(
+              step.survival || 0
+            ).toFixed(0) +
+
+            '% survive' +
+
+          '</div>';
+
+      }
+
+
+      output +=
+        '</div>';
+
+    }
+  );
+
+
+  /*
+   * -------------------------------------------------------
+   * PATH SUMMARY
+   * -------------------------------------------------------
+   */
+
+  output +=
+    '<div style="' +
+      'margin-top:7px;' +
+      'padding-top:6px;' +
+      'border-top:1px solid rgba(255,255,255,0.06);' +
+      'font-size:0.66rem;' +
+      'color:#a9c2ab;' +
+    '">' +
+
+      '<b>Path:</b> ' +
+      forecast.positionPath +
+
+      ' &middot; ' +
+
+      '<b>' +
+      forecast.confidence +
+      '</b> confidence' +
+
+    '</div>';
+
+
+  output +=
+    '</div>';
+
+
+  return output;
+
+}
 
   /*
    * -------------------------------------------------------
@@ -7430,6 +7630,11 @@ window.latestDraftExplanation =
 
     '</div>';
 
+  html +=
+  buildDraftPlanHtml(
+    primary,
+    state
+  );
 
   /*
    * WHY
