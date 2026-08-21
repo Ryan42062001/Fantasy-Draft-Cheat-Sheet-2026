@@ -6754,23 +6754,176 @@ function buildUrgencyIndicatorHtml(
 
 }
 
-function addRoundMarkers(){
-  document.querySelectorAll('tr.draftrow').forEach(function(row){
-    var rkCell = row.children[0];
-    if(!rkCell) return;
-    var rk = parseInt(rkCell.innerText.replace(/Rd\d+/, '').trim(), 10);
-    if(!rk) return;
-    var round = Math.ceil(rk / LEAGUE_SIZE);
-    var existing = rkCell.querySelector('.round-tag');
-    if(existing){
-      existing.innerText = 'Rd'+round;
-    } else {
-      var tag = document.createElement('div');
-      tag.className = 'round-tag';
-      tag.innerText = 'Rd'+round;
-      rkCell.appendChild(tag);
+var roundMarkerCache = {
+  leagueSize: null,
+  rowCount: 0,
+  firstRow: null,
+  lastRow: null
+};
+
+
+function addRoundMarkers(
+  force
+) {
+
+  var rows =
+    document.querySelectorAll(
+      'tr.draftrow'
+    );
+
+
+  var firstRow =
+    rows.length
+      ? rows[0]
+      : null;
+
+
+  var lastRow =
+    rows.length
+      ? rows[
+          rows.length - 1
+        ]
+      : null;
+
+
+  /*
+   * -------------------------------------------------------
+   * FAST EXIT
+   * -------------------------------------------------------
+   *
+   * Draft status changes do not affect player rounds.
+   * If the rows and league size are unchanged, there is
+   * nothing to recalculate.
+   */
+
+  if (
+    !force &&
+    roundMarkerCache.leagueSize ===
+      LEAGUE_SIZE &&
+    roundMarkerCache.rowCount ===
+      rows.length &&
+    roundMarkerCache.firstRow ===
+      firstRow &&
+    roundMarkerCache.lastRow ===
+      lastRow
+  ) {
+
+    return;
+
+  }
+
+
+  roundMarkerCache.leagueSize =
+    LEAGUE_SIZE;
+
+  roundMarkerCache.rowCount =
+    rows.length;
+
+  roundMarkerCache.firstRow =
+    firstRow;
+
+  roundMarkerCache.lastRow =
+    lastRow;
+
+
+  rows.forEach(function(row) {
+
+    var rkCell =
+      row.children[0];
+
+
+    if (!rkCell) {
+
+      return;
+
     }
+
+
+    /*
+     * Use textContent instead of innerText.
+     *
+     * innerText can trigger expensive layout calculations.
+     */
+
+    var rawRank =
+      rkCell.textContent ||
+      '';
+
+
+    var rk =
+      parseInt(
+        rawRank
+          .replace(
+            /Rd\d+/g,
+            ''
+          )
+          .trim(),
+        10
+      );
+
+
+    if (!rk) {
+
+      return;
+
+    }
+
+
+    var round =
+      Math.ceil(
+        rk / LEAGUE_SIZE
+      );
+
+
+    /*
+     * Store the current round on the cell so we avoid
+     * rewriting the DOM if nothing changed.
+     */
+
+    if (
+      Number(
+        rkCell.dataset.roundMarker
+      ) === round
+    ) {
+
+      return;
+
+    }
+
+
+    var existing =
+      rkCell.querySelector(
+        '.round-tag'
+      );
+
+
+    if (!existing) {
+
+      existing =
+        document.createElement(
+          'div'
+        );
+
+      existing.className =
+        'round-tag';
+
+
+      rkCell.appendChild(
+        existing
+      );
+
+    }
+
+
+    existing.textContent =
+      'Rd' + round;
+
+
+    rkCell.dataset.roundMarker =
+      String(round);
+
   });
+
 }
 
 function removeExportImportButtons() {
