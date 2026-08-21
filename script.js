@@ -10400,6 +10400,217 @@ function calculateDraftRunOpportunity(player, context){
 
   return opportunityScore;
 }
+
+function calculateDraftRunUrgency(
+  player,
+  context
+) {
+
+  if (
+    !player ||
+    !context ||
+    !context.draftRuns
+  ) {
+    return 0;
+  }
+
+
+  var position =
+    player.position ||
+    player.pos ||
+    null;
+
+
+  if (
+    !position ||
+    !['QB', 'RB', 'WR', 'TE'].includes(
+      position
+    )
+  ) {
+    return 0;
+  }
+
+
+  var draftRuns =
+    context.draftRuns;
+
+
+  /*
+   * -------------------------------------------------------
+   * POSITION-SPECIFIC RUN
+   * -------------------------------------------------------
+   *
+   * Unlike Run Opportunity, urgency cares about a run
+   * AT THE PLAYER'S OWN POSITION.
+   */
+
+  var positionRun =
+    draftRuns.runs &&
+    draftRuns.runs[position]
+      ? draftRuns.runs[position]
+      : null;
+
+
+  if (!positionRun) {
+    return 0;
+  }
+
+
+  var strength =
+    positionRun.strength ||
+    'NONE';
+
+
+  if (
+    strength !== 'STRONG' &&
+    strength !== 'MODERATE'
+  ) {
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * ROSTER NEED
+   * -------------------------------------------------------
+   */
+
+  var dedicatedNeed =
+    context.rosterNeeds
+      ? Number(
+          context.rosterNeeds[position]
+        ) || 0
+      : 0;
+
+
+  var flexNeed =
+    context.rosterNeeds
+      ? Number(
+          context.rosterNeeds.FLEX
+        ) || 0
+      : 0;
+
+
+  var effectiveNeed =
+    dedicatedNeed;
+
+
+  if (
+    position === 'RB' ||
+    position === 'WR' ||
+    position === 'TE'
+  ) {
+
+    effectiveNeed =
+      Math.max(
+        dedicatedNeed,
+        flexNeed
+      );
+
+  }
+
+
+  /*
+   * If our roster is already satisfied at the position,
+   * don't chase a run just because everyone else is.
+   */
+
+  if (effectiveNeed <= 0) {
+    return 0;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * BASE RUN PRESSURE
+   * -------------------------------------------------------
+   */
+
+  var urgencyScore =
+    strength === 'STRONG'
+      ? 2
+      : 1;
+
+
+  /*
+   * -------------------------------------------------------
+   * TIER-CLIFF PRESSURE
+   * -------------------------------------------------------
+   *
+   * A run is much more important if the remaining tier
+   * is also about to collapse.
+   */
+
+  var tierCliff =
+    context.tierCliffs &&
+    context.tierCliffs[position]
+      ? context.tierCliffs[position]
+      : null;
+
+
+  if (tierCliff) {
+
+    var severity =
+      tierCliff.severity ||
+      'NONE';
+
+
+    if (severity === 'HIGH') {
+
+      urgencyScore += 2;
+
+    } else if (
+      severity === 'MODERATE'
+    ) {
+
+      urgencyScore += 1;
+
+    }
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * RUN SCORE CONFIRMATION
+   * -------------------------------------------------------
+   *
+   * Particularly concentrated runs get a small extra
+   * bump, but never enough to dominate player quality.
+   */
+
+  var runScore =
+    Number(
+      positionRun.runScore
+    ) || 0;
+
+
+  if (runScore >= 65) {
+    urgencyScore += 0.5;
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * CLAMP
+   * -------------------------------------------------------
+   */
+
+  urgencyScore =
+    Math.max(
+      0,
+      Math.min(
+        4,
+        urgencyScore
+      )
+    );
+
+
+  return Number(
+    urgencyScore.toFixed(2)
+  );
+
+}
  
 
 function calculateVorpProfile(
@@ -11827,6 +12038,12 @@ var runOpportunityScore =
     context
   );
 
+  var runUrgencyScore =
+  calculateDraftRunUrgency(
+    player,
+    context
+  );
+
 
 if (DEBUG_DRAFT_SCORING) {
 console.log(
@@ -11995,6 +12212,9 @@ finalScore +=
   runOpportunityScore;
 
 finalScore +=
+  runUrgencyScore;
+
+finalScore +=
   endgameRosterRequirementScore;
 
 finalScore +=
@@ -12110,6 +12330,9 @@ phaseAdjustedDraftAwareVorpScore:
 
 runOpportunityScore:
   runOpportunityScore,
+
+  runUrgencyScore:
+  runUrgencyScore,
 
 tierCliffOpportunityScore:
   tierCliffOpportunityScore,
@@ -18199,6 +18422,129 @@ test.assert(
       rounds: 16
     }
   ) < 0
+);
+
+var runUrgencyContext = {
+
+  draftRuns: {
+
+    isRun:
+      true,
+
+    position:
+      'RB',
+
+    strength:
+      'STRONG',
+
+    runs: {
+
+      QB: {
+        strength: 'NONE',
+        runScore: 0
+      },
+
+      RB: {
+        strength: 'STRONG',
+        runScore: 70
+      },
+
+      WR: {
+        strength: 'NONE',
+        runScore: 0
+      },
+
+      TE: {
+        strength: 'NONE',
+        runScore: 0
+      }
+
+    }
+
+  },
+
+  rosterNeeds: {
+    QB: 1,
+    RB: 1,
+    WR: 1,
+    TE: 1,
+    FLEX: 0
+  },
+
+  tierCliffs: {}
+
+};
+
+
+test.assert(
+  'Run urgency: needed position receives urgency',
+  calculateDraftRunUrgency(
+    { position: 'RB' },
+    runUrgencyContext
+  ) > 0
+);
+
+
+test.equal(
+  'Run urgency: unrelated position receives 0',
+  calculateDraftRunUrgency(
+    { position: 'WR' },
+    runUrgencyContext
+  ),
+  0
+);
+
+
+var noNeedRunContext =
+  Object.assign(
+    {},
+    runUrgencyContext,
+    {
+      rosterNeeds: {
+        QB: 1,
+        RB: 0,
+        WR: 1,
+        TE: 1,
+        FLEX: 0
+      }
+    }
+  );
+
+
+test.equal(
+  'Run urgency: filled position does not chase run',
+  calculateDraftRunUrgency(
+    { position: 'RB' },
+    noNeedRunContext
+  ),
+  0
+);
+
+
+var cliffRunContext =
+  Object.assign(
+    {},
+    runUrgencyContext,
+    {
+      tierCliffs: {
+        RB: {
+          severity: 'HIGH'
+        }
+      }
+    }
+  );
+
+
+test.assert(
+  'Run urgency: tier cliff increases urgency',
+  calculateDraftRunUrgency(
+    { position: 'RB' },
+    cliffRunContext
+  ) >
+  calculateDraftRunUrgency(
+    { position: 'RB' },
+    runUrgencyContext
+  )
 );
 
 test.equal(
