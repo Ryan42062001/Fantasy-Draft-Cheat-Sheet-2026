@@ -7439,7 +7439,7 @@ var EXPERT_RANKINGS_2026 = [
   {"rank":65,"name":"breece hall","pos":"RB","team":"NYJ","bye":"9","tier":"C"},
   {"rank":66,"name":"tucker kraft","pos":"TE","team":"GB","bye":"11","tier":"D"},
   {"rank":67,"name":"david montgomery","pos":"RB","team":"DET","bye":"6","tier":"D"},
-  {"rank":68,"name":"courtland sutton","pos":"WR","team":"DEN","bye":"10","tier":"D"}
+  {"rank":68,"name":"courtland sutton","pos":"WR","team":"DEN","bye":"10","tier":"D"},
     {"rank":69,"name":"jakobi meyers","pos":"WR","team":"LV","bye":"13","tier":"D"},
   {"rank":70,"name":"tony pollard","pos":"RB","team":"TEN","bye":"10","tier":"D"},
   {"rank":71,"name":"quinshon judkins","pos":"RB","team":"CLE","bye":"11","tier":"D"},
@@ -7502,7 +7502,7 @@ var EXPERT_RANKINGS_2026 = [
   {"rank":127,"name":"kayshon boutte","pos":"WR","team":"NE","bye":"11","tier":"E"},
   {"rank":128,"name":"marquise brown","pos":"WR","team":"KC","bye":"5","tier":"E"},
   {"rank":129,"name":"matthew golden","pos":"WR","team":"GB","bye":"11","tier":"E"},
-  {"rank":130,"name":"jordyn tyson","pos":"WR","team":"DEN","bye":"10","tier":"E"}
+  {"rank":130,"name":"jordyn tyson","pos":"WR","team":"DEN","bye":"10","tier":"E"},
     {"rank":131,"name":"trey benson","pos":"RB","team":"ARI","bye":"9","tier":"F"},
   {"rank":132,"name":"ray davis","pos":"RB","team":"BUF","bye":"7","tier":"F"},
   {"rank":133,"name":"rico dowdle","pos":"RB","team":"CAR","bye":"5","tier":"F"},
