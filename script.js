@@ -2613,24 +2613,24 @@ function buildDynamicStrategyState() {
        * -------------------------------------------------------
        */
 
-      if (
-        state === 'NEUTRAL' &&
-        item.rosterNeed > 0 &&
-        (
-          item.cliffSeverity ===
-            'MODERATE' ||
-          item.scarcity >= 70
-        )
-      ) {
+if (
+  state === 'NEUTRAL' &&
+  item.rosterNeed > 0 &&
+  (
+    item.scarcityStatus ===
+      'TIER CLOSING' ||
+    item.scarcity >= 75
+  )
+) {
 
-        state =
-          'MONITOR';
+  state =
+    'MONITOR';
 
-        reasons.push(
-          'need remains with emerging pressure'
-        );
+  reasons.push(
+    'need remains with emerging pressure'
+  );
 
-      }
+}
 
 
       /*
