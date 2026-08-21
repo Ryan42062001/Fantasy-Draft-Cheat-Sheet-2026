@@ -2217,6 +2217,341 @@ function debugDraftPathComparison() {
 
 }
 
+function buildDynamicStrategyAudit() {
+
+  var state =
+    buildLiveDraftDebugState();
+
+
+  if (
+    !state ||
+    !state.context
+  ) {
+
+    return null;
+
+  }
+
+
+  var context =
+    state.context;
+
+
+  var positions =
+    ['QB', 'RB', 'WR', 'TE'];
+
+
+  /*
+   * -------------------------------------------------------
+   * TIER / SCARCITY STATE
+   * -------------------------------------------------------
+   */
+
+  var profiles =
+    state.vorpResult &&
+    Array.isArray(
+      state.vorpResult.profiles
+    )
+      ? state.vorpResult.profiles
+      : [];
+
+
+  var scarcityState =
+    buildLiveTierScarcityState(
+      state.players || [],
+      profiles
+    );
+
+
+  /*
+   * -------------------------------------------------------
+   * POSITION AUDIT
+   * -------------------------------------------------------
+   */
+
+  var positionAudit =
+    {};
+
+
+  positions.forEach(
+    function(position) {
+
+      var scarcity =
+        scarcityState &&
+        scarcityState.positions
+          ? scarcityState.positions[
+              position
+            ]
+          : null;
+
+
+      var rosterNeed =
+        context.rosterNeeds
+          ? Number(
+              context.rosterNeeds[
+                position
+              ]
+            ) || 0
+          : 0;
+
+
+      var run =
+        context.draftRuns &&
+        context.draftRuns.runs
+          ? context.draftRuns.runs[
+              position
+            ]
+          : null;
+
+
+      positionAudit[position] = {
+
+        position:
+          position,
+
+        rosterNeed:
+          rosterNeed,
+
+        scarcityStatus:
+          scarcity
+            ? scarcity.status
+            : 'UNKNOWN',
+
+        scarcity:
+          scarcity
+            ? Number(
+                scarcity.scarcity || 0
+              )
+            : 0,
+
+        cliffSeverity:
+          scarcity
+            ? scarcity.cliffSeverity ||
+              'NONE'
+            : 'NONE',
+
+        playersBeforeCliff:
+          scarcity
+            ? Number(
+                scarcity.playersBeforeCliff ||
+                0
+              )
+            : 0,
+
+        runStrength:
+          run
+            ? run.strength ||
+              'NONE'
+            : 'NONE',
+
+        runCount:
+          run
+            ? Number(
+                run.count || 0
+              )
+            : 0
+
+      };
+
+    }
+  );
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT DRAFT INFORMATION
+   * -------------------------------------------------------
+   */
+
+  var currentPick =
+    Number(
+      context.currentPick
+    ) || 0;
+
+
+  var teams =
+    Number(
+      context.teams
+    ) || 10;
+
+
+  var round =
+    currentPick > 0
+      ? Math.ceil(
+          currentPick /
+          teams
+        )
+      : 0;
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT BEST PATH
+   * -------------------------------------------------------
+   */
+
+  var pathComparison =
+    compareDraftPathForecasts(
+      state.scored || [],
+      context,
+      3
+    );
+
+
+  var bestPath =
+    pathComparison
+      ? pathComparison.bestPath
+      : null;
+
+
+  /*
+   * -------------------------------------------------------
+   * RETURN READ-ONLY AUDIT
+   * -------------------------------------------------------
+   */
+
+  return {
+
+    currentPick:
+      currentPick,
+
+    round:
+      round,
+
+    draftPhase:
+      state.scored &&
+      state.scored[0]
+        ? state.scored[0].draftPhase ||
+          null
+        : null,
+
+    rosterNeeds:
+      context.rosterNeeds || {},
+
+    draftRun:
+      context.draftRuns || null,
+
+    positions:
+      positionAudit,
+
+    bestPath:
+      bestPath
+        ? {
+            player:
+              bestPath.currentPlayer,
+
+            position:
+              bestPath.currentPosition,
+
+            path:
+              bestPath.positionPath,
+
+            packageValue:
+              bestPath.packageValue,
+
+            futureSurvival:
+              bestPath.averageFutureSurvival,
+
+            confidence:
+              bestPath.confidence
+          }
+        : null
+
+  };
+
+}
+
+function debugDynamicStrategyAudit() {
+
+  var audit =
+    buildDynamicStrategyAudit();
+
+
+  if (!audit) {
+
+    console.warn(
+      'Dynamic strategy audit unavailable.'
+    );
+
+    return null;
+
+  }
+
+
+  console.log(
+    'DYNAMIC STRATEGY AUDIT:',
+    {
+      currentPick:
+        audit.currentPick,
+
+      round:
+        audit.round,
+
+      draftPhase:
+        audit.draftPhase,
+
+      rosterNeeds:
+        audit.rosterNeeds,
+
+      bestPath:
+        audit.bestPath
+    }
+  );
+
+
+  console.table(
+    Object.keys(
+      audit.positions
+    ).map(function(position) {
+
+      var item =
+        audit.positions[
+          position
+        ];
+
+
+      return {
+
+        position:
+          position,
+
+        need:
+          item.rosterNeed,
+
+        scarcityStatus:
+          item.scarcityStatus,
+
+        scarcity:
+          Number(
+            item.scarcity
+          ).toFixed(1),
+
+        cliff:
+          item.cliffSeverity,
+
+        beforeCliff:
+          item.playersBeforeCliff,
+
+        run:
+          item.runStrength,
+
+        runCount:
+          item.runCount
+
+      };
+
+    })
+  );
+
+
+  window.latestDynamicStrategyAudit =
+    audit;
+
+
+  return audit;
+
+}
+
 function calculatePackagePathAdvantage(
   player,
   scoredPlayers,
