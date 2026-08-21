@@ -10109,6 +10109,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 });
+
+/*
+ * -------------------------------------------------------
+ * PHASE 13 — RECOMMENDATION DETAILS RESPONSIVE DEFAULT
+ * -------------------------------------------------------
+ */
+
+var recommendationDetails =
+  document.querySelector(
+    '#recommended-pick-box details'
+  );
+
+if (recommendationDetails) {
+
+  if (
+    window.innerWidth >= 769
+  ) {
+
+    recommendationDetails.open =
+      true;
+
+  }
+
+}
   
   /* =========================================================
    DRAFT ASSISTANT — STAGE 1 DATA LAYER
