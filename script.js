@@ -7273,6 +7273,216 @@ window.latestDraftExplanation =
 
     '</div>';
 
+    /*
+ * -------------------------------------------------------
+ * FALLBACK PATH
+ * -------------------------------------------------------
+ *
+ * Show one useful alternate path.
+ *
+ * Prefer a path with better future survival when it is
+ * materially safer than the recommended path.
+ */
+
+var comparison =
+  compareDraftPathForecasts(
+    state.scored || [],
+    state.context,
+    3
+  );
+
+
+var fallbackPath =
+  null;
+
+
+if (
+  comparison &&
+  Array.isArray(
+    comparison.forecasts
+  )
+) {
+
+  var alternatives =
+    comparison.forecasts.filter(
+      function(path) {
+
+        return (
+          path &&
+          path.currentPlayer !==
+            forecast.currentPlayer
+        );
+
+      }
+    );
+
+
+  /*
+   * Prefer the safest meaningful alternative.
+   */
+
+  alternatives.sort(
+    function(a, b) {
+
+      var survivalGap =
+        Number(
+          b.averageFutureSurvival || 0
+        ) -
+        Number(
+          a.averageFutureSurvival || 0
+        );
+
+
+      if (
+        Math.abs(
+          survivalGap
+        ) >= 3
+      ) {
+
+        return survivalGap;
+
+      }
+
+
+      return (
+        Number(
+          b.packageValue || 0
+        ) -
+        Number(
+          a.packageValue || 0
+        )
+      );
+
+    }
+  );
+
+
+  fallbackPath =
+    alternatives[0] ||
+    null;
+
+}
+
+
+/*
+ * -------------------------------------------------------
+ * ONLY SHOW A USEFUL FALLBACK
+ * -------------------------------------------------------
+ */
+
+if (fallbackPath) {
+
+  var packageGap =
+    Number(
+      forecast.packageValue || 0
+    ) -
+    Number(
+      fallbackPath.packageValue || 0
+    );
+
+
+  var survivalGain =
+    Number(
+      fallbackPath.averageFutureSurvival || 0
+    ) -
+    Number(
+      forecast.averageFutureSurvival || 0
+    );
+
+
+  /*
+   * Avoid clutter when the alternative offers no real
+   * distinction.
+   */
+
+  if (
+    Math.abs(packageGap) >= 2 ||
+    Math.abs(survivalGain) >= 5
+  ) {
+
+    var fallbackLabel =
+      survivalGain >= 5
+        ? 'SAFER FALLBACK'
+        : 'ALTERNATE PATH';
+
+
+    output +=
+      '<div style="' +
+        'margin-top:7px;' +
+        'padding-top:7px;' +
+        'border-top:1px solid rgba(255,255,255,0.06);' +
+      '">' +
+
+
+        '<div style="' +
+          'font-size:0.63rem;' +
+          'font-weight:900;' +
+          'letter-spacing:0.06em;' +
+          'color:#8faa92;' +
+          'margin-bottom:3px;' +
+        '">' +
+
+          fallbackLabel +
+
+        '</div>' +
+
+
+        '<div style="' +
+          'font-size:0.69rem;' +
+          'line-height:1.35;' +
+          'color:#a9c2ab;' +
+        '">' +
+
+          '<b>' +
+          (
+            fallbackPath.currentPlayer ||
+            'Alternative'
+          ) +
+          '</b>' +
+
+          ' &middot; ' +
+          fallbackPath.positionPath +
+
+          ' &middot; ' +
+
+          Number(
+            fallbackPath.averageFutureSurvival || 0
+          ).toFixed(0) +
+
+          '% future survival' +
+
+        '</div>';
+
+
+    if (
+      packageGap > 0
+    ) {
+
+      output +=
+        '<div style="' +
+          'font-size:0.63rem;' +
+          'color:#7f9482;' +
+          'margin-top:2px;' +
+        '">' +
+
+          Number(
+            packageGap
+          ).toFixed(1) +
+
+          ' projected value behind the primary path' +
+
+        '</div>';
+
+    }
+
+
+    output +=
+      '</div>';
+
+  }
+
+}
+
 
   output +=
     '</div>';
