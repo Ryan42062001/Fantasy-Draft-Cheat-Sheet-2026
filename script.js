@@ -7774,6 +7774,225 @@ window.latestDraftExplanation =
 
   }
 
+    function buildDynamicStrategyHtml(
+    state
+  ) {
+
+    if (
+      !state ||
+      !state.context ||
+      !state.context.dynamicStrategyState ||
+      !state.context.dynamicStrategyState.positions
+    ) {
+
+      return '';
+
+    }
+
+
+    var strategy =
+      state.context.dynamicStrategyState;
+
+
+    var positions =
+      ['QB', 'RB', 'WR', 'TE'];
+
+
+    var prioritize = [];
+    var monitor = [];
+    var wait = [];
+
+
+    positions.forEach(
+      function(position) {
+
+        var item =
+          strategy.positions[
+            position
+          ];
+
+
+        if (!item) {
+          return;
+        }
+
+
+        if (
+          item.state ===
+            'PRIORITIZE'
+        ) {
+
+          prioritize.push(
+            position
+          );
+
+        } else if (
+          item.state ===
+            'MONITOR'
+        ) {
+
+          monitor.push(
+            position
+          );
+
+        } else if (
+          item.state ===
+            'WAIT'
+        ) {
+
+          wait.push(
+            position
+          );
+
+        }
+
+      }
+    );
+
+
+    /*
+     * -------------------------------------------------------
+     * SUMMARY
+     * -------------------------------------------------------
+     */
+
+    var parts = [];
+
+
+    if (prioritize.length) {
+
+      parts.push(
+        '<b>Prioritize</b> ' +
+        prioritize.join(' / ')
+      );
+
+    }
+
+
+    if (monitor.length) {
+
+      parts.push(
+        '<b>Monitor</b> ' +
+        monitor.join(' / ')
+      );
+
+    }
+
+
+    if (wait.length) {
+
+      parts.push(
+        '<b>Wait on</b> ' +
+        wait.join(' / ')
+      );
+
+    }
+
+
+    if (!parts.length) {
+      return '';
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * PRIMARY REASON
+     * -------------------------------------------------------
+     */
+
+    var reason =
+      'Draft priorities are adapting to the live board.';
+
+
+    if (
+      prioritize.length &&
+      wait.length
+    ) {
+
+      reason =
+        prioritize.join(' / ') +
+        ' currently carries more urgency while ' +
+        wait.join(' / ') +
+        ' can be delayed.';
+
+    } else if (
+      prioritize.length
+    ) {
+
+      reason =
+        prioritize.join(' / ') +
+        ' currently carries the strongest strategic priority.';
+
+    } else if (
+      monitor.length
+    ) {
+
+      reason =
+        monitor.join(' / ') +
+        ' should be monitored as the board develops.';
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * BUILD UI
+     * -------------------------------------------------------
+     */
+
+    return (
+      '<div style="' +
+        'margin-top:9px;' +
+        'margin-bottom:9px;' +
+        'padding:8px 9px;' +
+        'border-radius:8px;' +
+        'background:rgba(255,255,255,0.025);' +
+        'border:1px solid rgba(255,255,255,0.05);' +
+      '">' +
+
+
+        '<div style="' +
+          'font-size:0.66rem;' +
+          'font-weight:900;' +
+          'letter-spacing:0.08em;' +
+          'color:#a9c2ab;' +
+          'margin-bottom:5px;' +
+        '">' +
+
+          'STRATEGY' +
+
+        '</div>' +
+
+
+        '<div style="' +
+          'font-size:0.72rem;' +
+          'line-height:1.4;' +
+        '">' +
+
+          parts.join(
+            ' &middot; '
+          ) +
+
+        '</div>' +
+
+
+        '<div style="' +
+          'font-size:0.65rem;' +
+          'line-height:1.35;' +
+          'color:#8faa92;' +
+          'margin-top:4px;' +
+        '">' +
+
+          reason +
+
+        '</div>' +
+
+
+      '</div>'
+    );
+
+  }
+
   function buildDraftPlanHtml(
   primary,
   state
@@ -8538,6 +8757,11 @@ if (fallbackPath) {
     primary,
     state
   );
+
+    html +=
+    buildDynamicStrategyHtml(
+      state
+    );
 
   /*
    * WHY
