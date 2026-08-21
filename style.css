@@ -1121,3 +1121,113 @@ details[open] .details-label-less {
   }
 
 }
+
+/* =========================================================
+   PHASE 13E — MOBILE BIG BOARD
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+  /*
+   * -------------------------------------------------------
+   * REMOVE LOW-PRIORITY LIVE-DRAFT COLUMNS
+   * -------------------------------------------------------
+   *
+   * Columns:
+   * 1 Rk
+   * 2 Player
+   * 3 Pos
+   * 4 Team
+   * 5 ADP
+   * 6 Val
+   * 7 Bye
+   * 8 Handcuff
+   * 9 Note
+   */
+
+  #big-table th:nth-child(7),
+  #big-table td:nth-child(7),
+  #big-table th:nth-child(8),
+  #big-table td:nth-child(8),
+  #big-table th:nth-child(9),
+  #big-table td:nth-child(9) {
+    display: none;
+  }
+
+
+  /*
+   * Let the remaining table fit the phone.
+   */
+
+  #big-table {
+    width: 100%;
+    table-layout: fixed;
+    font-size: 0.68rem;
+  }
+
+
+  /*
+   * Column sizing.
+   */
+
+  #big-table th:nth-child(1),
+  #big-table td:nth-child(1) {
+    width: 9%;
+  }
+
+  #big-table th:nth-child(2),
+  #big-table td:nth-child(2) {
+    width: 33%;
+  }
+
+  #big-table th:nth-child(3),
+  #big-table td:nth-child(3) {
+    width: 12%;
+  }
+
+  #big-table th:nth-child(4),
+  #big-table td:nth-child(4) {
+    width: 14%;
+  }
+
+  #big-table th:nth-child(5),
+  #big-table td:nth-child(5) {
+    width: 14%;
+  }
+
+  #big-table th:nth-child(6),
+  #big-table td:nth-child(6) {
+    width: 18%;
+  }
+
+
+  /*
+   * Give player rows a larger tap target.
+   */
+
+  #big-table tr.draftrow td {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+
+  /*
+   * Player name stays readable instead of forcing
+   * the entire table wider.
+   */
+
+  #big-table .pname {
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+
+  /*
+   * Remove horizontal scrolling from the board.
+   */
+
+  #big-board-wrap {
+    overflow-x: hidden;
+  }
+
+}
