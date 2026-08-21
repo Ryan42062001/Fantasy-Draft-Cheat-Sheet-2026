@@ -9898,6 +9898,612 @@ function calculatePositionTierCliff(
 }
 
 /*
+ * =======================================================
+ * PHASE 10 — LIVE TIER & SCARCITY STATE
+ * =======================================================
+ *
+ * Builds a single standardized snapshot describing the
+ * current health of QB, RB, WR, and TE.
+ *
+ * IMPORTANT:
+ *
+ * This function does NOT create new scoring logic.
+ *
+ * It consumes the tier-cliff and VORP/scarcity information
+ * already produced by the Draft Decision Engine.
+ *
+ * The UI can later consume this object without needing to
+ * understand how tier cliffs or scarcity are calculated.
+ */
+function buildLiveTierScarcityState(
+  players,
+  vorpProfiles
+) {
+
+  players =
+    Array.isArray(players)
+      ? players
+      : [];
+
+  vorpProfiles =
+    Array.isArray(vorpProfiles)
+      ? vorpProfiles
+      : [];
+
+
+  var positions = [
+    'QB',
+    'RB',
+    'WR',
+    'TE'
+  ];
+
+
+  var state = {
+    positions: {},
+    alerts: [],
+    generatedAtPick: null
+  };
+
+
+  /*
+   * -------------------------------------------------------
+   * CURRENT PICK
+   * -------------------------------------------------------
+   */
+
+  try {
+
+    var draftState =
+      getDraftAssistantState();
+
+    state.generatedAtPick =
+      draftState &&
+      Number(
+        draftState.currentPick
+      )
+        ? Number(
+            draftState.currentPick
+          )
+        : null;
+
+  } catch (e) {
+
+    state.generatedAtPick =
+      null;
+
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * BUILD EACH POSITION
+   * -------------------------------------------------------
+   */
+
+  positions.forEach(function(position) {
+
+    var availableAtPosition =
+      players
+        .filter(function(player) {
+
+          return (
+            player &&
+            player.available !== false &&
+            (
+              player.position ||
+              player.pos
+            ) === position
+          );
+
+        })
+        .slice()
+        .sort(function(a, b) {
+
+          return (
+            (Number(a.rank) || 9999) -
+            (Number(b.rank) || 9999)
+          );
+
+        });
+
+
+    /*
+     * -------------------------------------------------------
+     * TIER CLIFF
+     * -------------------------------------------------------
+     */
+
+    var cliff =
+      calculatePositionTierCliff(
+        position,
+        players,
+        vorpProfiles
+      );
+
+
+    /*
+     * -------------------------------------------------------
+     * BEST AVAILABLE PLAYER
+     * -------------------------------------------------------
+     */
+
+    var bestAvailable =
+      availableAtPosition[0] ||
+      null;
+
+
+    /*
+     * -------------------------------------------------------
+     * SCARCITY
+     * -------------------------------------------------------
+     *
+     * Reuse the scarcity value already calculated by the
+     * VORP engine for the best available player.
+     */
+
+    var scarcity =
+      0;
+
+
+    if (bestAvailable) {
+
+      var bestProfile =
+        vorpProfiles.find(
+          function(profile) {
+
+            if (
+              !profile ||
+              !profile.player
+            ) {
+              return false;
+            }
+
+            return (
+              profile.player ===
+                bestAvailable ||
+              (
+                profile.player.name &&
+                bestAvailable.name &&
+                profile.player.name ===
+                  bestAvailable.name
+              )
+            );
+
+          }
+        );
+
+
+      if (bestProfile) {
+
+        scarcity =
+          Number(
+            bestProfile.scarcity
+          ) || 0;
+
+      } else {
+
+        /*
+         * Some callers may pass player objects that already
+         * contain the calculated scarcity value.
+         */
+
+        scarcity =
+          Number(
+            bestAvailable.scarcity
+          ) || 0;
+
+      }
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * CLIFF INFORMATION
+     * -------------------------------------------------------
+     */
+
+    var severity =
+      cliff &&
+      cliff.severity
+        ? cliff.severity
+        : 'NONE';
+
+
+    var playersBeforeCliff =
+      cliff &&
+      Number.isFinite(
+        Number(
+          cliff.playersBeforeCliff
+        )
+      )
+        ? Number(
+            cliff.playersBeforeCliff
+          )
+        : 0;
+
+
+    var beforePlayer =
+      cliff &&
+      cliff.beforePlayer
+        ? cliff.beforePlayer
+        : null;
+
+
+    var afterPlayer =
+      cliff &&
+      cliff.afterPlayer
+        ? cliff.afterPlayer
+        : null;
+
+
+    /*
+     * -------------------------------------------------------
+     * STATUS
+     * -------------------------------------------------------
+     *
+     * This is intentionally descriptive rather than a new
+     * draft-score adjustment.
+     */
+
+    var status =
+      'HEALTHY DEPTH';
+
+
+    if (
+      severity === 'HIGH' &&
+      playersBeforeCliff <= 2
+    ) {
+
+      status =
+        'CRITICAL CLIFF';
+
+    } else if (
+      severity === 'HIGH'
+    ) {
+
+      status =
+        'TIER CLOSING';
+
+    } else if (
+      severity === 'MODERATE' &&
+      playersBeforeCliff <= 3
+    ) {
+
+      status =
+        'TIER CLOSING';
+
+    } else if (
+      scarcity >= 90
+    ) {
+
+      status =
+        'HIGH SCARCITY';
+
+    } else if (
+      scarcity >= 75
+    ) {
+
+      status =
+        'LIMITED DEPTH';
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * POSITION SNAPSHOT
+     * -------------------------------------------------------
+     */
+
+    var positionState = {
+
+      position:
+        position,
+
+      availableCount:
+        availableAtPosition.length,
+
+      bestAvailable:
+        bestAvailable,
+
+      bestAvailableName:
+        bestAvailable &&
+        bestAvailable.name
+          ? bestAvailable.name
+          : null,
+
+      scarcity:
+        Number(
+          scarcity.toFixed(2)
+        ),
+
+      cliffSeverity:
+        severity,
+
+      cliffScore:
+        cliff
+          ? Number(
+              cliff.cliffScore
+            ) || 0
+          : 0,
+
+      playersBeforeCliff:
+        playersBeforeCliff,
+
+      playersAfterCliff:
+        cliff
+          ? Number(
+              cliff.playersAfterCliff
+            ) || 0
+          : 0,
+
+      fromTier:
+        cliff
+          ? cliff.fromTier
+          : null,
+
+      toTier:
+        cliff
+          ? cliff.toTier
+          : null,
+
+      beforePlayer:
+        beforePlayer,
+
+      beforePlayerName:
+        beforePlayer &&
+        beforePlayer.name
+          ? beforePlayer.name
+          : null,
+
+      afterPlayer:
+        afterPlayer,
+
+      afterPlayerName:
+        afterPlayer &&
+        afterPlayer.name
+          ? afterPlayer.name
+          : null,
+
+      status:
+        status
+
+    };
+
+
+    state.positions[position] =
+      positionState;
+
+
+    /*
+     * -------------------------------------------------------
+     * ALERT COLLECTION
+     * -------------------------------------------------------
+     *
+     * Only meaningful pressure states become alerts.
+     *
+     * HEALTHY DEPTH intentionally stays out of the alert
+     * collection. We can display healthy positions
+     * separately in Phase 10B.
+     */
+
+    if (
+      status !==
+      'HEALTHY DEPTH'
+    ) {
+
+      state.alerts.push(
+        positionState
+      );
+
+    }
+
+  });
+
+
+  /*
+   * -------------------------------------------------------
+   * ALERT PRIORITY
+   * -------------------------------------------------------
+   */
+
+  var statusPriority = {
+
+    'CRITICAL CLIFF': 5,
+    'TIER CLOSING': 4,
+    'HIGH SCARCITY': 3,
+    'LIMITED DEPTH': 2,
+    'HEALTHY DEPTH': 1
+
+  };
+
+
+  state.alerts.sort(
+    function(a, b) {
+
+      var aPriority =
+        statusPriority[
+          a.status
+        ] || 0;
+
+      var bPriority =
+        statusPriority[
+          b.status
+        ] || 0;
+
+
+      if (
+        aPriority !==
+        bPriority
+      ) {
+
+        return (
+          bPriority -
+          aPriority
+        );
+
+      }
+
+
+      /*
+       * Same alert category:
+       * prefer the stronger cliff/scarcity signal.
+       */
+
+      var aPressure =
+        Math.max(
+          Number(a.cliffScore) || 0,
+          Number(a.scarcity) || 0
+        );
+
+      var bPressure =
+        Math.max(
+          Number(b.cliffScore) || 0,
+          Number(b.scarcity) || 0
+        );
+
+
+      return (
+        bPressure -
+        aPressure
+      );
+
+    }
+  );
+
+
+  return state;
+
+}
+
+function debugTierScarcityState() {
+
+  var liveState =
+    buildLiveDraftDebugState();
+
+  if (
+    !liveState ||
+    !liveState.players
+  ) {
+
+    console.warn(
+      'Unable to build live draft state.'
+    );
+
+    return null;
+
+  }
+
+
+  var profiles =
+    liveState.vorpResult &&
+    Array.isArray(
+      liveState.vorpResult.profiles
+    )
+      ? liveState.vorpResult.profiles
+      : [];
+
+
+  var tierScarcityState =
+    buildLiveTierScarcityState(
+      liveState.players,
+      profiles
+    );
+
+
+  console.group(
+    'PHASE 10 — TIER & SCARCITY'
+  );
+
+
+  console.log(
+    'Generated at pick:',
+    tierScarcityState.generatedAtPick
+  );
+
+
+  [
+    'QB',
+    'RB',
+    'WR',
+    'TE'
+  ].forEach(function(position) {
+
+    var result =
+      tierScarcityState
+        .positions[position];
+
+    if (!result) {
+      return;
+    }
+
+
+    console.log(
+      position,
+      {
+        status:
+          result.status,
+
+        bestAvailable:
+          result.bestAvailableName,
+
+        scarcity:
+          result.scarcity,
+
+        cliffSeverity:
+          result.cliffSeverity,
+
+        cliffScore:
+          result.cliffScore,
+
+        playersBeforeCliff:
+          result.playersBeforeCliff,
+
+        tierTransition:
+          (
+            result.fromTier ||
+            'N/A'
+          ) +
+          ' → ' +
+          (
+            result.toTier ||
+            'N/A'
+          ),
+
+        beforePlayer:
+          result.beforePlayerName,
+
+        afterPlayer:
+          result.afterPlayerName,
+
+        available:
+          result.availableCount
+      }
+    );
+
+  });
+
+
+  console.log(
+    'ACTIVE ALERTS:',
+    tierScarcityState.alerts
+  );
+
+
+  console.groupEnd();
+
+
+  window.latestTierScarcityState =
+    tierScarcityState;
+
+
+  return tierScarcityState;
+
+}
+
+/*
  * Calculate positional scarcity.
  *
  * This looks at how many usable players remain
