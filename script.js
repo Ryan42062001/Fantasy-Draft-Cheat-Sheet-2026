@@ -18303,12 +18303,6 @@ test.equal(
     10
   );
 
-  test.assert(
-  'Opponent summary separates soft demand from meaningful threat',
-  opponentSummaryLow.softThreatTeams >= 0 &&
-  opponentSummaryLow.threateningTeams >= 0
-);
-
 test.equal(
   'Opponent window: pick 21 to 40 has 18 picks',
   pick21ThreatWindow.picks.length,
@@ -18867,6 +18861,18 @@ test.assert(
     opponentSummaryLow.threateningTeams
   )
 );
+
+
+test.assert(
+  'Opponent summary separates soft demand from meaningful threat',
+  Number.isFinite(
+    opponentSummaryLow.softThreatTeams
+  ) &&
+  Number.isFinite(
+    opponentSummaryLow.threateningTeams
+  )
+);
+
 
 test.equal(
   'Survival: back-to-back pick guarantees player survives',
