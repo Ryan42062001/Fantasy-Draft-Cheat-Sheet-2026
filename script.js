@@ -10057,10 +10057,83 @@ function scrollToCurrentMatch() {
   }, 2500);
 }
 
+function addMobileHandcuffLabels() {
+
+  document.querySelectorAll(
+    '#big-table tr.draftrow'
+  ).forEach(function(row) {
+
+    var playerCell =
+      row.querySelector('.pname');
+
+    var handcuffCell =
+      row.querySelector('.hc');
+
+    if (
+      !playerCell ||
+      !handcuffCell
+    ) {
+      return;
+    }
+
+
+    /*
+     * Prevent duplicates if this function
+     * ever runs more than once.
+     */
+
+    if (
+      playerCell.querySelector(
+        '.mobile-handcuff'
+      )
+    ) {
+      return;
+    }
+
+
+    var handcuff =
+      (handcuffCell.textContent || '')
+        .trim();
+
+
+    /*
+     * Don't display empty / dash handcuffs.
+     */
+
+    if (
+      !handcuff ||
+      handcuff === '—' ||
+      handcuff === '-'
+    ) {
+      return;
+    }
+
+
+    var label =
+      document.createElement('span');
+
+    label.className =
+      'mobile-handcuff';
+
+    label.textContent =
+      'HC: ' + handcuff;
+
+
+    playerCell.appendChild(
+      label
+    );
+
+  });
+
+}
+
 // ==== INITIALIZATION RUNNER ====
 function initApp() {
+
   setupSearchUI();
-  
+
+  addMobileHandcuffLabels();
+
   ['pcTeams', 'pcSlot', 'pcRounds'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) {
