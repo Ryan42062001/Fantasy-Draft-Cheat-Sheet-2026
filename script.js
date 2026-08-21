@@ -15334,6 +15334,24 @@ var phaseWeights =
     draftPhase.phase
   );
 
+  /*
+ * -------------------------------------------------------
+ * PHASE 12 — DYNAMIC STRATEGY ADJUSTMENT
+ * -------------------------------------------------------
+ *
+ * Read only the prebuilt strategy snapshot from context.
+ *
+ * Never build live draft state from inside the scoring
+ * engine, which would create recursion.
+ */
+
+var dynamicStrategyAdjustment =
+  calculateDynamicStrategyAdjustment(
+    player,
+    context.dynamicStrategyState ||
+    null
+  );
+
   var endgameRosterRequirementScore =
   calculateEndgameRosterRequirement(
     player,
@@ -15714,6 +15732,9 @@ finalScore +=
   strategyScore;
 
 finalScore +=
+  dynamicStrategyAdjustment;
+
+finalScore +=
   phaseAdjustedTierCliffScore;
 
 finalScore +=
@@ -15836,8 +15857,11 @@ phaseAdjustedDraftAwareVorpScore:
     timingScore:
       timingScore,
 
-    strategyScore:
+strategyScore:
   strategyScore,
+
+dynamicStrategyAdjustment:
+  dynamicStrategyAdjustment,
 
 runOpportunityScore:
   runOpportunityScore,
