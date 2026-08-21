@@ -7227,7 +7227,33 @@ function loadState(){
         if (pcSlot && pcSlot.value) MY_DRAFT_SLOT = parseInt(pcSlot.value, 10) || 10;
         if (pcRounds && pcRounds.value) TOTAL_ROUNDS = parseInt(pcRounds.value, 10) || 16;
 
-        if(payload.order){ applyCustomOrder(payload.order, true); }
+        /*
+ * Expert consensus is now authoritative for ranking
+ * order and tiers.
+ *
+ * Legacy autosave order must not override it.
+ *
+ * Keep this fallback so older/non-expert versions of
+ * the board can still use saved custom ordering.
+ */
+if (
+  payload.order &&
+  (
+    typeof EXPERT_RANKINGS_2026 ===
+      'undefined' ||
+    !Array.isArray(
+      EXPERT_RANKINGS_2026
+    ) ||
+    EXPERT_RANKINGS_2026.length === 0
+  )
+) {
+
+  applyCustomOrder(
+    payload.order,
+    true
+  );
+
+}
         
         if(payload.state) {
           document.querySelectorAll('tr.draftrow').forEach(function(row){
@@ -8026,6 +8052,215 @@ function moveKickerDefenseRowsToEnd() {
 
 }
 
+/*
+ * =========================================================
+ * BUILD AUTHORITATIVE 2026 EXPERT BOARD
+ * =========================================================
+ *
+ * Runs during page initialization.
+ *
+ * This is intentionally different from
+ * apply2026ExpertRankings().
+ *
+ * It:
+ * - rebuilds the 205-player skill-position board
+ * - preserves K / DST
+ * - does NOT save
+ * - does NOT trigger recommendation calculations
+ * - allows loadState() to restore drafted/taken state after
+ *   the correct board structure exists
+ */
+function build2026ExpertBoardStructure() {
+
+  if (
+    !Array.isArray(EXPERT_RANKINGS_2026) ||
+    !EXPERT_RANKINGS_2026.length
+  ) {
+
+    console.warn(
+      '2026 expert dataset unavailable during initialization.'
+    );
+
+    return null;
+  }
+
+
+  /*
+   * Remove QB/RB/WR/TE rows that are no longer
+   * part of the authoritative expert dataset.
+   */
+  var removedPlayers =
+    removePlayersOutsideExpertDataset();
+
+
+  var reused = 0;
+  var added = 0;
+  var errors = [];
+
+
+  /*
+   * Rebuild every expert player in exact
+   * dataset ranking order.
+   */
+  EXPERT_RANKINGS_2026.forEach(
+    function(player) {
+
+      try {
+
+        var result =
+          ensureExpertPlayerExists(
+            player
+          );
+
+
+        if (
+          !result ||
+          !result.row
+        ) {
+
+          errors.push(
+            player.name
+          );
+
+          return;
+        }
+
+
+        var tbody =
+          getExpertTierBody(
+            player.tier
+          );
+
+
+        if (!tbody) {
+
+          errors.push(
+            player.name +
+            ' — missing tier ' +
+            player.tier
+          );
+
+          return;
+        }
+
+
+        /*
+         * appendChild moves existing rows and
+         * appends new rows, producing deterministic
+         * expert ranking order.
+         */
+        tbody.appendChild(
+          result.row
+        );
+
+
+        if (result.added) {
+
+          added++;
+
+        } else {
+
+          reused++;
+
+        }
+
+      } catch (err) {
+
+        console.error(
+          'Expert board initialization failed:',
+          player.name,
+          err
+        );
+
+        errors.push(
+          player.name
+        );
+
+      }
+
+    }
+  );
+
+
+  /*
+   * Preserve K and DST, but keep them after
+   * the expert-ranked skill players.
+   */
+  var specialTeams =
+    moveKickerDefenseRowsToEnd();
+
+
+  /*
+   * Recalculate visible ranks, but DON'T
+   * trigger the recommendation engine yet.
+   */
+  if (
+    typeof syncRankData ===
+    'function'
+  ) {
+
+    syncRankData();
+
+  }
+
+
+  console.log(
+    '2026 expert board initialized:',
+    {
+      expertPlayers:
+        EXPERT_RANKINGS_2026.length,
+
+      reused:
+        reused,
+
+      added:
+        added,
+
+      removed:
+        removedPlayers.length,
+
+      specialTeams:
+        specialTeams,
+
+      totalRows:
+        document.querySelectorAll(
+          'tr.draftrow'
+        ).length,
+
+      errors:
+        errors
+    }
+  );
+
+
+  return {
+
+    expertPlayers:
+      EXPERT_RANKINGS_2026.length,
+
+    reused:
+      reused,
+
+    added:
+      added,
+
+    removed:
+      removedPlayers,
+
+    specialTeams:
+      specialTeams,
+
+    totalRows:
+      document.querySelectorAll(
+        'tr.draftrow'
+      ).length,
+
+    errors:
+      errors
+
+  };
+
+}
 
 /*
  * =========================================================
@@ -11113,68 +11348,40 @@ function initApp() {
   addMobileHandcuffLabels();
 
   ['pcTeams', 'pcSlot', 'pcRounds'].forEach(function(id) {
-    var el = document.getElementById(id);
+
+    var el =
+      document.getElementById(id);
+
     if (el) {
-      el.addEventListener('change', updatePickSettings);
-      el.addEventListener('input', updatePickSettings);
+
+      el.addEventListener(
+        'change',
+        updatePickSettings
+      );
+
+      el.addEventListener(
+        'input',
+        updatePickSettings
+      );
+
     }
+
   });
 
+
+  /*
+   * Expert rankings define the authoritative
+   * player population and order.
+   */
+  build2026ExpertBoardStructure();
+
+
+  /*
+   * Restore user draft state onto that board.
+   */
   loadState();
+
 }
-
-// ==== SINGLE DOM READY LISTENER ====
-document.addEventListener('DOMContentLoaded', function() {
-
-  // 1. Initialize core application state safely
-  try {
-    initApp();
-  } catch (err) {
-    console.error("Initialization failed inside initApp():", err);
-  }
-
-  // 2. Safely clean buttons once without MutationObserver loops
-  removeExportImportButtons();
-
-
-  /*
-   * -------------------------------------------------------
-   * PHASE 13 — POSITION SCARCITY COLLAPSE
-   * -------------------------------------------------------
-   */
-
-  var positionScarcityDetails =
-    document.getElementById(
-      'position-scarcity-details'
-    );
-
-  if (
-    positionScarcityDetails &&
-    window.innerWidth >= 769
-  ) {
-    positionScarcityDetails.open = true;
-  }
-
-
-  /*
-   * -------------------------------------------------------
-   * PHASE 13D — DRAFT SETTINGS RESPONSIVE DEFAULT
-   * -------------------------------------------------------
-   */
-
-  var draftSettingsDetails =
-    document.getElementById(
-      'draft-settings-details'
-    );
-
-  if (
-    draftSettingsDetails &&
-    window.innerWidth >= 769
-  ) {
-    draftSettingsDetails.open = true;
-  }
-
-});
   
   /* =========================================================
    DRAFT ASSISTANT — STAGE 1 DATA LAYER
