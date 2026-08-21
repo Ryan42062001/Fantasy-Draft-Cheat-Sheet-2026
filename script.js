@@ -2461,6 +2461,286 @@ function buildDynamicStrategyAudit() {
 
 }
 
+function buildDynamicStrategyState() {
+
+  var audit =
+    buildDynamicStrategyAudit();
+
+
+  if (!audit) {
+    return null;
+  }
+
+
+  var positions =
+    ['QB', 'RB', 'WR', 'TE'];
+
+
+  var strategyState = {
+    currentPick:
+      audit.currentPick,
+
+    round:
+      audit.round,
+
+    draftPhase:
+      audit.draftPhase,
+
+    positions: {},
+
+    priorityPositions: [],
+
+    waitPositions: [],
+
+    monitorPositions: []
+  };
+
+
+  positions.forEach(
+    function(position) {
+
+      var item =
+        audit.positions[
+          position
+        ];
+
+
+      if (!item) {
+        return;
+      }
+
+
+      var state =
+        'NEUTRAL';
+
+
+      var reasons = [];
+
+
+      /*
+       * -------------------------------------------------------
+       * STRONG PRIORITY SIGNALS
+       * -------------------------------------------------------
+       */
+
+      if (
+        item.scarcityStatus ===
+          'CRITICAL CLIFF' ||
+        item.scarcityStatus ===
+          'HIGH SCARCITY'
+      ) {
+
+        state =
+          'PRIORITIZE';
+
+        reasons.push(
+          item.scarcityStatus
+        );
+
+      }
+
+
+      if (
+        item.runStrength ===
+          'STRONG' &&
+        item.rosterNeed > 0
+      ) {
+
+        state =
+          'PRIORITIZE';
+
+        reasons.push(
+          'strong positional run'
+        );
+
+      }
+
+
+      /*
+       * -------------------------------------------------------
+       * STARTER-BUILD NEED
+       * -------------------------------------------------------
+       */
+
+      if (
+        audit.draftPhase ===
+          'STARTER BUILD' &&
+        item.rosterNeed >= 2 &&
+        state !== 'PRIORITIZE'
+      ) {
+
+        state =
+          'PRIORITIZE';
+
+        reasons.push(
+          'multiple starter needs remain'
+        );
+
+      }
+
+
+      /*
+       * -------------------------------------------------------
+       * BEST PATH SIGNAL
+       * -------------------------------------------------------
+       */
+
+      if (
+        audit.bestPath &&
+        audit.bestPath.position ===
+          position
+      ) {
+
+        if (
+          state === 'NEUTRAL'
+        ) {
+
+          state =
+            'PRIORITIZE';
+
+        }
+
+        reasons.push(
+          'best projected draft path starts here'
+        );
+
+      }
+
+
+      /*
+       * -------------------------------------------------------
+       * MONITOR
+       * -------------------------------------------------------
+       */
+
+      if (
+        state === 'NEUTRAL' &&
+        item.rosterNeed > 0 &&
+        (
+          item.cliffSeverity ===
+            'MODERATE' ||
+          item.scarcity >= 70
+        )
+      ) {
+
+        state =
+          'MONITOR';
+
+        reasons.push(
+          'need remains with emerging pressure'
+        );
+
+      }
+
+
+      /*
+       * -------------------------------------------------------
+       * WAIT
+       * -------------------------------------------------------
+       */
+
+      if (
+        state === 'NEUTRAL' &&
+        item.rosterNeed > 0 &&
+        item.scarcityStatus ===
+          'HEALTHY DEPTH'
+      ) {
+
+        state =
+          'WAIT';
+
+        reasons.push(
+          'healthy positional depth'
+        );
+
+      }
+
+
+      /*
+       * -------------------------------------------------------
+       * SATISFIED POSITION
+       * -------------------------------------------------------
+       */
+
+      if (
+        item.rosterNeed <= 0
+      ) {
+
+        state =
+          'WAIT';
+
+        reasons = [
+          'starter need satisfied'
+        ];
+
+      }
+
+
+      strategyState.positions[
+        position
+      ] = {
+
+        position:
+          position,
+
+        state:
+          state,
+
+        reasons:
+          reasons,
+
+        rosterNeed:
+          item.rosterNeed,
+
+        scarcity:
+          item.scarcity,
+
+        scarcityStatus:
+          item.scarcityStatus,
+
+        cliffSeverity:
+          item.cliffSeverity,
+
+        runStrength:
+          item.runStrength
+
+      };
+
+
+      if (
+        state === 'PRIORITIZE'
+      ) {
+
+        strategyState
+          .priorityPositions
+          .push(position);
+
+      } else if (
+        state === 'MONITOR'
+      ) {
+
+        strategyState
+          .monitorPositions
+          .push(position);
+
+      } else if (
+        state === 'WAIT'
+      ) {
+
+        strategyState
+          .waitPositions
+          .push(position);
+
+      }
+
+    }
+  );
+
+
+  return strategyState;
+
+}
+
 function debugDynamicStrategyAudit() {
 
   var audit =
@@ -2549,6 +2829,78 @@ function debugDynamicStrategyAudit() {
 
 
   return audit;
+
+}
+
+function debugDynamicStrategyState() {
+
+  var state =
+    buildDynamicStrategyState();
+
+
+  if (!state) {
+
+    console.warn(
+      'Dynamic strategy state unavailable.'
+    );
+
+    return null;
+
+  }
+
+
+  console.table(
+    Object.keys(
+      state.positions
+    ).map(function(position) {
+
+      var item =
+        state.positions[
+          position
+        ];
+
+
+      return {
+
+        position:
+          position,
+
+        strategy:
+          item.state,
+
+        need:
+          item.rosterNeed,
+
+        scarcity:
+          Number(
+            item.scarcity
+          ).toFixed(1),
+
+        scarcityStatus:
+          item.scarcityStatus,
+
+        cliff:
+          item.cliffSeverity,
+
+        run:
+          item.runStrength,
+
+        reasons:
+          item.reasons.join(
+            '; '
+          )
+
+      };
+
+    })
+  );
+
+
+  window.latestDynamicStrategyState =
+    state;
+
+
+  return state;
 
 }
 
