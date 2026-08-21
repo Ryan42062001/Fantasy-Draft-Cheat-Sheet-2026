@@ -10667,15 +10667,47 @@ function calculateVorpProfile(
  */
 function calculateAllFantasyVorp(players) {
 
+  var perfStart =
+    performance.now();
+
+
   var available =
     getAvailableVorpPlayers(
       players
     );
 
+
+  console.log(
+    '[VORP PERF] available pool',
+    (
+      performance.now() -
+      perfStart
+    ).toFixed(2) + ' ms'
+  );
+
+
+  perfStart =
+    performance.now();
+
+
   var replacements =
     calculateReplacementLevels(
       available
     );
+
+
+  console.log(
+    '[VORP PERF] replacements',
+    (
+      performance.now() -
+      perfStart
+    ).toFixed(2) + ' ms'
+  );
+
+
+  perfStart =
+    performance.now();
+
 
   var profiles =
     available.map(function(player) {
@@ -10685,17 +10717,41 @@ function calculateAllFantasyVorp(players) {
         available,
         replacements
       );
+
     });
 
+
   console.log(
-  'VORP PROFILE TEST:',
-  profiles.slice(0, 5).map(function(p){
-    return {
-      name: p.player.name,
-      scarcity: p.scarcity
-    };
-  })
-);
+    '[VORP PERF] profiles',
+    (
+      performance.now() -
+      perfStart
+    ).toFixed(2) + ' ms'
+  );
+
+
+  /*
+   * Keep detailed VORP logging disabled during
+   * normal production updates.
+   */
+
+  /*
+  console.log(
+    'VORP PROFILE TEST:',
+    profiles.slice(0, 5).map(function(p) {
+
+      return {
+        name:
+          p.player.name,
+
+        scarcity:
+          p.scarcity
+      };
+
+    })
+  );
+  */
+
 
   return {
 
@@ -10707,7 +10763,9 @@ function calculateAllFantasyVorp(players) {
 
     profiles:
       profiles
+
   };
+
 }
 
 function calculateDraftAwareVorpOpportunity(player, context){
