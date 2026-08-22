@@ -4566,6 +4566,16 @@ function runCalculationSanityTests() {
 
   var rank80 = scoreFixture(80);
   var rank160 = scoreFixture(160);
+  test.between(
+    'Strategy budget: derived opportunity adjustment remains capped',
+    rank80.cappedStrategyAdjustment,
+    WAR_ROOM_CONFIG.strategyAdjustmentBudget.min,
+    WAR_ROOM_CONFIG.strategyAdjustmentBudget.max
+  );
+  test.assert(
+    'Strategy diagnostics: final score reconciles base, strategy, and guardrails',
+    Math.abs(rank80.finalScore - (rank80.baseScore + rank80.cappedStrategyAdjustment + rank80.guardrailAdjustment)) < 0.001
+  );
   test.assert(
     'ECR rank: late-round ranks remain positive and ordered',
     rank80.rankScore > rank160.rankScore && rank160.rankScore > 0
@@ -4659,6 +4669,37 @@ function runCalculationSanityTests() {
   summary.results.forEach(function(result) {
     console.log((result.passed ? '✓ ' : '✗ ') + result.name + (result.error ? ' — ' + result.error : ''));
   });
+  console.groupEnd();
+  return summary;
+}
+
+function runRecommendationThresholdTests() {
+  var test = draftEngineTestCreateRunner();
+  var player = {
+    finalScore: 80, vorpScore: 85, tierScore: 85, timingScore: 20,
+    tierCliffOpportunityScore: 0, runOpportunityScore: 0,
+    draftAwareVorpOpportunityScore: 0, strategyScore: 0
+  };
+  var alternative = {finalScore: 76, nextPickSurvivalScore: 80, survivalAdjustedScore: 74};
+  function action(gap, confidence, overrides) {
+    return calculateRecommendationDecision(
+      Object.assign({}, player, overrides || {}),
+      Object.assign({}, alternative), gap, confidence, {}
+    ).recommendation;
+  }
+
+  test.equal('Threshold: gap -8 is PASS', action(-8, 70), 'PASS');
+  test.equal('Threshold: gap -4 with confidence 40 is PASS', action(-4, 40), 'PASS');
+  test.equal('Threshold: gap -4 below confidence 40 is WAIT', action(-4, 39), 'WAIT');
+  test.equal('Threshold: gap 5 below confidence 55 is not DRAFT', action(5, 54), 'CONSIDER');
+  test.equal('Threshold: gap 5 at confidence 55 is DRAFT', action(5, 55), 'DRAFT');
+  test.equal('Threshold: gap 8 below confidence 65 is CONSIDER', action(8, 64, {vorpScore:60,tierScore:70}), 'CONSIDER');
+  test.equal('Threshold: gap 8 at confidence 65 is DRAFT', action(8, 65, {vorpScore:60,tierScore:70}), 'DRAFT');
+  test.equal('Threshold: safe close alternative produces WAIT', action(3, 50, {vorpScore:60,tierScore:70}), 'WAIT');
+
+  var summary = test.summary();
+  console.group('RECOMMENDATION THRESHOLD TEST SUITE');
+  console.log('Result: ' + summary.passed + '/' + summary.total);
   console.groupEnd();
   return summary;
 }

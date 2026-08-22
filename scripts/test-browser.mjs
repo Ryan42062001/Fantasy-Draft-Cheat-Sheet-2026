@@ -71,13 +71,32 @@ const suites = await page.evaluate(async () => {
     turn: await capture(() => runTurnPackageTests()),
     explanation: await capture(() => runRecommendationExplanationTests()),
     sanity: await capture(() => runCalculationSanityTests()),
+    thresholds: await capture(() => runRecommendationThresholdTests()),
     roadmap: await capture(() => runFantasyProsRoadmapSimulations()),
     espn: await capture(() => runEspnSyncContractTests())
   };
 });
+const auditSummary = await page.evaluate(() => {
+  const original = recommendationAudit;
+  recommendationAudit = [
+    {resolved:true, calibrationEligible:true, survived:true},
+    {resolved:true, calibrationEligible:true, survived:false},
+    {resolved:true, calibrationEligible:false, noisyDraft:true, survived:false}
+  ];
+  const summary = getRecommendationAuditSummary();
+  recommendationAudit = original;
+  return summary;
+});
+assert.equal(auditSummary.calibrationEligible, 2);
+assert.equal(auditSummary.noisyDraftDecisions, 1);
+assert.equal(auditSummary.observedSurvivalRate, 50);
+assert.equal(auditSummary.minimumSampleReached, false);
 
 await browser.close();
 if (server) await new Promise(resolve => server.close(resolve));
 if (errors.length) throw new Error('Browser console errors: ' + errors.join(' | '));
 const suiteSummary = Object.fromEntries(Object.entries(suites).map(([name, result]) => [name, {passed:result.passed, failed:result.failed, total:result.total}]));
+Object.entries(suites).forEach(([name, result]) => {
+  assert.equal(result.failed || 0, 0, name + ': ' + JSON.stringify((result.results || []).filter(item => !item.passed)));
+});
 console.log(JSON.stringify({startup, markingMs:Number(markingMs.toFixed(1)), mobileOverflow, suites:suiteSummary}, null, 2));
