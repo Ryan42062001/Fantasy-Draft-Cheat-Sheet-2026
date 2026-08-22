@@ -23,6 +23,13 @@ test('ESPN reader reaches embedded draft-room frames', () => {
   assert.equal(espnScript.match_about_blank, true);
 });
 
+test('authenticated ESPN bridge runs in the page main world before readers', () => {
+  const bridge = manifest.content_scripts.find(script => script.js.includes('espn-page-bridge.js'));
+  assert.equal(bridge.world, 'MAIN');
+  assert.equal(bridge.run_at, 'document_start');
+  assert.equal(bridge.all_frames, true);
+});
+
 test('all declared extension files exist', () => {
   const files = new Set([
     manifest.background.service_worker,

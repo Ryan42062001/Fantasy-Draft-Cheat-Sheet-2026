@@ -32,6 +32,8 @@ function render(status) {
   document.getElementById('unmatched-count').textContent = Number(warRoom.unmatched) || 0;
   var directParts = [];
   if (espn.apiHttpStatus) directParts.push('HTTP ' + espn.apiHttpStatus);
+  if (espn.apiTransport === 'page') directParts.push('authenticated page connection');
+  else if (espn.apiTransport === 'content') directParts.push('extension request fallback');
   if (espn.apiRole) directParts.push('role ' + espn.apiRole);
   if (espn.apiAvailable) {
     directParts.push((Number(espn.apiResolved) || 0) + '/' + (Number(espn.apiRawCount) || 0) + ' picks resolved');

@@ -425,6 +425,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.espn.apiComplete = Boolean(message.complete);
       state.espn.apiHttpStatus = Number(message.httpStatus) || null;
       state.espn.apiRole = message.role ? String(message.role).slice(0, 40) : null;
+      state.espn.apiTransport = message.transport ? String(message.transport).slice(0, 20) : null;
       state.espn.apiRawCount = Number(message.rawCount) || 0;
       state.espn.apiResolved = Number(message.resolved) || 0;
       state.espn.apiUnresolved = Number(message.unresolved) || 0;
