@@ -137,3 +137,16 @@ test('complete structured data replaces stale screen picks', async () => {
   assert.equal(context.state.espn.method, 'api');
   assert.equal(context.getPicks().length, 0);
 });
+
+test('accumulates explicitly drafted labels as a late-round availability safeguard', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.mergeUnavailablePlayers([
+    {playerName: 'Jalen Coker', position: 'WR', espnPlayerId: '123'},
+    {playerName: 'Jalen Coker', position: 'WR', espnPlayerId: '123'}
+  ]);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(context.getUnavailablePlayers())),
+    [{playerName: 'Jalen Coker', position: 'WR', espnPlayerId: '123'}]
+  );
+});

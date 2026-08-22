@@ -183,6 +183,41 @@
     return directory;
   }
 
+  function scanDraftedPlayerLabels(documentObject) {
+    if (!documentObject || !documentObject.querySelectorAll) return [];
+    var nodes = [];
+    try {
+      nodes = Array.prototype.slice.call(documentObject.querySelectorAll(
+        'tr, [role="row"], [data-player-id], [data-athlete-id]'
+      ));
+    } catch (error) {}
+
+    var byPlayer = new Map();
+    nodes.slice(0, 5000).forEach(function(node) {
+      var text = cleanText(node.innerText || node.textContent || node.getAttribute('aria-label'));
+      if (!text || text.length > 600 || !/\bDRAFTED\b/i.test(text)) return;
+      var attrs = readAttributes(node);
+      var name = parsePlayerName(text, attrs);
+      var position = parsePosition(text);
+      if (!name || !position) return;
+      var key = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() + '|' + position;
+      if (!byPlayer.has(key)) {
+        var link = node.matches && node.matches('a[href]')
+          ? node
+          : node.querySelector && node.querySelector('a[href*="/id/"]');
+        byPlayer.set(key, {
+          playerName: name,
+          position: position,
+          espnPlayerId: parseEspnPlayerId(
+            attrs,
+            link && link.getAttribute ? link.getAttribute('href') : ''
+          )
+        });
+      }
+    });
+    return Array.from(byPlayer.values());
+  }
+
   function detectDraftShape(documentObject) {
     var text = cleanText(
       documentObject && documentObject.body
@@ -290,6 +325,7 @@
     parsePlayerName: parsePlayerName,
     parsePickText: parsePickText,
     scanPlayerDirectory: scanPlayerDirectory,
+    scanDraftedPlayerLabels: scanDraftedPlayerLabels,
     detectDraftShape: detectDraftShape,
     scanDocument: scanDocument,
     scanDocumentDetailed: scanDocumentDetailed
