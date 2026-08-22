@@ -193,14 +193,11 @@
       text.match(/\bROUND\s+\d{1,2}\s+OF\s+(\d{1,2})\b/i);
     var currentPickMatch = text.match(/\bON THE CLOCK\s*:\s*PICK\s+(\d{1,3})\b/i) ||
       text.match(/\bON THE CLOCK\b[^\n]{0,80}\bPICK\s+(\d{1,3})\b/i);
-    var observedTeams = 0;
-    var roundPickPattern = /\bR(?:ound)?\s*\d{1,2}\s*[,./-]?\s*P(?:ick)?\s*(\d{1,2})\b/ig;
-    var match;
-    while ((match = roundPickPattern.exec(text)) !== null) {
-      observedTeams = Math.max(observedTeams, Number(match[1]) || 0);
-    }
     return {
-      teams: observedTeams >= 2 ? observedTeams : null,
+      // ESPN uses P# inconsistently across its recent-pick cards. It can mean
+      // overall pick rather than pick-in-round, so it is not safe evidence of
+      // league size. The user's saved team count remains authoritative.
+      teams: null,
       rounds: roundsMatch ? Number(roundsMatch[1]) : null,
       currentPick: currentPickMatch ? Number(currentPickMatch[1]) : null
     };
