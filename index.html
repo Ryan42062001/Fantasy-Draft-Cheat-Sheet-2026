@@ -24,7 +24,7 @@
   <button class="filterbtn" data-pos="TE" onclick="setPosFilter('TE',this)">TE</button>
   <button class="filterbtn" data-pos="K" onclick="setPosFilter('K',this)">K</button>
   <button class="filterbtn" data-pos="DST" onclick="setPosFilter('DST',this)">DST</button>
-  <button class="myteam-toggle" onclick="toggleMyTeam()">My Team</button>
+  <button class="myteam-toggle" onclick="toggleMyTeam()">My Draft</button>
 </div>
 <div class="statusbar">
   <span id="remaining-status">All players available</span>
@@ -50,25 +50,43 @@
 
   <div id="myteam-panel">
 
-    <button class="close-btn" onclick="toggleMyTeam()">&times;</button>
+    <button class="close-btn" onclick="toggleMyTeam()" aria-label="Close My Draft">&times;</button>
 
-    <div class="myteam-header">
+    <div class="draft-hub-header">
+      <div>
+        <div class="summary-eyebrow">YOUR DRAFT ROOM</div>
+        <h2>&#127942; My Draft</h2>
+      </div>
+      <span id="myteam-starter-count">0 / 9 starters</span>
+    </div>
 
-  <h2>&#127942; My Team</h2>
+    <div class="draft-hub-tabs" role="tablist" aria-label="My Draft views">
+      <button id="draft-summary-tab" class="draft-hub-tab active" role="tab" aria-selected="true" onclick="setDraftHubView('summary')">Summary</button>
+      <button id="draft-lineup-tab" class="draft-hub-tab" role="tab" aria-selected="false" onclick="setDraftHubView('lineup')">Lineup</button>
+    </div>
 
-  <span id="myteam-starter-count">0 / 9 starters</span>
+    <section id="summary-panel" class="draft-hub-view active" aria-labelledby="summary-title">
+      <div class="summary-header">
+        <div>
+          <div class="summary-eyebrow">LIVE DRAFT REPORT</div>
+          <h2 id="summary-title">&#128202; Draft Summary</h2>
+        </div>
+        <span id="summary-pick-count">0 picks</span>
+      </div>
+      <div id="summary-content"></div>
+    </section>
 
-</div>
+    <section id="lineup-panel" class="draft-hub-view" aria-label="My lineup">
+      <div id="needs-row"></div>
 
-    <div id="needs-row"></div>
+      <div id="value-tracker"></div>
 
-    <div id="value-tracker"></div>
+      <div id="bye-warning"></div>
 
-    <div id="bye-warning"></div>
+      <div class="roster-list" id="roster-list"></div>
+    </section>
 
-    <div class="roster-list" id="roster-list"></div>
-
-</div>
+  </div>
 
     <div class="widget-box" id="pick-counter-box">
 
@@ -326,13 +344,12 @@
   </div>
 </div>
 
-<div id="summary-panel">
-  <button class="close-btn" onclick="toggleSummary()">&times;</button>
-  <h2>&#128202; Draft Summary</h2>
-  <div id="summary-content"></div>
+<div id="final-summary-modal" class="final-summary-modal" role="dialog" aria-modal="true" aria-labelledby="final-summary-title">
+  <div class="final-summary-dialog">
+    <button class="close-btn" onclick="closeFinalDraftSummary()" aria-label="Close final draft report">&times;</button>
+    <div id="final-summary-content"></div>
+  </div>
 </div>
-
-
 
 <footer>
   Merged &amp; fact-checked draft board &middot; verify injury/PUP designations day-of-draft

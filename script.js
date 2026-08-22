@@ -11,6 +11,7 @@ var ROSTER_SLOTS = {QB:1, RB:2, WR:2, TE:1, FLEX:1, DST:1, K:1};
 var BENCH_SLOTS = {QB:0, RB:2, WR:5, TE:0, K:0, DST:0};
 var AUTOSAVE_KEY = 'draft-state-v1';
 var AUTOSAVE_ENABLED_KEY = 'draft-autosave-enabled-v1';
+var FINAL_SUMMARY_SHOWN_KEY = 'draft-final-summary-shown-v1';
 var DEBUG_DRAFT_SCORING = false;
 var TEAM_COLORS = {
   ARI:'#97233F', ATL:'#A71930', BAL:'#241773', BUF:'#00338D', CAR:'#0085CA',
@@ -29,6 +30,7 @@ var currentPosFilter = 'ALL';
 var resetArmed = false;
 var resetArmTimer = null;
 var _saveTimer = null;
+var _finalSummaryTimer = null;
 var appObserver = null;
 var searchMatches = [];
 var currentSearchIndex = -1;
@@ -216,10 +218,9 @@ function updateMyTeam() {
     var isOpen = panel && panel.classList.contains('open');
 
     myTeamButton.innerText =
-      (isOpen ? 'Hide My Team' : 'My Team') +
+      (isOpen ? 'Hide My Draft' : 'My Draft') +
       ' · ' +
-      totalStarters +
-      '/9';
+      players.length;
   }
 
   /* ---- Roster needs ---- */
@@ -393,33 +394,473 @@ function toggleMyTeam() {
 
   if (isOpen) {
     updateMyTeam();
-  } else {
-    var starterCountElement =
-      document.getElementById('myteam-starter-count');
+  }
 
-    var starterText = starterCountElement
-      ? starterCountElement.textContent
-      : '0 / 9 starters';
+  if (button) {
+    var draftedCount = document.querySelectorAll('tr.draftrow.drafted-mine').length;
+    button.classList.toggle('active', isOpen);
+    button.innerText = (isOpen ? 'Hide My Draft' : 'My Draft') + ' · ' + draftedCount;
+  }
+}
 
-    var shortCount = starterText.replace(' starters', '');
+function setDraftHubView(view) {
+  var selectedView = view === 'lineup' ? 'lineup' : 'summary';
 
-    if (button) {
-      button.classList.remove('active');
-      button.innerText = 'My Team · ' + shortCount;
+  document.querySelectorAll('.draft-hub-view').forEach(function(panel) {
+    panel.classList.toggle('active', panel.id === selectedView + '-panel');
+  });
+
+  document.querySelectorAll('.draft-hub-tab').forEach(function(tab) {
+    var isSelected = tab.id === 'draft-' + selectedView + '-tab';
+    tab.classList.toggle('active', isSelected);
+    tab.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+  });
+
+  if (selectedView === 'summary') updateDraftSummary();
+  if (selectedView === 'lineup') updateMyTeam();
+}
+
+function escapeSummaryHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getDraftRowDisplayName(row) {
+  var playerCell = row && row.querySelector('.pname');
+  if (!playerCell) return row ? row.getAttribute('data-name') || 'Unknown player' : 'Unknown player';
+
+  var clone = playerCell.cloneNode(true);
+  clone.querySelectorAll('.posrk, .mobile-handcuff, .rank-controls').forEach(function(element) {
+    element.remove();
+  });
+
+  return (clone.textContent || '').replace(/\s+/g, ' ').trim() || 'Unknown player';
+}
+
+function getDraftSummaryGrade(averageEcrValue) {
+  if (averageEcrValue == null || !Number.isFinite(averageEcrValue)) return '—';
+  if (averageEcrValue >= 10) return 'A+';
+  if (averageEcrValue >= 5) return 'A';
+  if (averageEcrValue >= 0) return 'B';
+  if (averageEcrValue >= -5) return 'C';
+  if (averageEcrValue >= -10) return 'D';
+  return 'F';
+}
+
+function formatDraftSummaryDelta(value) {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return (value > 0 ? '+' : '') + value.toFixed(1);
+}
+
+function updateDraftSummary() {
+  var content = document.getElementById('summary-content');
+  var countBadge = document.getElementById('summary-pick-count');
+  if (!content) return;
+
+  var state = getDraftAssistantState();
+  var allDraftedCount = document.querySelectorAll(
+    'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
+  ).length;
+  var myRows = Array.prototype.slice.call(
+    document.querySelectorAll('tr.draftrow.drafted-mine')
+  );
+  var positionCounts = {QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DST: 0};
+
+  var picks = myRows.map(function(row, index) {
+    var position = row.getAttribute('data-pos') || '';
+    if (positionCounts[position] !== undefined) positionCounts[position]++;
+
+    var pick = Number(row.getAttribute('data-pick')) || null;
+    var ecr = getDraftRowNumber(row, 'data-ecr');
+    var adp = getDraftRowNumber(row, 'data-adp');
+
+    return {
+      name: getDraftRowDisplayName(row),
+      position: position,
+      pick: pick,
+      ecr: ecr,
+      adp: adp,
+      ecrValue: pick != null && ecr != null ? pick - ecr : null,
+      marketValue: pick != null && adp != null ? pick - adp : null,
+      originalIndex: index
+    };
+  });
+
+  picks.sort(function(a, b) {
+    if (a.pick == null && b.pick == null) return a.originalIndex - b.originalIndex;
+    if (a.pick == null) return 1;
+    if (b.pick == null) return -1;
+    return a.pick - b.pick;
+  });
+
+  var flexFilled = Math.min(1,
+    Math.max(0, positionCounts.RB - 2) +
+    Math.max(0, positionCounts.WR - 2) +
+    Math.max(0, positionCounts.TE - 1)
+  );
+  var startersFilled =
+    Math.min(positionCounts.QB, 1) +
+    Math.min(positionCounts.RB, 2) +
+    Math.min(positionCounts.WR, 2) +
+    Math.min(positionCounts.TE, 1) +
+    flexFilled +
+    Math.min(positionCounts.K, 1) +
+    Math.min(positionCounts.DST, 1);
+
+  var knownEcrValues = picks.filter(function(player) {
+    return player.ecrValue != null;
+  });
+  var averageEcrValue = knownEcrValues.length
+    ? knownEcrValues.reduce(function(total, player) { return total + player.ecrValue; }, 0) / knownEcrValues.length
+    : null;
+  var grade = getDraftSummaryGrade(averageEcrValue);
+  var progress = state.totalPicks
+    ? Math.min(100, Math.round((allDraftedCount / state.totalPicks) * 100))
+    : 0;
+  var currentRound = Math.min(
+    state.rounds,
+    Math.max(1, Math.ceil(state.currentPick / state.teams))
+  );
+
+  if (countBadge) countBadge.textContent = picks.length + (picks.length === 1 ? ' pick' : ' picks');
+
+  var html =
+    '<div class="summary-progress-row">' +
+      '<div><strong>Round ' + currentRound + ' of ' + state.rounds + '</strong>' +
+        '<span>' + allDraftedCount + ' of ' + state.totalPicks + ' overall picks complete</span></div>' +
+      '<span>' + progress + '%</span>' +
+    '</div>' +
+    '<div class="summary-progress-track"><span style="width:' + progress + '%"></span></div>' +
+    '<div class="summary-stat-grid">' +
+      '<div class="summary-stat"><span>My roster</span><strong>' + picks.length + ' / ' + state.rounds + '</strong><small>players drafted</small></div>' +
+      '<div class="summary-stat"><span>Starting lineup</span><strong>' + startersFilled + ' / 9</strong><small>slots filled</small></div>' +
+      '<div class="summary-stat summary-grade"><span>ECR value grade</span><strong>' + grade + '</strong><small>' +
+        (averageEcrValue == null ? 'record pick numbers to grade' : formatDraftSummaryDelta(averageEcrValue) + ' picks vs ECR on average') +
+      '</small></div>' +
+    '</div>';
+
+  if (!picks.length) {
+    html +=
+      '<div class="summary-empty">' +
+        '<div class="summary-empty-icon">&#127944;</div>' +
+        '<strong>Your draft story starts with your first pick.</strong>' +
+        '<span>Mark a drafted player as <b>Mine</b> and this report will build automatically.</span>' +
+      '</div>';
+    content.innerHTML = html;
+    return;
+  }
+
+  var positionTargets = {QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DST: 1};
+  html += '<div class="summary-section"><h3>Roster construction</h3><div class="summary-position-grid">';
+  ['QB', 'RB', 'WR', 'TE', 'K', 'DST'].forEach(function(position) {
+    var count = positionCounts[position];
+    var target = positionTargets[position];
+    var statusClass = count >= target ? 'filled' : 'open';
+    html +=
+      '<div class="summary-position ' + statusClass + '">' +
+        '<span class="pos-pill pos-' + position + '">' + position + '</span>' +
+        '<strong>' + count + '</strong><small>starter target ' + target + '</small>' +
+      '</div>';
+  });
+  html += '</div></div>';
+
+  var bestValue = knownEcrValues.filter(function(player) { return player.ecrValue > 0; })
+    .sort(function(a, b) { return b.ecrValue - a.ecrValue; })[0] || null;
+  var biggestReach = knownEcrValues.filter(function(player) { return player.ecrValue < 0; })
+    .sort(function(a, b) { return a.ecrValue - b.ecrValue; })[0] || null;
+  var knownMarketValues = picks.filter(function(player) { return player.marketValue != null; });
+  var marketWins = knownMarketValues.filter(function(player) { return player.marketValue > 0; }).length;
+  var openStarterLabels = [];
+  Object.keys(positionTargets).forEach(function(position) {
+    var missing = Math.max(0, positionTargets[position] - positionCounts[position]);
+    if (missing) openStarterLabels.push(position + (missing > 1 ? ' ×' + missing : ''));
+  });
+  if (!flexFilled) openStarterLabels.push('FLEX');
+
+  html +=
+    '<div class="summary-section"><h3>Draft insights</h3><div class="summary-insights">' +
+      '<div><span>Best consensus value</span><strong>' +
+        (bestValue ? escapeSummaryHtml(bestValue.name) + ' (' + formatDraftSummaryDelta(bestValue.ecrValue) + ')' : 'No value picks yet') +
+      '</strong></div>' +
+      '<div><span>Largest reach vs ECR</span><strong>' +
+        (biggestReach ? escapeSummaryHtml(biggestReach.name) + ' (' + formatDraftSummaryDelta(biggestReach.ecrValue) + ')' : 'No reaches yet') +
+      '</strong></div>' +
+      '<div><span>Picked after market ADP</span><strong>' + marketWins + ' of ' + knownMarketValues.length + '</strong></div>' +
+      '<div><span>Open starter slots</span><strong>' +
+        (openStarterLabels.length ? openStarterLabels.join(', ') : 'Starting lineup complete') +
+      '</strong></div>' +
+    '</div></div>';
+
+  html +=
+    '<div class="summary-section"><div class="summary-section-heading"><h3>My picks</h3>' +
+      '<span>Positive value means you drafted the player later than consensus.</span></div>' +
+      '<div class="summary-picks-table-wrap"><table class="summary-picks-table"><thead><tr>' +
+        '<th>Pick</th><th>Player</th><th>Pos</th><th>ECR</th><th>ADP</th><th>Value</th>' +
+      '</tr></thead><tbody>';
+
+  picks.forEach(function(player) {
+    var valueClass = player.ecrValue == null ? 'neutral' : player.ecrValue >= 0 ? 'positive' : 'negative';
+    html +=
+      '<tr><td>' + (player.pick == null ? '—' : '#' + player.pick) + '</td>' +
+      '<td><strong>' + escapeSummaryHtml(player.name) + '</strong></td>' +
+      '<td><span class="pos-pill pos-' + escapeSummaryHtml(player.position) + '">' + escapeSummaryHtml(player.position) + '</span></td>' +
+      '<td>' + (player.ecr == null ? '—' : player.ecr.toFixed(0)) + '</td>' +
+      '<td>' + (player.adp == null ? '—' : player.adp.toFixed(1)) + '</td>' +
+      '<td class="summary-value ' + valueClass + '">' + formatDraftSummaryDelta(player.ecrValue) + '</td></tr>';
+  });
+  html += '</tbody></table></div></div>';
+
+  var finalSummaryData = {
+    picks: picks,
+    positionCounts: positionCounts,
+    startersFilled: startersFilled,
+    averageEcrValue: averageEcrValue,
+    grade: grade
+  };
+  window.latestFinalDraftSummaryData = finalSummaryData;
+
+  if (allDraftedCount >= state.totalPicks) {
+    html += '<button class="summary-final-report-btn" onclick="showFinalDraftSummary()">View final draft report</button>';
+  }
+
+  content.innerHTML = html;
+  maybeShowFinalDraftSummary(
+    state,
+    picks,
+    positionCounts,
+    startersFilled,
+    averageEcrValue,
+    grade
+  );
+}
+
+function toggleSummary() {
+  var hub = document.getElementById('myteam-panel');
+  if (!hub) return;
+
+  if (!hub.classList.contains('open')) hub.classList.add('open');
+  setDraftHubView('summary');
+  updateMyTeam();
+  hub.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function getFinalDraftAlternative(player) {
+  if (!player || player.pick == null || player.ecr == null) return null;
+
+  return getDraftAssistantPlayers()
+    .filter(function(candidate) {
+      if (!candidate || !candidate.row || candidate.ecr == null) return false;
+      var candidatePick = Number(candidate.row.getAttribute('data-pick')) || null;
+      return candidatePick != null &&
+        candidatePick > player.pick &&
+        candidate.ecr < player.ecr &&
+        candidate.name !== player.name;
+    })
+    .sort(function(a, b) { return a.ecr - b.ecr; })[0] || null;
+}
+
+function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, averageEcrValue, grade) {
+  var knownValues = picks.filter(function(player) { return player.ecrValue != null; });
+  var knownMarket = picks.filter(function(player) { return player.marketValue != null; });
+  var averageMarketValue = knownMarket.length
+    ? knownMarket.reduce(function(total, player) { return total + player.marketValue; }, 0) / knownMarket.length
+    : null;
+  var bestValue = knownValues.slice().sort(function(a, b) { return b.ecrValue - a.ecrValue; })[0] || null;
+  var materialReaches = knownValues.filter(function(player) { return player.ecrValue <= -5; })
+    .sort(function(a, b) { return a.ecrValue - b.ecrValue; });
+  var strengths = [];
+  var improvements = [];
+
+  if (bestValue && bestValue.ecrValue > 0) {
+    strengths.push(
+      '<b>' + escapeSummaryHtml(bestValue.name) + '</b> was your best value at ' +
+      formatDraftSummaryDelta(bestValue.ecrValue) + ' picks versus ECR.'
+    );
+  }
+
+  if (averageEcrValue != null && averageEcrValue >= 0) {
+    strengths.push('Your roster beat FantasyPros ECR by <b>' + formatDraftSummaryDelta(averageEcrValue) + ' picks per selection</b> on average.');
+  }
+
+  if (averageMarketValue != null && averageMarketValue >= 0) {
+    strengths.push('You generally waited for market value, drafting players <b>' + formatDraftSummaryDelta(averageMarketValue) + ' picks after ADP</b> on average.');
+  }
+
+  if (startersFilled === 9) {
+    strengths.push('You completed every starting-lineup slot.');
+  }
+
+  if (positionCounts.RB >= 3 && positionCounts.WR >= 3) {
+    strengths.push('You built usable depth at both RB and WR.');
+  }
+
+  materialReaches.slice(0, 3).forEach(function(player) {
+    var alternative = getFinalDraftAlternative(player);
+    var advice =
+      '<b>' + escapeSummaryHtml(player.name) + ' at #' + player.pick + '</b> was ' +
+      Math.abs(player.ecrValue).toFixed(0) + ' picks ahead of ECR.';
+
+    if (alternative) {
+      advice += ' <b>' + escapeSummaryHtml(alternative.name) + '</b> (ECR #' + alternative.ecr.toFixed(0) +
+        ') was still available and would have followed consensus value more closely.';
+    } else {
+      advice += ' Waiting longer or taking a higher-ECR option would have reduced the reach.';
     }
+
+    improvements.push(advice);
+  });
+
+  var requiredCounts = {QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DST: 1};
+  var missing = [];
+  Object.keys(requiredCounts).forEach(function(position) {
+    var shortfall = Math.max(0, requiredCounts[position] - positionCounts[position]);
+    if (shortfall) missing.push(position + (shortfall > 1 ? ' ×' + shortfall : ''));
+  });
+  if (startersFilled < 9) {
+    var flexMissing = Math.max(0,
+      1 - Math.min(1,
+        Math.max(0, positionCounts.RB - 2) +
+        Math.max(0, positionCounts.WR - 2) +
+        Math.max(0, positionCounts.TE - 1)
+      )
+    );
+    if (flexMissing) missing.push('FLEX');
+  }
+  if (missing.length) {
+    improvements.push('Your starting lineup finished with open needs at <b>' + missing.join(', ') + '</b>.');
   }
 
-  if (button && isOpen) {
-    var currentCount =
-      document.getElementById('myteam-starter-count');
+  ['K', 'DST'].forEach(function(position) {
+    var earlyPick = picks.find(function(player) {
+      return player.position === position && player.pick != null &&
+        Math.ceil(player.pick / Math.max(1, LEAGUE_SIZE)) < Math.max(1, TOTAL_ROUNDS - 2);
+    });
+    if (earlyPick) {
+      improvements.push('<b>' + position + ' was selected in Round ' +
+        Math.ceil(earlyPick.pick / Math.max(1, LEAGUE_SIZE)) +
+        '.</b> Waiting until the final two rounds usually preserves more upside at RB/WR.');
+    }
+  });
 
-    var countText = currentCount
-      ? currentCount.textContent.replace(' starters', '')
-      : '0 / 9';
-
-    button.classList.add('active');
-    button.innerText = 'Hide My Team · ' + countText;
+  if (!strengths.length) {
+    strengths.push('You completed the draft and created a full record that can guide your next one.');
   }
+  if (!improvements.length) {
+    improvements.push('No major ECR reaches or starter-construction issues were detected. Your next edge is monitoring news and working waivers.');
+  }
+
+  var headline = grade === 'A+' || grade === 'A'
+    ? 'Excellent value draft'
+    : grade === 'B'
+      ? 'Strong, disciplined draft'
+      : grade === 'C'
+        ? 'Solid roster with value left on the table'
+        : grade === '—'
+          ? 'Draft complete'
+          : 'A few reaches held this draft back';
+
+  return (
+    '<div class="final-summary-kicker">DRAFT COMPLETE</div>' +
+    '<div class="final-summary-title-row">' +
+      '<div><h2 id="final-summary-title">&#127942; ' + headline + '</h2>' +
+        '<p>Measured against FantasyPros 2026 PPR ECR for value and PPR ADP for timing.</p></div>' +
+      '<div class="final-grade"><span>VALUE<br>GRADE</span><strong>' + grade + '</strong></div>' +
+    '</div>' +
+    '<div class="final-summary-stats">' +
+      '<div><span>Roster</span><strong>' + picks.length + ' picks</strong></div>' +
+      '<div><span>Starters</span><strong>' + startersFilled + ' / 9</strong></div>' +
+      '<div><span>Avg. vs ECR</span><strong>' + formatDraftSummaryDelta(averageEcrValue) + '</strong></div>' +
+      '<div><span>Avg. vs ADP</span><strong>' + formatDraftSummaryDelta(averageMarketValue) + '</strong></div>' +
+    '</div>' +
+    '<div class="final-feedback-grid">' +
+      '<section><h3>&#10003; What went well</h3><ul>' + strengths.map(function(item) { return '<li>' + item + '</li>'; }).join('') + '</ul></section>' +
+      '<section class="improve"><h3>&#8593; What to improve</h3><ul>' + improvements.map(function(item) { return '<li>' + item + '</li>'; }).join('') + '</ul></section>' +
+    '</div>' +
+    '<div class="final-summary-note">This is a process review, not a season prediction. Injuries, roles, and waiver moves will change the final outcome.</div>' +
+    '<button class="final-summary-done" onclick="closeFinalDraftSummary()">Back to my draft</button>'
+  );
+}
+
+function openFinalDraftSummary(picks, positionCounts, startersFilled, averageEcrValue, grade) {
+  var modal = document.getElementById('final-summary-modal');
+  var content = document.getElementById('final-summary-content');
+  if (!modal || !content) return;
+
+  content.innerHTML = buildFinalDraftSummaryHtml(
+    picks,
+    positionCounts,
+    startersFilled,
+    averageEcrValue,
+    grade
+  );
+  modal.classList.add('open');
+  document.body.classList.add('final-summary-open');
+}
+
+function closeFinalDraftSummary() {
+  var modal = document.getElementById('final-summary-modal');
+  if (modal) modal.classList.remove('open');
+  document.body.classList.remove('final-summary-open');
+}
+
+function showFinalDraftSummary() {
+  var data = window.latestFinalDraftSummaryData;
+  if (!data) return;
+  openFinalDraftSummary(
+    data.picks,
+    data.positionCounts,
+    data.startersFilled,
+    data.averageEcrValue,
+    data.grade
+  );
+}
+
+function maybeShowFinalDraftSummary(state, picks, positionCounts, startersFilled, averageEcrValue, grade) {
+  var completedPicks = document.querySelectorAll(
+    'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
+  ).length;
+  var isComplete = state.totalPicks > 0 && completedPicks >= state.totalPicks;
+  var lastPickRow = document.querySelector(
+    'tr.draftrow.drafted-other[data-pick="' + state.totalPicks + '"]'
+  );
+  var lastPickStillNeedsMineStatus = Boolean(
+    lastPickRow &&
+    Number(lastPickRow.getAttribute('data-team-slot')) === Number(state.draftSlot)
+  );
+
+  if (!isComplete || lastPickStillNeedsMineStatus) {
+    if (_finalSummaryTimer) {
+      clearTimeout(_finalSummaryTimer);
+      _finalSummaryTimer = null;
+    }
+    closeFinalDraftSummary();
+    try { localStorage.removeItem(FINAL_SUMMARY_SHOWN_KEY); } catch (error) {}
+    return;
+  }
+
+  var alreadyShown = false;
+  try { alreadyShown = localStorage.getItem(FINAL_SUMMARY_SHOWN_KEY) === '1'; } catch (error) {}
+  if (alreadyShown) return;
+
+  if (_finalSummaryTimer) clearTimeout(_finalSummaryTimer);
+  _finalSummaryTimer = setTimeout(function() {
+    _finalSummaryTimer = null;
+    var latest = window.latestFinalDraftSummaryData;
+    if (!latest) return;
+
+    try { localStorage.setItem(FINAL_SUMMARY_SHOWN_KEY, '1'); } catch (error) {}
+    openFinalDraftSummary(
+      latest.picks,
+      latest.positionCounts,
+      latest.startersFilled,
+      latest.averageEcrValue,
+      latest.grade
+    );
+  }, 900);
 }
 
 function updateBestAvailable() {
@@ -7102,6 +7543,7 @@ function updateDraftDayDashboard(){
 
 function triggerAllBoardUpdates() {
   updateMyTeam();
+  updateDraftSummary();
   updateRemaining();
   updateBestAvailable();
   updatePickCounter();
@@ -7255,7 +7697,11 @@ function resetBoard(){
   resetArmed = false;
   document.querySelectorAll('tr.draftrow').forEach(function(row){
     row.classList.remove('drafted-mine','drafted-other');
+    row.removeAttribute('data-pick');
+    row.removeAttribute('data-team-slot');
   });
+  try { localStorage.removeItem(FINAL_SUMMARY_SHOWN_KEY); } catch(e) {}
+  closeFinalDraftSummary();
   triggerAllBoardUpdates();
   if(btn) {
     btn.innerText = 'Reset all';
@@ -7267,11 +7713,18 @@ function resetBoard(){
 function saveState(){
   try{
     var state = {};
+    var draftMeta = {};
     document.querySelectorAll('tr.draftrow').forEach(function(row){
       var name = row.getAttribute('data-name');
       if(name) {
         if(row.classList.contains('drafted-mine')) state[name] = 'mine';
         else if(row.classList.contains('drafted-other')) state[name] = 'taken';
+
+        if(state[name]) {
+          var pick = Number(row.getAttribute('data-pick')) || null;
+          var teamSlot = Number(row.getAttribute('data-team-slot')) || null;
+          if(pick || teamSlot) draftMeta[name] = {pick: pick, teamSlot: teamSlot};
+        }
       }
     });
     var order = [];
@@ -7282,7 +7735,7 @@ function saveState(){
         if(name) order.push({n: name, t: tid});
       });
     });
-    var payload = { savedAt: new Date().toISOString(), teams: LEAGUE_SIZE, slot: MY_DRAFT_SLOT, rounds: TOTAL_ROUNDS, state: state, order: order };
+    var payload = { savedAt: new Date().toISOString(), teams: LEAGUE_SIZE, slot: MY_DRAFT_SLOT, rounds: TOTAL_ROUNDS, state: state, draftMeta: draftMeta, order: order };
     localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(payload));
     flashSaveIndicator('Saved', '#8fd4a0');
     var diagEl = document.getElementById('storage-diag'); if(diagEl) diagEl.innerHTML = 'Autosave: On (last saved '+ new Date().toLocaleTimeString()+')';
@@ -7386,8 +7839,14 @@ if (
           document.querySelectorAll('tr.draftrow').forEach(function(row){
             var name = row.getAttribute('data-name');
             row.classList.remove('drafted-mine','drafted-other');
+            row.removeAttribute('data-pick');
+            row.removeAttribute('data-team-slot');
             if(name && payload.state[name] === 'mine') row.classList.add('drafted-mine');
             else if(name && payload.state[name] === 'taken') row.classList.add('drafted-other');
+
+            var metadata = name && payload.draftMeta ? payload.draftMeta[name] : null;
+            if(metadata && Number(metadata.pick) > 0) row.setAttribute('data-pick', String(metadata.pick));
+            if(metadata && Number(metadata.teamSlot) > 0) row.setAttribute('data-team-slot', String(metadata.teamSlot));
           });
         }
         if(diagEl) diagEl.innerHTML = 'Autosave: restored backup from '+(payload.savedAt||'previous session');
