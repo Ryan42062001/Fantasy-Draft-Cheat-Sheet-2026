@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "The War Room — ESPN Draft Companion",
-  "version": "0.6.0",
-  "description": "Syncs visible ESPN fantasy football draft picks into The War Room.",
+  "version": "0.7.0",
+  "description": "Syncs ESPN fantasy football draft picks directly into The War Room.",
   "permissions": [
     "storage",
     "scripting"
@@ -23,6 +23,19 @@
     "default_popup": "popup.html"
   },
   "content_scripts": [
+    {
+      "matches": [
+        "https://fantasy.espn.com/*",
+        "https://www.espn.com/fantasy/*"
+      ],
+      "js": [
+        "espn-page-bridge.js"
+      ],
+      "all_frames": true,
+      "match_about_blank": true,
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
     {
       "matches": [
         "https://fantasy.espn.com/*",

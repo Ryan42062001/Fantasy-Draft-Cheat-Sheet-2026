@@ -15,6 +15,7 @@
   var lastApiSignature = '';
   var lastApiAvailable = false;
   var apiScanInFlight = null;
+  var pageRequestSequence = 0;
   var topFrame = false;
   try { topFrame = window.top === window; } catch (error) {}
 
@@ -30,6 +31,76 @@
       /on the clock|draft room|draft board/i.test(document.body ? document.body.innerText.slice(0, 5000) : '');
   }
 
+  function requestPageJson(url, headers) {
+    return new Promise(function(resolve, reject) {
+      var requestId = 'war-room-' + Date.now().toString(36) + '-' + (++pageRequestSequence).toString(36);
+      var timeout = setTimeout(function() {
+        window.removeEventListener('message', onResponse);
+        reject(new Error('ESPN page connection timed out'));
+      }, 4500);
+
+      function onResponse(event) {
+        var message = event && event.data;
+        if (event.source !== window || !message ||
+            message.channel !== 'WAR_ROOM_ESPN_PAGE_RESPONSE' || message.requestId !== requestId) return;
+        clearTimeout(timeout);
+        window.removeEventListener('message', onResponse);
+        if (!message.ok) {
+          var error = new Error(message.error || 'ESPN page connection failed');
+          error.httpStatus = Number(message.status) || 0;
+          reject(error);
+          return;
+        }
+        resolve({
+          payload: message.payload,
+          httpStatus: Number(message.status) || 200,
+          role: message.role || null,
+          transport: 'page'
+        });
+      }
+
+      window.addEventListener('message', onResponse);
+      window.postMessage({
+        channel: 'WAR_ROOM_ESPN_PAGE_REQUEST',
+        requestId: requestId,
+        url: url,
+        headers: headers || {}
+      }, '*');
+    });
+  }
+
+  function requestStructuredJson(url, headers) {
+    return requestPageJson(url, headers).catch(function(pageError) {
+      return fetch(url, {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: Object.assign({'Accept': 'application/json'}, headers || {})
+      }).then(function(response) {
+        if (!response.ok) {
+          var error = new Error('ESPN draft feed returned HTTP ' + response.status);
+          error.httpStatus = response.status;
+          throw error;
+        }
+        return response.json().then(function(payload) {
+          return {
+            payload: payload,
+            httpStatus: response.status,
+            role: response.headers.get('X-Fantasy-Role') || null,
+            transport: 'content',
+            pageError: pageError && pageError.message ? pageError.message : String(pageError)
+          };
+        });
+      }).catch(function(contentError) {
+        throw new Error(
+          'Authenticated page connection: ' +
+          (pageError && pageError.message ? pageError.message : String(pageError)) +
+          '; extension fallback: ' +
+          (contentError && contentError.message ? contentError.message : String(contentError))
+        );
+      });
+    });
+  }
+
   function scanStructuredDraft(force) {
     if (!topFrame || !isDraftPage()) return Promise.resolve(false);
     var context = api.parseLeagueContext(location.href);
@@ -41,22 +112,14 @@
 
     lastApiScanAt = now;
     var directory = parser.scanPlayerDirectory ? parser.scanPlayerDirectory(document) : {};
-    apiScanInFlight = fetch(api.buildDraftDetailUrl(context), {
-      credentials: 'include',
-      cache: 'no-store',
-      headers: {'Accept': 'application/json'}
-    }).then(function(response) {
+    apiScanInFlight = requestStructuredJson(api.buildDraftDetailUrl(context)).then(function(response) {
       var telemetry = {
-        httpStatus: response.status,
-        role: response.headers.get('X-Fantasy-Role') || null
+        httpStatus: response.httpStatus,
+        role: response.role,
+        transport: response.transport,
+        pageError: response.pageError || null
       };
-      if (!response.ok) {
-        throw new Error('ESPN draft feed returned HTTP ' + response.status +
-          (telemetry.role ? ' (role ' + telemetry.role + ')' : ''));
-      }
-      return response.json().then(function(payload) {
-        return {payload: payload, telemetry: telemetry};
-      });
+      return {payload: response.payload, telemetry: telemetry};
     }).then(function(result) {
       var payload = result.payload;
       var initial = api.extractDraftSnapshot(payload, context, directory);
@@ -67,18 +130,11 @@
       if (!unresolvedIds.length) {
         return {payload: payload, snapshot: initial, telemetry: result.telemetry};
       }
-      return fetch(api.buildPlayerLookupUrl(context), {
-        credentials: 'include',
-        cache: 'no-store',
-        headers: {
-          'Accept': 'application/json',
-          'X-Fantasy-Filter': JSON.stringify({filterIds: {value: unresolvedIds}})
-        }
-      }).then(function(response) {
-        if (!response.ok) throw new Error('ESPN player lookup returned ' + response.status);
-        return response.json();
-      }).then(function(players) {
-        var expandedDirectory = api.buildPlayerDirectory(players, initial.directory);
+      return requestStructuredJson(api.buildPlayerLookupUrl(context), {
+        'X-Fantasy-Filter': JSON.stringify({filterIds: {value: unresolvedIds}})
+      }).then(function(lookup) {
+        var expandedDirectory = api.buildPlayerDirectory(lookup.payload, initial.directory);
+        if (lookup.transport === 'content') result.telemetry.transport = 'content';
         return {
           payload: payload,
           snapshot: api.extractDraftSnapshot(payload, context, expandedDirectory),
@@ -117,6 +173,7 @@
         complete: snapshot.complete,
         httpStatus: resolved.telemetry.httpStatus,
         role: resolved.telemetry.role,
+        transport: resolved.telemetry.transport,
         rawCount: snapshot.rawCount,
         resolved: snapshot.picks.length,
         unresolved: snapshot.unresolved.length,
@@ -133,6 +190,7 @@
       send({
         type: 'ESPN_API_STATUS',
         available: false,
+        transport: 'none',
         error: error && error.message ? error.message : String(error),
         url: location.href
       });
