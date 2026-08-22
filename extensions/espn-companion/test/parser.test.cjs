@@ -36,6 +36,23 @@ test('normalizes ESPN defense notation', () => {
   assert.equal(result.playerName, 'Houston Texans');
 });
 
+test('parses ESPN classic pick-history formatting without including the team', () => {
+  const result = parser.parsePickText(
+    '1. (1) Ja\'Marr Chase (CIN - WR)',
+    {teams: 10}
+  );
+  assert.equal(result.overallPick, 1);
+  assert.equal(result.playerName, "Ja'Marr Chase");
+  assert.equal(result.position, 'WR');
+});
+
+test('detailed scan returns diagnostics for an unavailable document', () => {
+  assert.deepEqual(parser.scanDocumentDetailed(null, {teams: 10}), {
+    candidateCount: 0,
+    picks: []
+  });
+});
+
 test('prefers data attributes and extracts ESPN player id', () => {
   const result = parser.parsePickText(
     'Pick 7\nSelected player\nRB - DET',

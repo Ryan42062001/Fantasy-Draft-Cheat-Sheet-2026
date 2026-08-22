@@ -1,6 +1,6 @@
 :root { color-scheme: dark; font-family: "Segoe UI", system-ui, sans-serif; }
 * { box-sizing: border-box; }
-body { width: 340px; margin: 0; color: #f3efe3; background: #122619; }
+body { width: 300px; margin: 0; color: #f3efe3; background: #122619; }
 header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #3f6b4d; background: linear-gradient(145deg,#1b3a2b,#122619); }
 header > span { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid #8f7635; border-radius: 10px; background: rgba(224,168,63,.12); }
 header small { color: #e0c98a; font-size: 9px; font-weight: 900; letter-spacing: .15em; }
@@ -27,4 +27,8 @@ button:hover { background: rgba(255,255,255,.12); }
 .actions { display: flex; gap: 8px; }
 .actions button { flex: 1; }
 .danger { border-color: #9c544d; color: #e7aaa5; }
+.open-tab { width: 100%; margin: 0 0 10px; border-color: #8f7635; color: #e0c98a; }
 .message { margin: 0; color: #a9c2ab; font-size: 10px; line-height: 1.45; }
+@media (min-width: 600px) {
+  body { width: min(520px, 100%); margin: 24px auto; }
+}

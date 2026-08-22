@@ -73,6 +73,11 @@
     );
     if (preferred) return preferred;
 
+    var classic = cleanText(text).match(
+      /^\s*#?\d{1,3}\s*[.)-]\s*(?:\(\d{1,3}\)\s*)?(.+?)\s*\([A-Z]{2,4}\s*[-–—·]\s*(?:QB|RB|WR|TE|K|D\s*\/\s*ST|DST|DEF)\)/im
+    );
+    if (classic && looksLikeName(classic[1])) return cleanText(classic[1]);
+
     var lines = cleanText(text).split('\n').map(cleanText).filter(Boolean);
     for (var index = 0; index < lines.length; index++) {
       var line = lines[index];
@@ -133,15 +138,30 @@
   }
 
   function scanDocument(documentObject, options) {
-    if (!documentObject || !documentObject.querySelectorAll) return [];
+    return scanDocumentDetailed(documentObject, options).picks;
+  }
+
+  function scanDocumentDetailed(documentObject, options) {
+    if (!documentObject || !documentObject.querySelectorAll) {
+      return {candidateCount: 0, picks: []};
+    }
     var selectors = [
       '[data-testid*="pick" i]',
+      '[data-testid*="draft" i] [role="row"]',
+      '[data-testid*="draft" i] li',
       '[data-player-id]',
       '[data-athlete-id]',
       '[aria-label*="pick" i]',
       '[class*="pickHistory" i] > *',
       '[class*="draftHistory" i] > *',
-      '[class*="draftBoard" i] [class*="pick" i]'
+      '[class*="draftBoard" i] [class*="pick" i]',
+      '[class*="pick-history" i] > *',
+      '[class*="draft-history" i] > *',
+      '[class*="draft-results" i] tr',
+      '[class*="draft" i] [role="row"]',
+      '[class*="draft" i] [role="listitem"]',
+      'main tr',
+      'main [role="row"]'
     ];
     var nodes = [];
     try {
@@ -151,23 +171,35 @@
     }
 
     var byPick = new Map();
-    nodes.slice(0, 2500).forEach(function(node) {
-      var text = cleanText(node.innerText || node.textContent || node.getAttribute('aria-label'));
-      var link = node.matches && node.matches('a[href]')
-        ? node
-        : node.querySelector && node.querySelector('a[href*="/id/"]');
-      var parsed = parsePickText(
-        text,
-        options,
-        readAttributes(node),
-        link && link.getAttribute ? link.getAttribute('href') : ''
-      );
-      if (parsed && !byPick.has(parsed.overallPick)) byPick.set(parsed.overallPick, parsed);
+    nodes.slice(0, 4000).forEach(function(node) {
+      var candidate = node;
+      for (var depth = 0; candidate && depth < 4; depth++) {
+        var text = cleanText(candidate.innerText || candidate.textContent || candidate.getAttribute('aria-label'));
+        if (text.length <= 900) {
+          var link = candidate.matches && candidate.matches('a[href]')
+            ? candidate
+            : candidate.querySelector && candidate.querySelector('a[href*="/id/"]');
+          var parsed = parsePickText(
+            text,
+            options,
+            readAttributes(candidate),
+            link && link.getAttribute ? link.getAttribute('href') : ''
+          );
+          if (parsed && !byPick.has(parsed.overallPick)) {
+            byPick.set(parsed.overallPick, parsed);
+            break;
+          }
+        }
+        candidate = candidate.parentElement;
+      }
     });
 
-    return Array.from(byPick.values()).sort(function(a, b) {
-      return a.overallPick - b.overallPick;
-    });
+    return {
+      candidateCount: nodes.length,
+      picks: Array.from(byPick.values()).sort(function(a, b) {
+        return a.overallPick - b.overallPick;
+      })
+    };
   }
 
   return {
@@ -177,6 +209,7 @@
     parseOverallPick: parseOverallPick,
     parsePlayerName: parsePlayerName,
     parsePickText: parsePickText,
-    scanDocument: scanDocument
+    scanDocument: scanDocument,
+    scanDocumentDetailed: scanDocumentDetailed
   };
 });

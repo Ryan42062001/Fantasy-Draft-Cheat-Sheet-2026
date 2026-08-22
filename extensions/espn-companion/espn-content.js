@@ -1,12 +1,17 @@
 (function() {
   'use strict';
 
+  if (globalThis.__warRoomEspnContentV1) return;
+  globalThis.__warRoomEspnContentV1 = true;
+
   var parser = globalThis.WarRoomEspnParser;
   if (!parser || !globalThis.chrome || !chrome.runtime) return;
 
   var scanTimer = null;
   var lastSignature = '';
   var config = {teams: 10, draftSlot: 1};
+  var topFrame = false;
+  try { topFrame = window.top === window; } catch (error) {}
 
   function send(message) {
     try {
@@ -23,17 +28,27 @@
   function scan(force) {
     scanTimer = null;
     if (!isDraftPage()) {
-      send({type: 'ESPN_HEARTBEAT', draftPage: false, url: location.href});
+      send({type: 'ESPN_HEARTBEAT', draftPage: false, topFrame: topFrame, url: location.href});
       return;
     }
 
-    var picks = parser.scanDocument(document, config);
+    var scanResult = parser.scanDocumentDetailed
+      ? parser.scanDocumentDetailed(document, config)
+      : {picks: parser.scanDocument(document, config), candidateCount: 0};
+    var picks = scanResult.picks;
     var signature = JSON.stringify(picks);
     if (force || signature !== lastSignature) {
       lastSignature = signature;
       send({type: 'ESPN_PICKS_FOUND', picks: picks, url: location.href});
     }
-    send({type: 'ESPN_HEARTBEAT', draftPage: true, captured: picks.length, url: location.href});
+    send({
+      type: 'ESPN_HEARTBEAT',
+      draftPage: true,
+      captured: picks.length,
+      candidates: scanResult.candidateCount,
+      topFrame: topFrame,
+      url: location.href
+    });
   }
 
   function scheduleScan(force) {

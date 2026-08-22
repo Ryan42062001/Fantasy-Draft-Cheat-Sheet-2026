@@ -11,10 +11,16 @@ test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.background.service_worker, 'background.js');
 });
 
-test('requests only storage permission and narrow host access', () => {
-  assert.deepEqual(manifest.permissions, ['storage']);
+test('requests only storage and host-restricted reinjection permission', () => {
+  assert.deepEqual(manifest.permissions, ['storage', 'scripting']);
   assert.equal(manifest.host_permissions.includes('<all_urls>'), false);
   assert.equal(manifest.permissions.includes('cookies'), false);
+});
+
+test('ESPN reader reaches embedded draft-room frames', () => {
+  const espnScript = manifest.content_scripts.find(script => script.js.includes('espn-content.js'));
+  assert.equal(espnScript.all_frames, true);
+  assert.equal(espnScript.match_about_blank, true);
 });
 
 test('all declared extension files exist', () => {
