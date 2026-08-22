@@ -21,7 +21,7 @@ var TEAM_COLORS = {
   TEN:'#4B92DB', WAS:'#5A1414'
 };
 var TIER_IDS = ['Sp','S','A','B','C','D','E','F'];
-var TIER_LABELS = {Sp:'S+', S:'S', A:'A', B:'B', C:'C', D:'D', E:'E', F:'F'};
+var TIER_LABELS = {Sp:'ELITE', S:'PREMIUM', A:'CORE', B:'VALUE', C:'UPSIDE', D:'DEPTH', E:'LATE', F:'DEEP'};
 
 // ==== INTERNAL STATE ====
 var currentPosFilter = 'ALL';
@@ -7397,214 +7397,11 @@ function syncRankData(){
  * =========================================================
  */
 
-var EXPERT_RANKINGS_2026 = [
-  {"rank":1,"name":"ja'marr chase","pos":"WR","team":"CIN","bye":"6","tier":"Sp"},
-  {"rank":2,"name":"jahmyr gibbs","pos":"RB","team":"DET","bye":"6","tier":"Sp"},
-  {"rank":3,"name":"puka nacua","pos":"WR","team":"LAR","bye":"11","tier":"Sp"},
-  {"rank":4,"name":"bijan robinson","pos":"RB","team":"ATL","bye":"11","tier":"Sp"},
-  {"rank":5,"name":"jaxon smith-njigba","pos":"WR","team":"SEA","bye":"11","tier":"S"},
-  {"rank":6,"name":"amon-ra st. brown","pos":"WR","team":"DET","bye":"6","tier":"S"},
-  {"rank":7,"name":"jonathan taylor","pos":"RB","team":"IND","bye":"13","tier":"S"},
-  {"rank":8,"name":"ceedee lamb","pos":"WR","team":"DAL","bye":"14","tier":"S"},
-  {"rank":9,"name":"justin jefferson","pos":"WR","team":"MIN","bye":"6","tier":"S"},
-  {"rank":10,"name":"christian mccaffrey","pos":"RB","team":"SF","bye":"8","tier":"S"},
-  {"rank":11,"name":"james cook iii","pos":"RB","team":"BUF","bye":"7","tier":"A"},
-  {"rank":12,"name":"drake london","pos":"WR","team":"ATL","bye":"11","tier":"A"},
-  {"rank":13,"name":"ashton jeanty","pos":"RB","team":"LV","bye":"13","tier":"A"},
-  {"rank":14,"name":"a.j. brown","pos":"WR","team":"NE","bye":"11","tier":"A"},
-  {"rank":15,"name":"nico collins","pos":"WR","team":"HOU","bye":"6","tier":"A"},
-  {"rank":16,"name":"brock bowers","pos":"TE","team":"LV","bye":"13","tier":"A"},
-  {"rank":17,"name":"chase brown","pos":"RB","team":"CIN","bye":"6","tier":"A"},
-  {"rank":18,"name":"trey mcbride","pos":"TE","team":"ARI","bye":"9","tier":"A"},
-  {"rank":19,"name":"de'von achane","pos":"RB","team":"MIA","bye":"6","tier":"A"},
-  {"rank":20,"name":"george pickens","pos":"WR","team":"DAL","bye":"14","tier":"A"},
-  {"rank":21,"name":"chris olave","pos":"WR","team":"NO","bye":"11","tier":"A"},
-  {"rank":22,"name":"rashee rice","pos":"WR","team":"KC","bye":"5","tier":"A"},
-  {"rank":23,"name":"saquon barkley","pos":"RB","team":"PHI","bye":"11","tier":"A"},
-  {"rank":24,"name":"derrick henry","pos":"RB","team":"BAL","bye":"7","tier":"A"},
-  {"rank":25,"name":"jeremiyah love","pos":"RB","team":"ARI","bye":"9","tier":"B"},
-  {"rank":26,"name":"kenneth walker iii","pos":"RB","team":"KC","bye":"5","tier":"B"},
-  {"rank":27,"name":"malik nabers","pos":"WR","team":"NYG","bye":"14","tier":"B"},
-  {"rank":28,"name":"zay flowers","pos":"WR","team":"BAL","bye":"7","tier":"B"},
-  {"rank":29,"name":"kyren williams","pos":"RB","team":"LAR","bye":"11","tier":"B"},
-  {"rank":30,"name":"devonta smith","pos":"WR","team":"PHI","bye":"11","tier":"B"},
-  {"rank":31,"name":"emeka egbuka","pos":"WR","team":"TB","bye":"9","tier":"B"},
-  {"rank":32,"name":"bucky irving","pos":"RB","team":"TB","bye":"9","tier":"B"},
-  {"rank":33,"name":"jameson williams","pos":"WR","team":"DET","bye":"6","tier":"B"},
-  {"rank":34,"name":"ladd mcconkey","pos":"WR","team":"LAC","bye":"7","tier":"B"},
-  {"rank":35,"name":"garrett wilson","pos":"WR","team":"NYJ","bye":"9","tier":"B"},
-  {"rank":36,"name":"tetairoa mcmillan","pos":"WR","team":"CAR","bye":"5","tier":"B"},
-  {"rank":37,"name":"omarion hampton","pos":"RB","team":"LAC","bye":"7","tier":"B"},
-  {"rank":38,"name":"josh jacobs","pos":"RB","team":"GB","bye":"11","tier":"B"},
-  {"rank":39,"name":"terry mclaurin","pos":"WR","team":"WAS","bye":"12","tier":"B"},
-  {"rank":40,"name":"colston loveland","pos":"TE","team":"CHI","bye":"10","tier":"B"},
-  {"rank":41,"name":"josh allen","pos":"QB","team":"BUF","bye":"7","tier":"C"},
-  {"rank":42,"name":"jaylen warren","pos":"RB","team":"PIT","bye":"5","tier":"C"},
-  {"rank":43,"name":"javonte williams","pos":"RB","team":"DAL","bye":"14","tier":"C"},
-  {"rank":44,"name":"tee higgins","pos":"WR","team":"CIN","bye":"6","tier":"C"},
-  {"rank":45,"name":"travis etienne jr.","pos":"RB","team":"JAX","bye":"7","tier":"C"},
-  {"rank":46,"name":"davante adams","pos":"WR","team":"LAR","bye":"11","tier":"C"},
-  {"rank":47,"name":"jaylen waddle","pos":"WR","team":"MIA","bye":"6","tier":"C"},
-  {"rank":48,"name":"d'andre swift","pos":"RB","team":"CHI","bye":"10","tier":"C"},
-  {"rank":49,"name":"mike evans","pos":"WR","team":"SF","bye":"8","tier":"C"},
-  {"rank":50,"name":"jayden daniels","pos":"QB","team":"WAS","bye":"12","tier":"C"},
-  {"rank":51,"name":"lamar jackson","pos":"QB","team":"BAL","bye":"7","tier":"C"},
-  {"rank":52,"name":"jalen hurts","pos":"QB","team":"PHI","bye":"11","tier":"C"},
-  {"rank":53,"name":"rome odunze","pos":"WR","team":"CHI","bye":"10","tier":"C"},
-  {"rank":54,"name":"treveyon henderson","pos":"RB","team":"NE","bye":"11","tier":"C"},
-  {"rank":55,"name":"dj moore","pos":"WR","team":"CHI","bye":"10","tier":"C"},
-  {"rank":56,"name":"sam laporta","pos":"TE","team":"DET","bye":"6","tier":"C"},
-  {"rank":57,"name":"alvin kamara","pos":"RB","team":"NO","bye":"11","tier":"C"},
-  {"rank":58,"name":"jordan addison","pos":"WR","team":"MIN","bye":"6","tier":"C"},
-  {"rank":59,"name":"ricky pearsall","pos":"WR","team":"SF","bye":"8","tier":"C"},
-  {"rank":60,"name":"xavier worthy","pos":"WR","team":"KC","bye":"5","tier":"C"},
-  {"rank":61,"name":"calvin ridley","pos":"WR","team":"TEN","bye":"10","tier":"C"},
-  {"rank":62,"name":"jerry jeudy","pos":"WR","team":"CLE","bye":"11","tier":"C"},
-  {"rank":63,"name":"jauan jennings","pos":"WR","team":"SF","bye":"8","tier":"C"},
-  {"rank":64,"name":"joe burrow","pos":"QB","team":"CIN","bye":"6","tier":"C"},
-  {"rank":65,"name":"breece hall","pos":"RB","team":"NYJ","bye":"9","tier":"C"},
-  {"rank":66,"name":"tucker kraft","pos":"TE","team":"GB","bye":"11","tier":"D"},
-  {"rank":67,"name":"david montgomery","pos":"RB","team":"DET","bye":"6","tier":"D"},
-  {"rank":68,"name":"courtland sutton","pos":"WR","team":"DEN","bye":"10","tier":"D"},
-    {"rank":69,"name":"jakobi meyers","pos":"WR","team":"LV","bye":"13","tier":"D"},
-  {"rank":70,"name":"tony pollard","pos":"RB","team":"TEN","bye":"10","tier":"D"},
-  {"rank":71,"name":"quinshon judkins","pos":"RB","team":"CLE","bye":"11","tier":"D"},
-  {"rank":72,"name":"christian watson","pos":"WR","team":"GB","bye":"11","tier":"D"},
-  {"rank":73,"name":"jadarian price","pos":"RB","team":"DAL","bye":"14","tier":"D"},
-  {"rank":74,"name":"caleb williams","pos":"QB","team":"CHI","bye":"10","tier":"D"},
-  {"rank":75,"name":"rj harvey","pos":"RB","team":"DEN","bye":"10","tier":"D"},
-  {"rank":76,"name":"bhayshul tuten","pos":"RB","team":"JAX","bye":"7","tier":"D"},
-  {"rank":77,"name":"chuba hubbard","pos":"RB","team":"CAR","bye":"5","tier":"D"},
-  {"rank":78,"name":"tyrone tracy jr.","pos":"RB","team":"NYG","bye":"14","tier":"D"},
-  {"rank":79,"name":"jayden reed","pos":"WR","team":"GB","bye":"11","tier":"D"},
-  {"rank":80,"name":"brian thomas jr.","pos":"WR","team":"JAX","bye":"7","tier":"D"},
-  {"rank":81,"name":"jordan mason","pos":"RB","team":"MIN","bye":"6","tier":"D"},
-  {"rank":82,"name":"patrick mahomes ii","pos":"QB","team":"KC","bye":"5","tier":"D"},
-  {"rank":83,"name":"marvin harrison jr.","pos":"WR","team":"ARI","bye":"9","tier":"D"},
-  {"rank":84,"name":"travis hunter","pos":"WR","team":"JAX","bye":"7","tier":"D"},
-  {"rank":85,"name":"dalton kincaid","pos":"TE","team":"BUF","bye":"7","tier":"D"},
-  {"rank":86,"name":"harold fannin jr.","pos":"TE","team":"CLE","bye":"11","tier":"D"},
-  {"rank":87,"name":"kyle pitts","pos":"TE","team":"ATL","bye":"11","tier":"D"},
-  {"rank":88,"name":"george kittle","pos":"TE","team":"SF","bye":"8","tier":"D"},
-  {"rank":89,"name":"j.k. dobbins","pos":"RB","team":"DEN","bye":"10","tier":"D"},
-  {"rank":90,"name":"isiah pacheco","pos":"RB","team":"DET","bye":"6","tier":"D"},
-  {"rank":91,"name":"rhamondre stevenson","pos":"RB","team":"NE","bye":"11","tier":"D"},
-  {"rank":92,"name":"cam skattebo","pos":"RB","team":"NYG","bye":"14","tier":"D"},
-  {"rank":93,"name":"quentin johnston","pos":"WR","team":"LAC","bye":"7","tier":"D"},
-  {"rank":94,"name":"rashid shaheed","pos":"WR","team":"NO","bye":"11","tier":"D"},
-  {"rank":95,"name":"khalil shakir","pos":"WR","team":"BUF","bye":"7","tier":"D"},
-
-  {"rank":96,"name":"keon coleman","pos":"WR","team":"BUF","bye":"7","tier":"E"},
-  {"rank":97,"name":"josh downs","pos":"WR","team":"IND","bye":"13","tier":"E"},
-  {"rank":98,"name":"tre harris","pos":"WR","team":"LAC","bye":"7","tier":"E"},
-  {"rank":99,"name":"baker mayfield","pos":"QB","team":"TB","bye":"9","tier":"E"},
-  {"rank":100,"name":"bo nix","pos":"QB","team":"DEN","bye":"10","tier":"E"},
-  {"rank":101,"name":"brock purdy","pos":"QB","team":"SF","bye":"8","tier":"E"},
-  {"rank":102,"name":"drake maye","pos":"QB","team":"NE","bye":"11","tier":"E"},
-  {"rank":103,"name":"brian robinson jr.","pos":"RB","team":"ATL","bye":"11","tier":"E"},
-  {"rank":104,"name":"carnell tate","pos":"WR","team":"CHI","bye":"10","tier":"E"},
-  {"rank":105,"name":"dk metcalf","pos":"WR","team":"PIT","bye":"5","tier":"E"},
-  {"rank":106,"name":"david njoku","pos":"TE","team":"CLE","bye":"11","tier":"E"},
-  {"rank":107,"name":"chris godwin jr.","pos":"WR","team":"TB","bye":"9","tier":"E"},
-  {"rank":108,"name":"parker washington","pos":"WR","team":"JAX","bye":"7","tier":"E"},
-  {"rank":109,"name":"jaxson dart","pos":"QB","team":"NYG","bye":"14","tier":"E"},
-  {"rank":110,"name":"kyle monangai","pos":"RB","team":"CHI","bye":"10","tier":"E"},
-  {"rank":111,"name":"michael wilson","pos":"WR","team":"ARI","bye":"9","tier":"E"},
-  {"rank":112,"name":"jordan love","pos":"QB","team":"GB","bye":"11","tier":"E"},
-  {"rank":113,"name":"mark andrews","pos":"TE","team":"BAL","bye":"7","tier":"E"},
-  {"rank":114,"name":"tyler warren","pos":"TE","team":"IND","bye":"13","tier":"E"},
-  {"rank":115,"name":"cade otton","pos":"TE","team":"TB","bye":"9","tier":"E"},
-  {"rank":116,"name":"evan engram","pos":"TE","team":"DEN","bye":"10","tier":"E"},
-  {"rank":117,"name":"brenton strange","pos":"TE","team":"JAX","bye":"7","tier":"E"},
-  {"rank":118,"name":"stefon diggs","pos":"WR","team":"NE","bye":"11","tier":"E"},
-  {"rank":119,"name":"michael pittman jr.","pos":"WR","team":"IND","bye":"13","tier":"E"},
-  {"rank":120,"name":"christian kirk","pos":"WR","team":"HOU","bye":"6","tier":"E"},
-  {"rank":121,"name":"darnell mooney","pos":"WR","team":"ATL","bye":"11","tier":"E"},
-  {"rank":122,"name":"romeo doubs","pos":"WR","team":"GB","bye":"11","tier":"E"},
-  {"rank":123,"name":"cooper kupp","pos":"WR","team":"SEA","bye":"11","tier":"E"},
-  {"rank":124,"name":"jalen mcmillan","pos":"WR","team":"TB","bye":"9","tier":"E"},
-  {"rank":125,"name":"xavier legette","pos":"WR","team":"CAR","bye":"5","tier":"E"},
-  {"rank":126,"name":"jalen coker","pos":"WR","team":"CAR","bye":"5","tier":"E"},
-  {"rank":127,"name":"kayshon boutte","pos":"WR","team":"NE","bye":"11","tier":"E"},
-  {"rank":128,"name":"marquise brown","pos":"WR","team":"KC","bye":"5","tier":"E"},
-  {"rank":129,"name":"matthew golden","pos":"WR","team":"GB","bye":"11","tier":"E"},
-  {"rank":130,"name":"jordyn tyson","pos":"WR","team":"DEN","bye":"10","tier":"E"},
-    {"rank":131,"name":"trey benson","pos":"RB","team":"ARI","bye":"9","tier":"F"},
-  {"rank":132,"name":"ray davis","pos":"RB","team":"BUF","bye":"7","tier":"F"},
-  {"rank":133,"name":"rico dowdle","pos":"RB","team":"CAR","bye":"5","tier":"F"},
-  {"rank":134,"name":"jaylen wright","pos":"RB","team":"MIA","bye":"6","tier":"F"},
-  {"rank":135,"name":"tyjae spears","pos":"RB","team":"TEN","bye":"10","tier":"F"},
-  {"rank":136,"name":"blake corum","pos":"RB","team":"LAR","bye":"11","tier":"F"},
-  {"rank":137,"name":"woody marks","pos":"RB","team":"HOU","bye":"6","tier":"F"},
-  {"rank":138,"name":"trevor lawrence","pos":"QB","team":"JAX","bye":"7","tier":"F"},
-  {"rank":139,"name":"dak prescott","pos":"QB","team":"DAL","bye":"14","tier":"F"},
-  {"rank":140,"name":"kyler murray","pos":"QB","team":"ARI","bye":"9","tier":"F"},
-  {"rank":141,"name":"justin herbert","pos":"QB","team":"LAC","bye":"7","tier":"F"},
-  {"rank":142,"name":"tua tagovailoa","pos":"QB","team":"MIA","bye":"6","tier":"F"},
-  {"rank":143,"name":"jared goff","pos":"QB","team":"DET","bye":"6","tier":"F"},
-  {"rank":144,"name":"sam darnold","pos":"QB","team":"SEA","bye":"11","tier":"F"},
-  {"rank":145,"name":"dallas goedert","pos":"TE","team":"PHI","bye":"11","tier":"F"},
-  {"rank":146,"name":"kc concepcion","pos":"WR","team":"CAR","bye":"5","tier":"F"},
-  {"rank":147,"name":"zach ertz","pos":"TE","team":"WAS","bye":"12","tier":"F"},
-  {"rank":148,"name":"hunter henry","pos":"TE","team":"NE","bye":"11","tier":"F"},
-  {"rank":149,"name":"mason taylor","pos":"TE","team":"NYJ","bye":"9","tier":"F"},
-  {"rank":150,"name":"aj barner","pos":"TE","team":"SEA","bye":"11","tier":"F"},
-  {"rank":151,"name":"pat freiermuth","pos":"TE","team":"PIT","bye":"5","tier":"F"},
-  {"rank":152,"name":"isaiah likely","pos":"TE","team":"BAL","bye":"7","tier":"F"},
-  {"rank":153,"name":"rashod bateman","pos":"WR","team":"BAL","bye":"7","tier":"F"},
-  {"rank":154,"name":"adam thielen","pos":"WR","team":"MIN","bye":"6","tier":"F"},
-  {"rank":155,"name":"alec pierce","pos":"WR","team":"IND","bye":"13","tier":"F"},
-  {"rank":156,"name":"dontayvion wicks","pos":"WR","team":"GB","bye":"11","tier":"F"},
-  {"rank":157,"name":"demario douglas","pos":"WR","team":"NE","bye":"11","tier":"F"},
-  {"rank":158,"name":"de'zhaun stribling","pos":"WR","team":"HOU","bye":"6","tier":"F"},
-  {"rank":159,"name":"devaughn vele","pos":"WR","team":"NO","bye":"11","tier":"F"},
-  {"rank":160,"name":"malik washington","pos":"WR","team":"MIA","bye":"6","tier":"F"},
-  {"rank":161,"name":"tank dell","pos":"WR","team":"HOU","bye":"6","tier":"F"},
-  {"rank":162,"name":"nicholas singleton","pos":"RB","team":"NYG","bye":"14","tier":"F"},
-  {"rank":163,"name":"zach charbonnet","pos":"RB","team":"SEA","bye":"11","tier":"F"},
-  {"rank":164,"name":"chris rodriguez","pos":"RB","team":"JAX","bye":"7","tier":"F"},
-  {"rank":165,"name":"keaton mitchell","pos":"RB","team":"LAC","bye":"7","tier":"F"},
-  {"rank":166,"name":"kendre miller","pos":"RB","team":"NO","bye":"11","tier":"F"},
-  {"rank":167,"name":"marshawn lloyd","pos":"RB","team":"GB","bye":"11","tier":"F"},
-  {"rank":168,"name":"will shipley","pos":"RB","team":"PHI","bye":"11","tier":"F"},
-  {"rank":169,"name":"roschon johnson","pos":"RB","team":"CHI","bye":"10","tier":"F"},
-  {"rank":170,"name":"audric estime","pos":"RB","team":"NO","bye":"11","tier":"F"},
-  {"rank":171,"name":"jerome ford","pos":"RB","team":"CLE","bye":"11","tier":"F"},
-  {"rank":172,"name":"kimani vidal","pos":"RB","team":"LAC","bye":"7","tier":"F"},
-  {"rank":173,"name":"jalen milroe","pos":"QB","team":"SEA","bye":"11","tier":"F"},
-  {"rank":174,"name":"michael penix jr.","pos":"QB","team":"ATL","bye":"11","tier":"F"},
-  {"rank":175,"name":"j.j. mccarthy","pos":"QB","team":"MIN","bye":"6","tier":"F"},
-  {"rank":176,"name":"geno smith","pos":"QB","team":"LV","bye":"13","tier":"F"},
-  {"rank":177,"name":"c.j. stroud","pos":"QB","team":"HOU","bye":"6","tier":"F"},
-  {"rank":178,"name":"bryce young","pos":"QB","team":"CAR","bye":"5","tier":"F"},
-  {"rank":179,"name":"aaron rodgers","pos":"QB","team":"PIT","bye":"5","tier":"F"},
-  {"rank":180,"name":"derek carr","pos":"QB","team":"NO","bye":"11","tier":"F"},
-  {"rank":181,"name":"dalton schultz","pos":"TE","team":"HOU","bye":"6","tier":"F"},
-  {"rank":182,"name":"chig okonkwo","pos":"TE","team":"TEN","bye":"10","tier":"F"},
-  {"rank":183,"name":"noah fant","pos":"TE","team":"CIN","bye":"6","tier":"F"},
-  {"rank":184,"name":"mike gesicki","pos":"TE","team":"CIN","bye":"6","tier":"F"},
-  {"rank":185,"name":"cole kmet","pos":"TE","team":"CHI","bye":"10","tier":"F"},
-  {"rank":186,"name":"cade stover","pos":"TE","team":"HOU","bye":"6","tier":"F"},
-  {"rank":187,"name":"jaylin noel","pos":"WR","team":"HOU","bye":"6","tier":"F"},
-  {"rank":188,"name":"pat bryant","pos":"WR","team":"DEN","bye":"10","tier":"F"},
-  {"rank":189,"name":"tory horton","pos":"WR","team":"SEA","bye":"11","tier":"F"},
-  {"rank":190,"name":"jayden higgins","pos":"WR","team":"HOU","bye":"6","tier":"F"},
-  {"rank":191,"name":"tai felton","pos":"WR","team":"MIN","bye":"6","tier":"F"},
-  {"rank":192,"name":"luther burden iii","pos":"WR","team":"CHI","bye":"10","tier":"F"},
-  {"rank":193,"name":"jack bech","pos":"WR","team":"LV","bye":"13","tier":"F"},
-  {"rank":194,"name":"isaac tezlaw","pos":"WR","team":"DET","bye":"6","tier":"F"},
-  {"rank":195,"name":"andrei iosivas","pos":"WR","team":"CIN","bye":"6","tier":"F"},
-  {"rank":196,"name":"dyami brown","pos":"WR","team":"JAX","bye":"7","tier":"F"},
-  {"rank":197,"name":"jalen tolbert","pos":"WR","team":"DAL","bye":"14","tier":"F"},
-  {"rank":198,"name":"marvin mims jr.","pos":"WR","team":"DEN","bye":"10","tier":"F"},
-  {"rank":199,"name":"cedric tillman","pos":"WR","team":"CLE","bye":"11","tier":"F"},
-  {"rank":200,"name":"roman wilson","pos":"WR","team":"PIT","bye":"5","tier":"F"},
-  {"rank":201,"name":"ad mitchell","pos":"WR","team":"IND","bye":"13","tier":"F"},
-  {"rank":202,"name":"ricky white iii","pos":"WR","team":"SEA","bye":"11","tier":"F"},
-  {"rank":203,"name":"brashard smith","pos":"RB","team":"KC","bye":"5","tier":"F"},
-  {"rank":204,"name":"ollie gordon ii","pos":"RB","team":"MIA","bye":"6","tier":"F"},
-  {"rank":205,"name":"jarquez hunter","pos":"RB","team":"LAR","bye":"11","tier":"F"}
-];
+var EXPERT_RANKINGS_2026 =
+  typeof FANTASYPROS_2026_DATASET !== 'undefined' &&
+  Array.isArray(FANTASYPROS_2026_DATASET)
+    ? FANTASYPROS_2026_DATASET
+    : [];
 
 function normalizeExpertPlayerName(name) {
 
@@ -7698,9 +7495,24 @@ var TIER_LABELS = {
   B:  'VALUE',
   C:  'UPSIDE',
   D:  'DEPTH',
-  E:  'LATE FLYERS',
+  E:  'LATE',
   F:  'DEEP'
 };
+
+
+function getFantasyProsValueVsAdp(player) {
+
+  if (
+    !player ||
+    player.ecr == null ||
+    player.adp == null
+  ) {
+    return null;
+  }
+
+  return Number(player.adp) - Number(player.ecr);
+
+}
 
 
 function createExpertPlayerRow(player) {
@@ -7750,6 +7562,28 @@ function createExpertPlayerRow(player) {
       : '--';
 
 
+  var valueVsAdp =
+    getFantasyProsValueVsAdp(player);
+
+
+  var valueText =
+    valueVsAdp == null
+      ? '—'
+      : (
+          valueVsAdp > 0
+            ? '+'
+            : ''
+        ) + valueVsAdp.toFixed(1);
+
+
+  var valueClass =
+    valueVsAdp == null || valueVsAdp === 0
+      ? 'valzero'
+      : valueVsAdp > 0
+        ? 'valpos'
+        : 'valneg';
+
+
   var noteText =
     player.source === 'ADP_ONLY'
       ? 'FantasyPros ADP depth player. No current ECR.'
@@ -7797,8 +7631,9 @@ function createExpertPlayerRow(player) {
       adpText +
     '</td>' +
 
-    '<td class="valzero" data-sortval="0">' +
-      '+0' +
+    '<td class="' + valueClass + '" data-sortval="' +
+      (valueVsAdp == null ? 0 : valueVsAdp) + '">' +
+      valueText +
     '</td>' +
 
     '<td>' +
@@ -7837,6 +7672,13 @@ function updateFantasyProsRowDataAttributes(
   row.setAttribute(
     'data-bye',
     player.bye || ''
+  );
+
+  row.setAttribute(
+    'data-board-rank',
+    player.boardRank != null
+      ? String(player.boardRank)
+      : String(player.rank || '')
   );
 
   row.setAttribute(
@@ -7880,6 +7722,13 @@ function updateFantasyProsRowDataAttributes(
   );
 
   row.setAttribute(
+    'data-semantic-tier',
+    player.semanticTier ||
+      player.consensusTier ||
+      'DEEP'
+  );
+
+  row.setAttribute(
     'data-player-source',
     player.source || 'ECR'
   );
@@ -7907,6 +7756,13 @@ function updateExpertPlayerRowMetadata(
   updateFantasyProsRowDataAttributes(
     row,
     player
+  );
+
+  row.setAttribute(
+    'data-name',
+    normalizeExpertPlayerName(
+      player.name
+    )
   );
 
 
@@ -7999,6 +7855,40 @@ function updateExpertPlayerRowMetadata(
       player.adp != null
         ? Number(player.adp).toFixed(1)
         : '--';
+
+  }
+
+
+  var valueCell =
+    row.children[5];
+
+  if (valueCell) {
+
+    var valueVsAdp =
+      getFantasyProsValueVsAdp(player);
+
+    valueCell.textContent =
+      valueVsAdp == null
+        ? '—'
+        : (
+            valueVsAdp > 0
+              ? '+'
+              : ''
+          ) + valueVsAdp.toFixed(1);
+
+    valueCell.className =
+      valueVsAdp == null || valueVsAdp === 0
+        ? 'valzero'
+        : valueVsAdp > 0
+          ? 'valpos'
+          : 'valneg';
+
+    valueCell.setAttribute(
+      'data-sortval',
+      valueVsAdp == null
+        ? '0'
+        : String(valueVsAdp)
+    );
 
   }
 
@@ -8487,6 +8377,34 @@ function auditFantasyPros2026Board() {
     new Set(expected);
 
 
+  var datasetMap =
+    new Map();
+
+
+  expected.forEach(function(name) {
+
+    datasetMap.set(
+      name,
+      (datasetMap.get(name) || 0) + 1
+    );
+
+  });
+
+
+  var datasetDuplicates =
+    Array.from(
+      datasetMap.entries()
+    ).filter(function(entry) {
+
+      return entry[1] > 1;
+
+    }).map(function(entry) {
+
+      return entry[0];
+
+    });
+
+
   var missing =
     expected.filter(
       function(name) {
@@ -8574,6 +8492,25 @@ function auditFantasyPros2026Board() {
     ).length;
 
 
+  var expectedPositionCounts =
+    typeof FANTASYPROS_2026_DATASET_META !== 'undefined' &&
+    FANTASYPROS_2026_DATASET_META.positionCounts
+      ? FANTASYPROS_2026_DATASET_META.positionCounts
+      : {};
+
+
+  var positionCountsMatch =
+    Object.keys(
+      expectedPositionCounts
+    ).every(function(position) {
+
+      return (
+        positionCounts[position] || 0
+      ) === expectedPositionCounts[position];
+
+    });
+
+
   var result = {
 
     datasetPlayers:
@@ -8601,6 +8538,12 @@ function auditFantasyPros2026Board() {
     duplicateCount:
       duplicates.length,
 
+    datasetDuplicateCount:
+      datasetDuplicates.length,
+
+    positionCountsMatch:
+      positionCountsMatch,
+
     positionCounts:
       positionCounts,
 
@@ -8611,9 +8554,21 @@ function auditFantasyPros2026Board() {
       unexpected,
 
     duplicates:
-      duplicates
+      duplicates,
+
+    datasetDuplicates:
+      datasetDuplicates
 
   };
+
+
+  result.passed =
+    result.exactCount &&
+    result.missingCount === 0 &&
+    result.unexpectedCount === 0 &&
+    result.duplicateCount === 0 &&
+    result.datasetDuplicateCount === 0 &&
+    result.positionCountsMatch;
 
 
   console.log(
@@ -8624,6 +8579,95 @@ function auditFantasyPros2026Board() {
 
   return result;
 
+}
+
+
+function runFantasyProsMigrationVerification() {
+  var boardAudit =
+    auditFantasyPros2026Board();
+
+  var draftEngine =
+    runDraftEngineTests();
+
+  var turnPackage =
+    runTurnPackageTests();
+
+  var recommendationExplanation =
+    runRecommendationExplanationTests();
+
+  var totalPassed =
+    draftEngine.passed +
+    turnPackage.passed +
+    recommendationExplanation.passed;
+
+  var totalFailed =
+    draftEngine.failed +
+    turnPackage.failed +
+    recommendationExplanation.failed;
+
+  var result = {
+    boardAudit: boardAudit,
+    draftEngine: draftEngine,
+    turnPackage: turnPackage,
+    recommendationExplanation:
+      recommendationExplanation,
+    totalPassed: totalPassed,
+    totalFailed: totalFailed,
+    totalTests: totalPassed + totalFailed,
+    passed:
+      boardAudit.passed &&
+      totalFailed === 0
+  };
+
+  window.FANTASYPROS_2026_LAST_VERIFICATION =
+    result;
+
+  var target =
+    document.getElementById(
+      'developer-test-results'
+    );
+
+  if (target) {
+    target.textContent = [
+      'FANTASYPROS 2026 MIGRATION VERIFICATION',
+      'Board: ' +
+        boardAudit.boardPlayers +
+        '/' +
+        boardAudit.datasetPlayers +
+        ' rows',
+      'Missing: ' + boardAudit.missingCount,
+      'Unexpected: ' + boardAudit.unexpectedCount,
+      'Board duplicates: ' +
+        boardAudit.duplicateCount,
+      'Dataset duplicates: ' +
+        boardAudit.datasetDuplicateCount,
+      'Draft engine: ' +
+        draftEngine.passed +
+        '/' +
+        draftEngine.total,
+      'Turn package: ' +
+        turnPackage.passed +
+        '/' +
+        turnPackage.total,
+      'Recommendation explanations: ' +
+        recommendationExplanation.passed +
+        '/' +
+        recommendationExplanation.total,
+      'Total: ' +
+        totalPassed +
+        '/' +
+        result.totalTests,
+      'Result: ' +
+        (result.passed ? 'PASS' : 'FAIL')
+    ].join('\n');
+  }
+
+  console.info(
+    '[FantasyPros 2026 Migration Verification]',
+    result
+  );
+
+  return result;
 }
 
 // ==== EDIT RANKS ====
@@ -12402,6 +12446,17 @@ function getDraftAssistantRosterState() {
    AVAILABLE PLAYERS
    --------------------------------------------------------- */
 
+function getDraftRowNumber(row, attributeName) {
+  var rawValue = row.getAttribute(attributeName);
+
+  if (rawValue == null || rawValue === '') {
+    return null;
+  }
+
+  var value = Number(rawValue);
+  return Number.isFinite(value) ? value : null;
+}
+
 function getDraftAssistantPlayers() {
   var players = [];
 
@@ -12451,7 +12506,12 @@ if (!rankText) {
 }
 
 var rankMatch = String(rankText).match(/\d+/);
-var rank = rankMatch ? parseInt(rankMatch[0], 10) : null;
+var boardRank = rankMatch ? parseInt(rankMatch[0], 10) : null;
+var ecr = getDraftRowNumber(row, 'data-ecr');
+var adp = getDraftRowNumber(row, 'data-adp');
+var adpRank = getDraftRowNumber(row, 'data-adp-rank');
+var realTimeAdp = getDraftRowNumber(row, 'data-realtime-adp');
+var rank = ecr != null ? ecr : boardRank;
 
     /*
      * Tier comes from the existing tier class when available.
@@ -12469,6 +12529,17 @@ var rank = rankMatch ? parseInt(rankMatch[0], 10) : null;
       name: name,
       position: position,
       rank: isNaN(rank) ? null : rank,
+      boardRank: boardRank,
+      ecr: ecr,
+      adp: adp,
+      adpRank: adpRank,
+      realTimeAdp: realTimeAdp,
+      fantasyProsTier: getDraftRowNumber(row, 'data-fantasypros-tier'),
+      semanticTier: row.getAttribute('data-semantic-tier') ||
+        row.getAttribute('data-consensus-tier') ||
+        '',
+      source: row.getAttribute('data-player-source') || '',
+      posRank: getDraftRowNumber(row, 'data-pos-rank'),
       tier: tier,
       status: status,
       available: status === 'available'
@@ -14804,6 +14875,25 @@ function calculatePositionScarcity(
  * "There are still plenty of comparable QBs/TEs,
  * so don't draft one early."
  */
+function getFantasyProsMarketRank(player) {
+  var candidates = [
+    player && player.adp,
+    player && player.realTimeAdp,
+    player && player.adpRank,
+    player && player.rank
+  ];
+
+  for (var index = 0; index < candidates.length; index++) {
+    var value = Number(candidates[index]);
+
+    if (Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+
+  return 9999;
+}
+
 function calculateLateAvailability(
   player,
   players,
@@ -14821,7 +14911,7 @@ function calculateLateAvailability(
    */
 
   var playerRank =
-    Number(player.rank) || 9999;
+    getFantasyProsMarketRank(player);
 
   var nextPick =
     Number(
@@ -14881,7 +14971,7 @@ function calculateLateAvailability(
     samePosition.filter(function(p) {
 
       return (
-        Number(p.rank) < playerRank
+        getFantasyProsMarketRank(p) < playerRank
       );
 
     }).length;
@@ -14900,7 +14990,7 @@ function calculateLateAvailability(
   samePosition.filter(function(p) {
 
     var rank =
-      Number(p.rank) || 9999;
+      getFantasyProsMarketRank(p);
 
     return (
       p !== player &&
@@ -18751,7 +18841,7 @@ if (picksBetween <= 0) {
 }
 
 var rank =
-  Number(candidate.rank) || 999;
+  getFantasyProsMarketRank(candidate);
 
 var timing =
   Number(candidate.timingScore) || 0;
@@ -21941,6 +22031,253 @@ function generateDraftStrategyExplanation(strategy) {
 
   };
 
+}
+
+/* =========================================================
+   DEVELOPER-ONLY DRAFT ENGINE TEST HARNESS
+
+   These helpers deliberately live outside the production scoring path.
+   They can be called from the browser console or the Developer panel.
+   ========================================================= */
+
+function draftEngineTestRender(summary) {
+  var target = document.getElementById('developer-test-results');
+  if (!target) return;
+
+  var lines = [
+    'DRAFT ENGINE TEST SUITE',
+    'Result: ' + summary.passed + ' passed, ' + summary.failed + ' failed (' + summary.total + ' total)',
+    ''
+  ];
+
+  summary.results.forEach(function(result) {
+    lines.push((result.passed ? '✓ ' : '✗ ') + result.name + (result.error ? ' — ' + result.error : ''));
+  });
+
+  target.textContent = lines.join('\n');
+}
+
+function draftEngineTestCreateRunner() {
+  var results = [];
+
+  function add(name, passed, error) {
+    results.push({ name: name, passed: !!passed, error: error || '' });
+  }
+
+  return {
+    assert: function(name, condition, error) {
+      add(name, condition, condition ? '' : (error || 'Assertion returned false.'));
+    },
+    equal: function(name, actual, expected) {
+      add(name, actual === expected, 'Expected ' + expected + ', received ' + actual + '.');
+    },
+    between: function(name, value, min, max) {
+      add(name, Number.isFinite(value) && value >= min && value <= max, 'Expected a number from ' + min + ' to ' + max + ', received ' + value + '.');
+    },
+    run: function(name, fn) {
+      try {
+        fn();
+      } catch (error) {
+        add(name, false, error && error.message ? error.message : String(error));
+      }
+    },
+    summary: function() {
+      var passed = results.filter(function(result) { return result.passed; }).length;
+      return { results: results, passed: passed, failed: results.length - passed, total: results.length };
+    }
+  };
+}
+
+function draftEngineTestWithQuietConsole(fn) {
+  var originalLog = console.log;
+  var originalGroup = console.group;
+  var originalGroupEnd = console.groupEnd;
+  var originalTable = console.table;
+  console.log = console.group = console.groupEnd = console.table = function() {};
+  try {
+    return fn();
+  } finally {
+    console.log = originalLog;
+    console.group = originalGroup;
+    console.groupEnd = originalGroupEnd;
+    console.table = originalTable;
+  }
+}
+
+function draftEngineTestPlayers() {
+  var players = [];
+  ['RB', 'WR', 'TE', 'QB'].forEach(function(position, positionIndex) {
+    for (var index = 1; index <= 30; index++) {
+      players.push({
+        name: position + ' Test ' + index,
+        position: position,
+        rank: (index * 4) + positionIndex,
+        available: true,
+        tier: index <= 5 ? 'Sp' : (index <= 12 ? 'S' : 'A')
+      });
+    }
+  });
+  return players.sort(function(a, b) { return a.rank - b.rank; });
+}
+
+function draftEngineTestWithRoster(positions, fn) {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('tr.draftrow'));
+  var originalClasses = rows.map(function(row) { return row.className; });
+  var byPosition = {};
+
+  rows.forEach(function(row) {
+    var position = row.getAttribute('data-pos');
+    if (!byPosition[position]) byPosition[position] = [];
+    byPosition[position].push(row);
+    row.classList.remove('drafted-mine', 'drafted-other');
+  });
+
+  try {
+    (positions || []).forEach(function(position) {
+      var candidates = byPosition[position] || [];
+      var row = candidates.shift();
+      if (row) row.classList.add('drafted-mine');
+    });
+    return fn();
+  } finally {
+    rows.forEach(function(row, index) { row.className = originalClasses[index]; });
+  }
+}
+
+function draftEngineTestDecisionContext(players, overrides) {
+  var available = players.filter(function(player) { return player.available !== false; });
+  var replacements = {};
+  ['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
+    replacements[position] = available.filter(function(player) { return player.position === position; }).slice(-1)[0];
+  });
+
+  return Object.assign({
+    players: available,
+    availablePlayers: available,
+    replacements: replacements,
+    teams: 10,
+    currentPick: 1,
+    nextPick: 20,
+    currentRank: 1,
+    vorpMax: 100,
+    rosterNeeds: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1 },
+    strategy: { targetPosition: 'RB' },
+    draftRuns: { isRun: false },
+    tierCliffs: {}
+  }, overrides || {});
+}
+
+function runDraftEngineTests(options) {
+  options = options || {};
+  var test = draftEngineTestCreateRunner();
+  var players = draftEngineTestPlayers();
+  var rbOne = players.filter(function(player) { return player.position === 'RB'; })[0];
+  var rbReplacement = players.filter(function(player) { return player.position === 'RB'; })[12];
+  var context = draftEngineTestDecisionContext(players, { replacements: { RB: rbReplacement, WR: players.filter(function(player) { return player.position === 'WR'; })[12], TE: players.filter(function(player) { return player.position === 'TE'; })[12], QB: players.filter(function(player) { return player.position === 'QB'; })[12] } });
+
+  draftEngineTestWithQuietConsole(function() {
+    test.run('Tier cliff ignores missing context', function() {
+      test.equal('tier cliff missing context returns 0', calculateTierCliffOpportunity(rbOne, {}), 0);
+    });
+    test.run('Tier cliff awards only the player above the cliff', function() {
+      var cliff = { RB: { severity: 'HIGH', beforePlayer: rbOne, afterPlayer: rbReplacement } };
+      test.equal('high cliff awards 5', calculateTierCliffOpportunity(rbOne, { tierCliffs: cliff }), 5);
+      test.equal('non-cliff player awards 0', calculateTierCliffOpportunity(rbReplacement, { tierCliffs: cliff }), 0);
+    });
+    test.run('Draft-run opportunity stays position-specific', function() {
+      var runContext = { draftRuns: { isRun: true, position: 'WR', strength: 'STRONG' }, rosterNeeds: { RB: 1, WR: 1, FLEX: 0 } };
+      test.equal('same-position run awards 0', calculateDraftRunOpportunity({ position: 'WR' }, runContext), 0);
+      test.equal('needed alternate position awards 3', calculateDraftRunOpportunity({ position: 'RB' }, runContext), 3);
+    });
+    test.run('Draft-aware VORP is bounded and above replacement', function() {
+      var value = calculateDraftAwareVorpOpportunity(rbOne, context);
+      test.between('draft-aware VORP stays in 0–5', value, 0, 5);
+      test.assert('player above replacement has positive opportunity', value > 0, 'Expected a positive wait-risk bonus.');
+      test.equal('missing replacements returns 0', calculateDraftAwareVorpOpportunity(rbOne, { players: players }), 0);
+    });
+    test.run('Next-pick survival is clamped', function() {
+      var safe = calculateNextPickSurvival({ name: 'Late Player', rank: 200, timingScore: 0 }, { currentPick: 1, calculatedNextPick: 20, currentRank: 1 });
+      var risky = calculateNextPickSurvival({ name: 'Early Player', rank: 1, timingScore: 100 }, { currentPick: 1, calculatedNextPick: 20, currentRank: 1 });
+      test.between('late player survival is 0–100', safe, 0, 100);
+      test.between('early player survival is 0–100', risky, 0, 100);
+      test.assert('later-ranked player is no less likely to survive', safe >= risky, 'Expected late player survival to be at least early player survival.');
+    });
+    test.run('Decision score returns finite component scores', function() {
+      var scored = calculateDraftDecisionScore(Object.assign({}, rbOne, { vorp: 50, scarcity: 40 }), context);
+      test.assert('decision score has a result', !!scored, 'Expected a scoring result.');
+      test.between('decision final score is finite', scored.finalScore, -1000, 1000);
+      test.between('decision tier score is 0–100', scored.tierScore, 0, 100);
+      test.between('decision rank score is 0–100', scored.rankScore, 0, 100);
+    });
+    test.run('Recommendation returns a complete decision', function() {
+      var scoredPlayers = [
+        { name: 'Alpha', position: 'RB', rank: 1, finalScore: 90, tierScore: 95, vorpScore: 90, timingScore: 10, scarcityScore: 30, rosterNeedScore: 2, available: true },
+        { name: 'Beta', position: 'WR', rank: 8, finalScore: 85, tierScore: 80, vorpScore: 70, timingScore: 10, scarcityScore: 30, rosterNeedScore: 2, available: true },
+        { name: 'Gamma', position: 'TE', rank: 25, finalScore: 70, tierScore: 60, vorpScore: 50, timingScore: 10, scarcityScore: 20, rosterNeedScore: 1, available: true }
+      ];
+      var recommendation = calculateDraftRecommendation(scoredPlayers[0], scoredPlayers, { teams: 10, currentPick: 1, nextPick: 20, currentRank: 1 });
+      test.assert('recommendation has decision text', !!(recommendation && recommendation.recommendation), 'Expected a decision recommendation.');
+      test.assert('recommendation has a confidence score', Number.isFinite(recommendation && recommendation.confidenceScore), 'Expected finite confidence.');
+    });
+  });
+
+  var scenarios = [
+    { name: 'empty-roster', roster: [], expectedNeed: 'RB' },
+    { name: 'rb-need', roster: ['QB', 'WR', 'WR', 'TE'], expectedNeed: 'RB' },
+    { name: 'wr-need', roster: ['QB', 'RB', 'RB', 'TE'], expectedNeed: 'WR' },
+    { name: 'balanced-roster', roster: ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'RB'], expectedNeed: null },
+    { name: 'wr-run', roster: ['QB', 'RB', 'RB', 'TE'], expectedNeed: 'WR', run: true }
+  ];
+
+  scenarios.filter(function(scenario) { return !options.scenario || options.scenario === scenario.name; }).forEach(function(scenario) {
+    test.run('Scenario: ' + scenario.name, function() {
+      draftEngineTestWithRoster(scenario.roster, function() {
+        var strategy = calculateDraftStrategy();
+        if (scenario.expectedNeed) {
+          test.assert(scenario.name + ' targets ' + scenario.expectedNeed, strategy.targetPosition === scenario.expectedNeed, 'Received ' + strategy.targetPosition + '.');
+        } else {
+          test.assert(scenario.name + ' fills core starters', strategy.needs.QB === 0 && strategy.needs.RB === 0 && strategy.needs.WR === 0 && strategy.needs.TE === 0, 'Expected no dedicated starter needs.');
+        }
+        if (scenario.run) {
+          var opportunity = calculateDraftRunOpportunity({ position: 'RB' }, { draftRuns: { isRun: true, position: 'WR', strength: 'STRONG' }, rosterNeeds: strategy.needs });
+          test.assert(scenario.name + ' creates alternate-position opportunity', opportunity > 0, 'Expected a non-zero run opportunity.');
+        }
+      });
+    });
+  });
+
+  var summary = test.summary();
+  draftEngineTestRender(summary);
+  console.info('[Draft Engine Tests]', summary);
+  return summary;
+}
+
+function runDraftEngineScenario(name) {
+  return runDraftEngineTests({ scenario: name });
+}
+
+function runDraftEnginePlayerTest(playerName) {
+  var input = document.getElementById('developer-player-name');
+  var requestedName = String(playerName || (input && input.value) || '').trim().toLowerCase();
+  var test = draftEngineTestCreateRunner();
+  var players = getDraftAssistantPlayers();
+  var player = players.filter(function(candidate) { return candidate.name && candidate.name.toLowerCase() === requestedName; })[0];
+
+  test.assert('Player exists on the draft board', !!player, requestedName ? 'No player matched “' + requestedName + '”.' : 'Enter a player name first.');
+  if (player) {
+    draftEngineTestWithQuietConsole(function() {
+      var profiles = calculateAllFantasyVorp(players);
+      var profile = profiles.profiles.filter(function(item) { return item.player && item.player.name === player.name; })[0];
+      var context = draftEngineTestDecisionContext(players, { replacements: profiles.replacements, vorpMax: Math.max.apply(null, profiles.profiles.map(function(item) { return Number(item.vorp) || 0; })) || 1 });
+      var scored = calculateDraftDecisionScore(Object.assign({}, player, { vorp: profile ? profile.vorp : 0, scarcity: profile ? profile.scarcity : 0 }), context);
+      test.assert('Player score is finite', Number.isFinite(scored && scored.finalScore), 'Could not calculate a finite decision score.');
+      test.between('Player final score is in expected range', scored.finalScore, -1000, 1000);
+    });
+  }
+
+  var summary = test.summary();
+  draftEngineTestRender(summary);
+  return summary;
 }
 
 function debugDecisionEngine(playerName){

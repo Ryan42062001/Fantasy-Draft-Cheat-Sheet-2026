@@ -806,6 +806,23 @@ body.edit-mode tr.draftrow:hover td {
   }
 }
 
+/* Developer-only draft-engine test controls */
+.developer-test-panel {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px dashed rgba(143, 212, 160, 0.5);
+  border-radius: 8px;
+  background: rgba(10, 25, 17, 0.55);
+  color: #d9eadc;
+  font-size: 0.75rem;
+}
+.developer-test-panel summary { cursor: pointer; font-weight: 800; color: #8fd4a0; }
+.developer-test-panel p { margin: 8px 0; color: #a9c2ab; }
+.developer-test-actions, .developer-player-test { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.developer-test-panel button { padding: 6px 8px; border: 1px solid #5fa87c; border-radius: 5px; background: rgba(95,168,124,0.2); color: #e8f6ea; cursor: pointer; font: inherit; }
+.developer-test-panel input { max-width: 180px; padding: 6px; border: 1px solid #456d52; border-radius: 5px; background: #101a13; color: #fff; }
+#developer-test-results { max-height: 240px; overflow: auto; margin: 8px 0 0; padding: 8px; border-radius: 5px; background: #08100a; color: #d9eadc; font: 0.7rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+
 /* ==== STARTING LINEUP ==== */
 
 .starting-lineup {
