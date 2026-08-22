@@ -7,6 +7,9 @@
 var AUTOSAVE_KEY = 'draft-state-v1';
 var AUTOSAVE_ENABLED_KEY = 'draft-autosave-enabled-v1';
 var FINAL_SUMMARY_SHOWN_KEY = 'draft-final-summary-shown-v1';
+var DRAFT_SESSION_REGISTRY_KEY = 'war-room-draft-sessions-v1';
+var ACTIVE_DRAFT_SESSION_KEY = 'war-room-active-draft-session-v1';
+var activeDraftSessionId = 'legacy';
 var DEBUG_DRAFT_SCORING = false;
 var TEAM_COLORS = {
   ARI:'#97233F', ATL:'#A71930', BAL:'#241773', BUF:'#00338D', CAR:'#0085CA',
@@ -106,6 +109,7 @@ function safeCall(fnName) {
 
 // ==== CORE DASHBOARD & RECOMMENDER UPDATES ====
 function updateMyTeam() {
+  var starterLimits = getConfiguredStarterLimits();
   var myTeamContainer = document.getElementById('roster-list');
   var needsContainer = document.getElementById('needs-row');
   var starterCountElement = document.getElementById('myteam-starter-count');
@@ -651,19 +655,20 @@ function updateDraftSummary() {
     return a.pick - b.pick;
   });
 
-  var flexFilled = Math.min(1,
-    Math.max(0, positionCounts.RB - 2) +
-    Math.max(0, positionCounts.WR - 2) +
-    Math.max(0, positionCounts.TE - 1)
+  var starterLimits = getConfiguredStarterLimits();
+  var flexFilled = Math.min(starterLimits.FLEX,
+    Math.max(0, positionCounts.RB - starterLimits.RB) +
+    Math.max(0, positionCounts.WR - starterLimits.WR) +
+    Math.max(0, positionCounts.TE - starterLimits.TE)
   );
   var startersFilled =
-    Math.min(positionCounts.QB, 1) +
-    Math.min(positionCounts.RB, 2) +
-    Math.min(positionCounts.WR, 2) +
-    Math.min(positionCounts.TE, 1) +
+    Math.min(positionCounts.QB, starterLimits.QB) +
+    Math.min(positionCounts.RB, starterLimits.RB) +
+    Math.min(positionCounts.WR, starterLimits.WR) +
+    Math.min(positionCounts.TE, starterLimits.TE) +
     flexFilled +
-    Math.min(positionCounts.K, 1) +
-    Math.min(positionCounts.DST, 1);
+    Math.min(positionCounts.K, starterLimits.K) +
+    Math.min(positionCounts.DST, starterLimits.DST);
 
   var knownEcrValues = picks.filter(function(player) {
     return player.ecrValue != null;
@@ -691,7 +696,7 @@ function updateDraftSummary() {
     '<div class="summary-progress-track"><span style="width:' + progress + '%"></span></div>' +
     '<div class="summary-stat-grid">' +
       '<div class="summary-stat"><span>My roster</span><strong>' + picks.length + ' / ' + state.rounds + '</strong><small>players drafted</small></div>' +
-      '<div class="summary-stat"><span>Starting lineup</span><strong>' + startersFilled + ' / 9</strong><small>slots filled</small></div>' +
+      '<div class="summary-stat"><span>Starting lineup</span><strong>' + startersFilled + ' / ' + getConfiguredStarterTotal() + '</strong><small>slots filled</small></div>' +
       '<div class="summary-stat summary-grade"><span>ECR value grade</span><strong>' + grade + '</strong><small>' +
         (averageEcrValue == null ? 'record pick numbers to grade' : formatDraftSummaryDelta(averageEcrValue) + ' picks vs ECR on average') +
       '</small></div>' +
@@ -710,7 +715,7 @@ function updateDraftSummary() {
     return;
   }
 
-  var positionTargets = {QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DST: 1};
+  var positionTargets = getConfiguredDedicatedStarterLimits();
   html += '<div class="summary-section"><h3>Roster construction</h3><div class="summary-position-grid">';
   ['QB', 'RB', 'WR', 'TE', 'K', 'DST'].forEach(function(position) {
     var count = positionCounts[position];
@@ -881,7 +886,7 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
     strengths.push('You generally waited for market value, drafting players <b>' + formatDraftSummaryDelta(averageMarketValue) + ' picks after ADP</b> on average.');
   }
 
-  if (startersFilled === 9) {
+  if (startersFilled === getConfiguredStarterTotal()) {
     strengths.push('You completed every starting-lineup slot.');
   }
 
@@ -905,18 +910,19 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
     improvements.push(advice);
   });
 
-  var requiredCounts = {QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DST: 1};
+  var starterLimits = getConfiguredStarterLimits();
+  var requiredCounts = getConfiguredDedicatedStarterLimits();
   var missing = [];
   Object.keys(requiredCounts).forEach(function(position) {
     var shortfall = Math.max(0, requiredCounts[position] - positionCounts[position]);
     if (shortfall) missing.push(position + (shortfall > 1 ? ' ×' + shortfall : ''));
   });
-  if (startersFilled < 9) {
+  if (startersFilled < getConfiguredStarterTotal()) {
     var flexMissing = Math.max(0,
-      1 - Math.min(1,
-        Math.max(0, positionCounts.RB - 2) +
-        Math.max(0, positionCounts.WR - 2) +
-        Math.max(0, positionCounts.TE - 1)
+      starterLimits.FLEX - Math.min(starterLimits.FLEX,
+        Math.max(0, positionCounts.RB - starterLimits.RB) +
+        Math.max(0, positionCounts.WR - starterLimits.WR) +
+        Math.max(0, positionCounts.TE - starterLimits.TE)
       )
     );
     if (flexMissing) missing.push('FLEX');
@@ -963,7 +969,7 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
     '</div>' +
     '<div class="final-summary-stats">' +
       '<div><span>Roster</span><strong>' + picks.length + ' picks</strong></div>' +
-      '<div><span>Starters</span><strong>' + startersFilled + ' / 9</strong></div>' +
+      '<div><span>Starters</span><strong>' + startersFilled + ' / ' + getConfiguredStarterTotal() + '</strong></div>' +
       '<div><span>Avg. vs ECR</span><strong>' + formatDraftSummaryDelta(averageEcrValue) + '</strong></div>' +
       '<div><span>Avg. vs ADP</span><strong>' + formatDraftSummaryDelta(averageMarketValue) + '</strong></div>' +
     '</div>' +
@@ -1063,12 +1069,12 @@ function maybeShowFinalDraftSummary(state, picks, positionCounts, startersFilled
       _finalSummaryTimer = null;
     }
     closeFinalDraftSummary();
-    try { localStorage.removeItem(FINAL_SUMMARY_SHOWN_KEY); } catch (error) {}
+    try { localStorage.removeItem(getDraftSessionFinalKey()); } catch (error) {}
     return;
   }
 
   var alreadyShown = false;
-  try { alreadyShown = localStorage.getItem(FINAL_SUMMARY_SHOWN_KEY) === '1'; } catch (error) {}
+  try { alreadyShown = localStorage.getItem(getDraftSessionFinalKey()) === '1'; } catch (error) {}
   if (alreadyShown) return;
 
   if (_finalSummaryTimer) clearTimeout(_finalSummaryTimer);
@@ -1077,7 +1083,7 @@ function maybeShowFinalDraftSummary(state, picks, positionCounts, startersFilled
     var latest = window.latestFinalDraftSummaryData;
     if (!latest) return;
 
-    try { localStorage.setItem(FINAL_SUMMARY_SHOWN_KEY, '1'); } catch (error) {}
+    try { localStorage.setItem(getDraftSessionFinalKey(), '1'); } catch (error) {}
     openFinalDraftSummary(
       latest.picks,
       latest.positionCounts,
@@ -8061,6 +8067,7 @@ function publishEspnSyncAck(result) {
 
 function applyEspnDraftSnapshot(snapshot) {
   snapshot = snapshot || {};
+  if (snapshot.draftKey) selectEspnDraftSession(snapshot.draftKey);
   if (snapshot.config) applyEspnSyncSettings(snapshot.config);
   var settings = getEspnSyncSettings();
   var incoming = Array.isArray(snapshot.picks) ? snapshot.picks : [];
@@ -8384,7 +8391,7 @@ function resetBoard(){
     row.removeAttribute('data-team-id');
     row.removeAttribute('data-sync-method');
   });
-  try { localStorage.removeItem(FINAL_SUMMARY_SHOWN_KEY); } catch(e) {}
+  try { localStorage.removeItem(getDraftSessionFinalKey()); } catch(e) {}
   closeFinalDraftSummary();
   triggerAllBoardUpdates();
   if(btn) {
@@ -8392,6 +8399,96 @@ function resetBoard(){
     btn.classList.remove('armed');
   }
   scheduleSave();
+}
+
+function getDraftSessionStateKey(id) { return AUTOSAVE_KEY + ':' + String(id || activeDraftSessionId); }
+function getDraftSessionFinalKey(id) { return FINAL_SUMMARY_SHOWN_KEY + ':' + String(id || activeDraftSessionId); }
+
+function readDraftSessionRegistry() {
+  try {
+    var parsed = JSON.parse(localStorage.getItem(DRAFT_SESSION_REGISTRY_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) { return []; }
+}
+
+function writeDraftSessionRegistry(sessions) {
+  localStorage.setItem(DRAFT_SESSION_REGISTRY_KEY, JSON.stringify(sessions));
+}
+
+function initializeDraftSessions() {
+  var sessions = readDraftSessionRegistry();
+  if (!sessions.length) {
+    var legacyState = localStorage.getItem(AUTOSAVE_KEY);
+    activeDraftSessionId = 'legacy';
+    sessions = [{id:'legacy', name:legacyState ? 'Imported Draft' : 'Draft 1', createdAt:new Date().toISOString()}];
+    if (legacyState) localStorage.setItem(getDraftSessionStateKey('legacy'), legacyState);
+    if (localStorage.getItem(FINAL_SUMMARY_SHOWN_KEY) === '1') localStorage.setItem(getDraftSessionFinalKey('legacy'), '1');
+    writeDraftSessionRegistry(sessions);
+  } else {
+    activeDraftSessionId = localStorage.getItem(ACTIVE_DRAFT_SESSION_KEY) || sessions[0].id;
+    if (!sessions.some(function(session) { return session.id === activeDraftSessionId; })) activeDraftSessionId = sessions[0].id;
+  }
+  localStorage.setItem(ACTIVE_DRAFT_SESSION_KEY, activeDraftSessionId);
+  renderDraftSessionSelector();
+}
+
+function renderDraftSessionSelector() {
+  var select = document.getElementById('draftSessionSelect');
+  if (!select) return;
+  select.innerHTML = '';
+  readDraftSessionRegistry().forEach(function(session) {
+    var option = document.createElement('option');
+    option.value = session.id;
+    option.textContent = session.name;
+    option.selected = session.id === activeDraftSessionId;
+    select.appendChild(option);
+  });
+}
+
+function clearDraftStateFromBoard() {
+  getCachedDraftRows().forEach(function(row) {
+    row.classList.remove('drafted-mine', 'drafted-other');
+    clearDraftRowMetadata(row);
+  });
+  customBoardEnabled = false;
+}
+
+function switchDraftSession(id) {
+  if (!id || id === activeDraftSessionId) return;
+  saveState();
+  activeDraftSessionId = id;
+  localStorage.setItem(ACTIVE_DRAFT_SESSION_KEY, id);
+  clearDraftStateFromBoard();
+  loadState();
+  renderDraftSessionSelector();
+}
+
+function createNewDraftSession(options) {
+  options = options || {};
+  saveState();
+  var id = options.id || ('draft-' + Date.now().toString(36));
+  var sessions = readDraftSessionRegistry();
+  var existing = sessions.find(function(session) { return session.id === id; });
+  if (!existing) {
+    sessions.push({id:id, name:options.name || ('Draft ' + (sessions.length + 1)), createdAt:new Date().toISOString(), draftKey:options.draftKey || null});
+    writeDraftSessionRegistry(sessions);
+  }
+  activeDraftSessionId = id;
+  localStorage.setItem(ACTIVE_DRAFT_SESSION_KEY, id);
+  clearDraftStateFromBoard();
+  renderDraftSessionSelector();
+  triggerAllBoardUpdates();
+  saveState();
+  return id;
+}
+
+function selectEspnDraftSession(draftKey) {
+  var safeKey = String(draftKey || '').trim().slice(0, 120);
+  if (!safeKey) return;
+  var sessions = readDraftSessionRegistry();
+  var match = sessions.find(function(session) { return session.draftKey === safeKey; });
+  var id = match ? match.id : createNewDraftSession({id:'espn-' + canonicalExpertPlayerName(safeKey), name:'ESPN Draft', draftKey:safeKey});
+  if (id !== activeDraftSessionId) switchDraftSession(id);
 }
 
 function saveState(){
@@ -8452,7 +8549,11 @@ function saveState(){
       draftMeta: draftMeta,
       order: order
     };
-    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(payload));
+    var serializedPayload = JSON.stringify(payload);
+    localStorage.setItem(getDraftSessionStateKey(), serializedPayload);
+    /* Compatibility mirror for older companion/tests. Session loading never
+     * reads this key after migration, so drafts remain isolated. */
+    localStorage.setItem(AUTOSAVE_KEY, serializedPayload);
     flashSaveIndicator('Saved', '#8fd4a0');
     var diagEl = document.getElementById('storage-diag'); if(diagEl) diagEl.innerHTML = 'Autosave: On (last saved '+ new Date().toLocaleTimeString()+')';
     return true;
@@ -8512,7 +8613,7 @@ function loadState(){
   
   try{
     if(enabled){
-      var raw = localStorage.getItem(AUTOSAVE_KEY);
+      var raw = localStorage.getItem(getDraftSessionStateKey());
       if(raw){
         var payload = JSON.parse(raw);
         var pcTeams = document.getElementById('pcTeams'); if(payload.teams && pcTeams) pcTeams.value = payload.teams;
@@ -12756,6 +12857,7 @@ function initApp() {
 
   initializeTierSectionOrganization();
   setupDraftBoardInteractions();
+  initializeDraftSessions();
 
 
   /*
@@ -13616,6 +13718,7 @@ function calculatePhaseCoreAdjustment(
    --------------------------------------------------------- */
 
 function getDraftAssistantRosterState() {
+  var starterLimits = getConfiguredStarterLimits();
   var counts = {
     QB: 0,
     RB: 0,
@@ -13636,14 +13739,7 @@ function getDraftAssistantRosterState() {
     }
   });
 
-  var required = {
-    QB: 1,
-    RB: 2,
-    WR: 2,
-    TE: 1,
-    K: 1,
-    DST: 1
-  };
+  var required = getConfiguredDedicatedStarterLimits();
 
   var needs = {};
 
@@ -13666,7 +13762,7 @@ function getDraftAssistantRosterState() {
   var flexEligiblePlayers =
     counts.RB + counts.WR + counts.TE;
 
-  var requiredFlexEligiblePlayers = 5;
+  var requiredFlexEligiblePlayers = getConfiguredFlexEligibleThreshold();
 
   needs.FLEX =
     flexEligiblePlayers < requiredFlexEligiblePlayers;

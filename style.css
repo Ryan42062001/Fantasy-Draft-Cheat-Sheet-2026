@@ -620,6 +620,9 @@ summary:focus {
   font-weight: 800;
 }
 
+.draft-session-control { display:inline-flex; align-items:center; gap:5px; color:#a9c2ab; font-size:0.63rem; font-weight:800; }
+.draft-session-control select { max-width:155px; min-height:29px; border:1px solid var(--hash); border-radius:6px; background:#122619; color:var(--chalk); }
+
 .mark-mode-btn {
   min-height: 25px;
   padding: 3px 8px;
@@ -1981,6 +1984,9 @@ body.draft-complete-mode #board-pressure-widget { display: none; }
   /* Do NOT let the edit/reset controls cover the toolbar */
   .statusbar {
     position: static;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
   }
 
   /* Tier navigation scrolls normally */

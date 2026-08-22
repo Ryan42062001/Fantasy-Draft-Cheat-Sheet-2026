@@ -215,6 +215,26 @@ Do not call the migration complete until all of these are true:
 - Re-run migration verification, roadmap simulations, persistence checks, and responsive checks after each data refresh.
 - Treat recommendation tuning as a separate evidence-driven phase; preserve ECR as value and ADP as market timing.
 
+## Draft-day cleanup and reliability
+- [x] Replace stale tier copy with neutral FantasyPros semantic-tier descriptions and live player counts
+- [x] Keep custom-board editing opt-in and create rank controls only while editing
+- [x] Add explicit Taken/Mine marking mode with Taken default, one-shot Mine, toggle-to-clear, keyboard support, autosave, and ESPN compatibility
+- [x] Add isolated saved draft sessions, safe legacy-save migration, session-scoped final-report state, New Draft controls, and ESPN `draftKey` routing
+- [x] Improve navigation, player-row, tab, dialog, focus, Escape, and screen-reader semantics
+- [x] Centralize league, roster, tier, FLEX, and recommendation-cap configuration in `war-room-config.js`
+- [x] Commit a hash/count-protected FantasyPros dataset baseline with explicit `baseline:accept` workflow
+- [x] Add root syntax/dataset/extension/browser test entry points and GitHub Actions coverage
+- [ ] Validate structured Direct mode and Board fallback in a live 2026 ESPN football mock draft
+
+Verification (2026-08-22):
+- Board/runtime audit: 717 dataset players, 717 rows, 0 duplicate canonical names, and 0 normal-startup rank-control sets
+- Canonical regressions: 152/152 draft engine + 5/5 turn package + 8/8 recommendation explanations = 165/165
+- Calculation sanity: 12/12; ESPN website reconciliation: 12/12; extension API/parser/manifest/ledger: 33/33
+- Manual Taken/Mine workflow, one-shot Mine reset, New Draft isolation, configured 9-starter rendering, and 390 × 844 no-overflow checks passed in headless Chrome
+- Player marking plus immediate UI assertion measured 203.3 ms end-to-end in the final browser automation run; the application continues to defer draft-intelligence scoring
+- Normal startup creates 0 `.rank-controls`; editing controls remain lazy for the 717-player board
+- Live ESPN mock-draft validation remains intentionally unverified.
+
 ## Calculation model audit
 - [x] Keep ADP-only depth out of ECR, VORP, scarcity, tier-cliff, and recommendation-value pools
 - [x] Stop substituting ECR when FantasyPros ADP is missing; use neutral unknown-market survival
