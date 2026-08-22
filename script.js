@@ -30,6 +30,7 @@ var _finalSummaryTimer = null;
 var draftMarkMode = 'taken';
 var lastFocusedElementBeforeModal = null;
 var customBoardEnabled = false;
+var recommendationAudit = [];
 var searchMatches = [];
 var currentSearchIndex = -1;
 var developerToolsPromise = null;
@@ -70,7 +71,7 @@ function loadDeveloperTools() {
   if (!developerToolsPromise) {
     developerToolsPromise = new Promise(function(resolve, reject) {
       var script = document.createElement('script');
-      script.src = 'developer-tools.js?v=20260822-7';
+      script.src = 'developer-tools.js?v=20260822-8';
       script.onload = resolve;
       script.onerror = function() {
         developerToolsPromise = null;
@@ -8451,6 +8452,7 @@ function clearDraftStateFromBoard() {
     clearDraftRowMetadata(row);
   });
   customBoardEnabled = false;
+  recommendationAudit = [];
 }
 
 function switchDraftSession(id) {
@@ -8545,6 +8547,7 @@ function saveState(){
       teams: LEAGUE_SIZE,
       slot: MY_DRAFT_SLOT,
       rounds: TOTAL_ROUNDS,
+      recommendationAudit: recommendationAudit,
       state: state,
       draftMeta: draftMeta,
       order: order
@@ -8623,6 +8626,9 @@ function loadState(){
         if (pcTeams && pcTeams.value) LEAGUE_SIZE = parseInt(pcTeams.value, 10) || 10;
         if (pcSlot && pcSlot.value) MY_DRAFT_SLOT = parseInt(pcSlot.value, 10) || 10;
         if (pcRounds && pcRounds.value) TOTAL_ROUNDS = parseInt(pcRounds.value, 10) || 16;
+        recommendationAudit = Array.isArray(payload.recommendationAudit)
+          ? payload.recommendationAudit.slice(-200)
+          : [];
 
         var datasetSnapshotDate = typeof FANTASYPROS_2026_DATASET_META !== 'undefined'
           ? FANTASYPROS_2026_DATASET_META.sourceSnapshotDate || null
@@ -10381,8 +10387,11 @@ function renderCompactRecommendationCard(element, recommendation, explanation, p
       ' · ' + escapeSummaryHtml(alternative.position) + '</b><small>' + (scoreGap >= 0 ? '+' : '') + scoreGap.toFixed(1) + ' score gap</small></div>';
   }
   if (explanation.nextAction) details += '<div class="recommendation-next"><span>Next</span>' + escapeSummaryHtml(explanation.nextAction) + '</div>';
-  details += '<details class="recommendation-score-details"><summary>Scoring details</summary><div>Final score <b>' + Number(primary.finalScore || 0).toFixed(1) +
-    '</b> · Next-pick survival <b>' + survival + '%</b>' + (isTurn ? ' · Package advantage <b>+' + Number(recommendation.turnPackageAdvantage || 0).toFixed(1) + '</b>' : '') + '</div></details></div>';
+  details += '<details class="recommendation-score-details"><summary>Scoring details</summary><div>Base value <b>' + Number(primary.baseScore || 0).toFixed(1) +
+    '</b> · Strategy impact <b>' + (Number(primary.cappedStrategyAdjustment || 0) >= 0 ? '+' : '') + Number(primary.cappedStrategyAdjustment || 0).toFixed(1) +
+    '</b> · Guardrails <b>' + (Number(primary.guardrailAdjustment || 0) >= 0 ? '+' : '') + Number(primary.guardrailAdjustment || 0).toFixed(1) +
+    '</b> · Final <b>' + Number(primary.finalScore || 0).toFixed(1) + '</b> · Survival <b>' + survival + '%</b>' +
+    (isTurn ? ' · Package advantage <b>+' + Number(recommendation.turnPackageAdvantage || 0).toFixed(1) + '</b>' : '') + '</div></details></div>';
 
   element.innerHTML = '<details class="recommendation-card" data-action="' + actionClass + '"><summary class="recommendation-card-summary">' +
     '<span class="recommendation-action">' + escapeSummaryHtml(isTurn ? 'TURN PLAN' : action) + '</span>' +
@@ -10391,6 +10400,76 @@ function renderCompactRecommendationCard(element, recommendation, explanation, p
     '<span class="recommendation-chevron" aria-hidden="true">⌄</span>' +
     '<span class="recommendation-one-line">' + escapeSummaryHtml(summaryReason) + '<b>' + survival + '% survival</b></span>' +
     '</summary>' + details + '</details>';
+}
+
+function updateRecommendationAudit(recommendation, primary, state) {
+  if (!recommendation || !primary || !state || !state.context) return;
+  var decisionPick = Number(state.context.currentPick) || 0;
+  var nextPick = Number(state.context.calculatedNextPick || state.context.nextPick) || 0;
+  if (decisionPick < 1 || nextPick <= decisionPick) return;
+
+  recommendationAudit.forEach(function(entry) {
+    if (entry.resolved || decisionPick < entry.nextPick) return;
+    var row = findDraftRowByExpertName(entry.player);
+    var draftedAt = row ? Number(row.getAttribute('data-pick')) || null : null;
+    var intervening = getCachedDraftRows().map(function(candidateRow) {
+      return {
+        pick: Number(candidateRow.getAttribute('data-pick')) || null,
+        ecr: getDraftRowNumber(candidateRow, 'data-ecr')
+      };
+    }).filter(function(item) { return item.pick > entry.decisionPick && item.pick < entry.nextPick; });
+    var majorReaches = intervening.filter(function(item) {
+      return item.ecr != null && item.ecr - item.pick >= 30;
+    }).length;
+    var reachRatio = intervening.length ? majorReaches / intervening.length : 0;
+    entry.resolved = true;
+    entry.survived = draftedAt == null || draftedAt >= entry.nextPick;
+    entry.actualDraftPick = draftedAt;
+    entry.interveningPicks = intervening.length;
+    entry.majorReachCount = majorReaches;
+    entry.noisyDraft = intervening.length >= 3 && reachRatio >= 0.35;
+    entry.calibrationEligible = !entry.noisyDraft;
+    entry.resolvedAt = new Date().toISOString();
+  });
+
+  var key = decisionPick + '|' + canonicalExpertPlayerName(primary.name) + '|' + recommendation.recommendation;
+  if (!recommendationAudit.some(function(entry) { return entry.key === key; })) {
+    recommendationAudit.push({
+      key: key,
+      recordedAt: new Date().toISOString(),
+      decisionPick: decisionPick,
+      nextPick: nextPick,
+      player: primary.name,
+      position: primary.position,
+      ecr: primary.ecr == null ? Number(primary.rank) || null : Number(primary.ecr),
+      adp: primary.adp == null ? null : Number(primary.adp),
+      predictedSurvival: Math.round(clampRecommendationFactor(calculateNextPickSurvival(primary, state.context))),
+      action: recommendation.recommendation,
+      scoreGap: Number(recommendation.scoreGap) || 0,
+      confidence: Number(recommendation.confidenceScore) || 0,
+      baseScore: Number(primary.baseScore) || 0,
+      strategyAdjustment: Number(primary.cappedStrategyAdjustment) || 0,
+      guardrailAdjustment: Number(primary.guardrailAdjustment) || 0,
+      resolved: false
+    });
+    if (recommendationAudit.length > 200) recommendationAudit = recommendationAudit.slice(-200);
+  }
+}
+
+function getRecommendationAuditSummary() {
+  var resolved = recommendationAudit.filter(function(entry) { return entry.resolved; });
+  var eligible = resolved.filter(function(entry) { return entry.calibrationEligible; });
+  return {
+    total: recommendationAudit.length,
+    resolved: resolved.length,
+    calibrationEligible: eligible.length,
+    noisyDraftDecisions: resolved.length - eligible.length,
+    observedSurvivalRate: eligible.length
+      ? Math.round(eligible.filter(function(entry) { return entry.survived; }).length / eligible.length * 100)
+      : null,
+    minimumSampleReached: eligible.length >= 10,
+    entries: recommendationAudit.slice()
+  };
 }
 
 function updateRecommendedPick(sharedLiveState) {
@@ -10509,6 +10588,7 @@ window.latestDraftExplanation =
   }
 
   renderCompactRecommendationCard(el, recommendation, liveExplanation, primary, state);
+  updateRecommendationAudit(recommendation, primary, state);
   return;
 
 
@@ -18882,7 +18962,7 @@ var phaseAdjustedDraftAwareVorpScore =
  * -------------------------------------------------------
  */
 
-var finalScore =
+var baseScore =
     (tierScore * 0.35) +
     (rankScore * 0.25) +
     (vorpScore * 0.20) +
@@ -18897,44 +18977,20 @@ var finalScore =
  * -------------------------------------------------------
  */
 
-finalScore +=
-  strategyScore;
-
-finalScore +=
-  dynamicStrategyAdjustment;
-
-finalScore +=
-  phaseAdjustedTierCliffScore;
-
-finalScore +=
-  phaseCoreAdjustment.total;
-
-finalScore +=
-  runOpportunityScore;
-
-finalScore +=
-  runUrgencyScore;
-
-finalScore +=
-  endgameRosterRequirementScore;
-
-finalScore +=
-  mandatoryEndgameAdjustment;
-
-finalScore +=
-  phaseAdjustedDraftAwareVorpScore;
-
-finalScore +=
-  phaseAdjustedRosterConstructionScore;
-
-finalScore +=
-  rosterSaturationPenalty;
-
-finalScore +=
-  phaseAdjustedFutureDepthScore;
-
-finalScore +=
-  phaseAdjustedMultiPickScore;
+var rawStrategyAdjustment =
+  strategyScore + dynamicStrategyAdjustment + phaseAdjustedTierCliffScore +
+  phaseCoreAdjustment.total + runOpportunityScore + runUrgencyScore +
+  phaseAdjustedDraftAwareVorpScore + phaseAdjustedRosterConstructionScore +
+  phaseAdjustedFutureDepthScore + phaseAdjustedMultiPickScore;
+var adjustmentBudget = WAR_ROOM_CONFIG.strategyAdjustmentBudget || {min:-15, max:15};
+var cappedStrategyAdjustment = Math.max(
+  Number(adjustmentBudget.min) || -15,
+  Math.min(Number(adjustmentBudget.max) || 15, rawStrategyAdjustment)
+);
+/* Hard roster guardrails remain outside the opportunity budget. They can
+ * reject roster-breaking choices but cannot promote a lower-value player. */
+var guardrailAdjustment = endgameRosterRequirementScore + mandatoryEndgameAdjustment + rosterSaturationPenalty;
+var finalScore = baseScore + cappedStrategyAdjustment + guardrailAdjustment;
 
 if (DEBUG_DRAFT_SCORING) {
   console.log(
@@ -19028,6 +19084,18 @@ phaseAdjustedDraftAwareVorpScore:
 
     timingScore:
       timingScore,
+
+baseScore:
+  baseScore,
+
+rawStrategyAdjustment:
+  rawStrategyAdjustment,
+
+cappedStrategyAdjustment:
+  cappedStrategyAdjustment,
+
+guardrailAdjustment:
+  guardrailAdjustment,
 
 strategyScore:
   strategyScore,

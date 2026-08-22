@@ -246,11 +246,19 @@ Verification (2026-08-22):
 - [x] Prevent derived strategy nudges from inverting authoritative same-position ECR order
 - [x] Cache the shared position-scarcity calculation once per scoring pass
 - [x] Add controlled calculation sanity scenarios and rerun the canonical regression suites
+- [x] Cap opportunity/strategy adjustments to ±15 while retaining hard roster guardrails separately
+- [x] Expose base value, capped strategy impact, guardrails, and final score as reconciled diagnostics
+- [x] Add explicit recommendation boundary tests around score-gap and confidence thresholds
+- [x] Store recommendation audit observations per draft session without changing weights automatically
+- [x] Exclude noisy decision windows with at least 35% major ECR reaches from calibration summaries
+- [x] Require at least 10 eligible resolved decisions before treating audit survival rates as a useful sample
 
 Completion evidence (2026-08-22):
 - Canonical regressions: 152/152 draft engine + 5/5 turn package + 8/8 recommendation explanations = 165/165
 - Calculation sanity suite: 11/11 (authority separation, ADP survival, late ECR scoring, roster need, scarcity, replacement stability, same-position ordering)
 - Recommendation simulations: early / middle / turn / late = 4/4 clean with finite factor scores and no decision inconsistencies
+- Post-budget verification: calculation sanity 14/14, threshold boundaries 8/8, roadmap scenarios 4/4, and canonical regressions 165/165
+- Audit verification: session isolation retained; noisy observations excluded; 50% observed survival correctly calculated from one success and one failure while the noisy fixture is ignored
 
 ## Draft report UX
 - [x] Combine My Team and Draft Summary into one My Draft panel with Summary and Lineup views

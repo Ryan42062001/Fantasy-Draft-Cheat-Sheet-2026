@@ -15,6 +15,7 @@ var WAR_ROOM_CONFIG = {
   rosterSlots: {QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, DST: 1, K: 1},
   benchSlots: {QB: 0, RB: 2, WR: 5, TE: 0, K: 0, DST: 0},
   recommendationPositionCaps: {QB: 1, TE: 1},
+  strategyAdjustmentBudget: {min: -15, max: 15},
   tierIds: ['Sp', 'S', 'A', 'B', 'C', 'D', 'E', 'F'],
   tierLabels: {
     Sp: 'ELITE',
