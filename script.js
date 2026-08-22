@@ -10321,6 +10321,78 @@ function applyTeamColors(){
   });
 }
 
+function clampRecommendationFactor(value) {
+  return Math.max(0, Math.min(100, Number(value) || 0));
+}
+
+function getCompactRecommendationReason(explanation, survival) {
+  var reasons = explanation && Array.isArray(explanation.reasons) ? explanation.reasons : [];
+  if (reasons.length) return String(reasons[0]).replace(/<[^>]*>/g, '').slice(0, 105);
+  if (survival < 30) return 'Strong value with a low chance of reaching your next pick';
+  if (survival >= 70) return 'Good option, but the market suggests you may be able to wait';
+  return 'Best available fit for value, roster construction, and timing';
+}
+
+function buildCompactFactorHtml(label, value) {
+  var score = Math.round(clampRecommendationFactor(value));
+  return '<div class="recommendation-factor"><span><b>' + escapeSummaryHtml(label) + '</b><em>' + score + '</em></span>' +
+    '<div class="recommendation-factor-track"><i style="width:' + score + '%"></i></div></div>';
+}
+
+function renderCompactRecommendationCard(element, recommendation, explanation, primary, state) {
+  var action = String(recommendation.recommendation || 'CONSIDER').toUpperCase();
+  var actionClass = action.toLowerCase().replace(/[^a-z]+/g, '-');
+  var confidenceScore = Math.round(clampRecommendationFactor(recommendation.confidenceScore));
+  var confidenceLabel = explanation.confidence || recommendation.confidence || 'LOW';
+  var survival = Math.round(clampRecommendationFactor(calculateNextPickSurvival(primary, state.context)));
+  var reason = getCompactRecommendationReason(explanation, survival);
+  var reasons = (Array.isArray(explanation.reasons) ? explanation.reasons : []).slice(0, 3);
+  var alternative = state.scored[1] || null;
+  var scoreGap = alternative ? Number(primary.finalScore || 0) - Number(alternative.finalScore || 0) : 0;
+  var team = primary.team || (primary.row && primary.row.getAttribute('data-team')) || '';
+  var isTurn = explanation.type === 'TURN_PACKAGE' && recommendation.turnPackageActive;
+  var summaryTitle = isTurn
+    ? escapeSummaryHtml(recommendation.turnRecommendedNow || primary.name) + ' + ' + escapeSummaryHtml(recommendation.turnTargetNext || 'Best available')
+    : escapeSummaryHtml(primary.name);
+  var summaryPositions = isTurn
+    ? [recommendation.turnPick1Position, recommendation.turnPick2Position].filter(Boolean).join(' + ')
+    : primary.position + (team ? ' · ' + team : '');
+  var summaryReason = isTurn ? 'Best back-to-back package with no opponent pick between' : reason;
+
+  var details = '<div class="recommendation-expanded">';
+  if (isTurn) {
+    details += '<div class="recommendation-turn-grid"><div><small>1 · DRAFT NOW</small><b>' +
+      escapeSummaryHtml(recommendation.turnRecommendedNow || primary.name) + '</b><span>' + escapeSummaryHtml(recommendation.turnPick1Position || '') + '</span></div>' +
+      '<div><small>2 · TARGET NEXT</small><b>' + escapeSummaryHtml(recommendation.turnTargetNext || 'Best available') + '</b><span>' +
+      escapeSummaryHtml(recommendation.turnPick2Position || '') + '</span></div></div>';
+  }
+  if (reasons.length) {
+    details += '<section class="recommendation-why"><h3>Why this pick</h3><ul>' + reasons.map(function(item) {
+      return '<li>' + escapeSummaryHtml(String(item).replace(/<[^>]*>/g, '')) + '</li>';
+    }).join('') + '</ul></section>';
+  }
+  details += '<section class="recommendation-factors"><h3>Decision factors</h3><div class="recommendation-factor-grid">' +
+    buildCompactFactorHtml('ECR value', primary.rankScore) +
+    buildCompactFactorHtml('Roster need', primary.rosterNeedScore) +
+    buildCompactFactorHtml('Scarcity', primary.scarcityScore) +
+    buildCompactFactorHtml('ADP timing', primary.timingScore) + '</div></section>';
+  if (alternative && !isTurn) {
+    details += '<div class="recommendation-alternative"><span>Best alternative</span><b>' + escapeSummaryHtml(alternative.name) +
+      ' · ' + escapeSummaryHtml(alternative.position) + '</b><small>' + (scoreGap >= 0 ? '+' : '') + scoreGap.toFixed(1) + ' score gap</small></div>';
+  }
+  if (explanation.nextAction) details += '<div class="recommendation-next"><span>Next</span>' + escapeSummaryHtml(explanation.nextAction) + '</div>';
+  details += '<details class="recommendation-score-details"><summary>Scoring details</summary><div>Final score <b>' + Number(primary.finalScore || 0).toFixed(1) +
+    '</b> · Next-pick survival <b>' + survival + '%</b>' + (isTurn ? ' · Package advantage <b>+' + Number(recommendation.turnPackageAdvantage || 0).toFixed(1) + '</b>' : '') + '</div></details></div>';
+
+  element.innerHTML = '<details class="recommendation-card" data-action="' + actionClass + '"><summary class="recommendation-card-summary">' +
+    '<span class="recommendation-action">' + escapeSummaryHtml(isTurn ? 'TURN PLAN' : action) + '</span>' +
+    '<span class="recommendation-player"><b>' + summaryTitle + '</b><small>' + escapeSummaryHtml(summaryPositions) + '</small></span>' +
+    '<span class="recommendation-confidence"><b>' + confidenceScore + '%</b><small>' + escapeSummaryHtml(confidenceLabel) + '</small></span>' +
+    '<span class="recommendation-chevron" aria-hidden="true">⌄</span>' +
+    '<span class="recommendation-one-line">' + escapeSummaryHtml(summaryReason) + '<b>' + survival + '% survival</b></span>' +
+    '</summary>' + details + '</details>';
+}
+
 function updateRecommendedPick(sharedLiveState) {
 
   var el =
@@ -10435,6 +10507,9 @@ window.latestDraftExplanation =
     return;
 
   }
+
+  renderCompactRecommendationCard(el, recommendation, liveExplanation, primary, state);
+  return;
 
 
   /*

@@ -264,6 +264,16 @@ Completion evidence (2026-08-22):
 - [x] Simplify Recommended Pick into a compact primary decision with expandable strategy details
 - [x] Combine position availability and tier/scarcity alerts into one Board Pressure widget
 - [x] Remove developer test controls from the visible draft-day interface
+- [x] Replace the word-heavy Recommended Pick panel with a decision-first collapsed card
+- [x] Keep player, action, confidence, one-line rationale, and next-pick survival useful while collapsed
+- [x] Move up to three reasons, four factor bars, the best alternative, next action, and raw scoring behind progressive disclosure
+- [x] Render turn picks as a compact two-player package instead of repeated prose
+
+Recommended Pick verification (2026-08-22):
+- Browser regression confirms the card starts collapsed with a visible player and one-line decision summary
+- Expanded state exposes exactly four factors: ECR value, roster need, scarcity, and ADP timing
+- Canonical regressions remain 165/165; calculation sanity 12/12; roadmap scenarios 4/4; ESPN website contract 12/12
+- 390 × 844 viewport retains zero horizontal overflow
 
 ## Draft-day decision polish
 - [x] Replace full-pool availability counts with ECR-relevant depth, best available, tier-cliff distance, and ADP-based next-pick survival

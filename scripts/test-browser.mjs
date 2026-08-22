@@ -20,6 +20,7 @@ page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text());
 page.on('pageerror', error => errors.push(error.message));
 await page.goto(appUrl, {waitUntil:'load'});
 await page.waitForSelector('tr.draftrow');
+await page.waitForSelector('.recommendation-card');
 
 const startup = await page.evaluate(() => ({
   dataset: FANTASYPROS_2026_DATASET.length,
@@ -28,6 +29,13 @@ const startup = await page.evaluate(() => ({
   duplicates: FANTASYPROS_2026_DATASET.length - new Set(FANTASYPROS_2026_DATASET.map(p => canonicalExpertPlayerName(p.name))).size
 }));
 assert.deepEqual(startup, {dataset:717, rows:717, controls:0, duplicates:0});
+const recommendationCard = page.locator('.recommendation-card');
+assert.equal(await recommendationCard.getAttribute('open'), null);
+assert.equal(await page.locator('.recommendation-card-summary .recommendation-player b').count(), 1);
+assert.equal(await page.locator('.recommendation-one-line').count(), 1);
+await page.locator('.recommendation-card-summary').click();
+assert.equal(await recommendationCard.getAttribute('open'), '');
+assert.equal(await page.locator('.recommendation-factor').count(), 4);
 
 const first = page.locator('tr.draftrow').first();
 const t0 = performance.now();
