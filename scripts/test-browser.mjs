@@ -36,6 +36,7 @@ assert.equal(await page.locator('.recommendation-one-line').count(), 1);
 await page.locator('.recommendation-card-summary').click();
 assert.equal(await recommendationCard.getAttribute('open'), '');
 assert.equal(await page.locator('.recommendation-factor').count(), 4);
+assert.equal(await page.getByRole('progressbar').count(), 4);
 
 const first = page.locator('tr.draftrow').first();
 const t0 = performance.now();
@@ -91,6 +92,39 @@ assert.equal(auditSummary.calibrationEligible, 2);
 assert.equal(auditSummary.noisyDraftDecisions, 1);
 assert.equal(auditSummary.observedSurvivalRate, 50);
 assert.equal(auditSummary.minimumSampleReached, false);
+const auditClassification = await page.evaluate(() => {
+  const entry = {decisionPick:1, nextPick:20};
+  const normal = Array.from({length:18}, (_, index) => ({pick:index + 2, ecr:index + 2}));
+  const noisy = normal.map((item, index) => ({pick:item.pick, ecr:index < 7 ? item.pick + 40 : item.ecr}));
+  return {
+    selected: classifyRecommendationAuditOutcome(entry, 1, normal),
+    incomplete: classifyRecommendationAuditOutcome(entry, null, normal.slice(0, 2)),
+    noisy: classifyRecommendationAuditOutcome(entry, null, noisy),
+    drafted: classifyRecommendationAuditOutcome(entry, 10, normal)
+  };
+});
+assert.equal(auditClassification.selected.censored, true);
+assert.equal(auditClassification.selected.calibrationEligible, false);
+assert.equal(auditClassification.incomplete.incomplete, true);
+assert.equal(auditClassification.incomplete.calibrationEligible, false);
+assert.equal(auditClassification.noisy.noisyDraft, true);
+assert.equal(auditClassification.noisy.calibrationEligible, false);
+assert.equal(auditClassification.drafted.survived, false);
+assert.equal(auditClassification.drafted.calibrationEligible, true);
+const auditDeduped = await page.evaluate(() => {
+  const original = recommendationAudit;
+  recommendationAudit = [];
+  const state = buildLiveDraftDebugState();
+  const primary = state.scored[0];
+  const base = calculateDraftRecommendation(primary, state.scored, state.context);
+  updateRecommendationAudit(Object.assign({}, base, {recommendation:'CONSIDER'}), primary, state);
+  updateRecommendationAudit(Object.assign({}, base, {recommendation:'DRAFT'}), primary, state);
+  const result = {length:recommendationAudit.length, action:recommendationAudit[0] && recommendationAudit[0].action};
+  recommendationAudit = original;
+  return result;
+});
+assert.equal(auditDeduped.length, 1);
+assert.equal(auditDeduped.action, 'DRAFT');
 
 await browser.close();
 if (server) await new Promise(resolve => server.close(resolve));
