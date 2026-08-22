@@ -343,8 +343,13 @@ Completion evidence (2026-08-22):
 - [x] Avoid serializing authoritative board order during autosave while retaining the legacy no-dataset fallback
 - [x] Preserve deferred draft intelligence so Taken/Mine state paints before recommendation work
 - [x] Re-run board integrity, canonical regressions, calculation sanity, roadmap simulations, and ESPN sync tests
+- [x] Avoid rewriting unchanged Recommended Pick markup and preserve its expanded state across genuine refreshes
+- [x] Resolve audit entries from one shared drafted-pick snapshot and avoid no-op autosave scheduling
+- [x] Remove the 1,270-line unreachable legacy recommendation renderer after compact-card migration
 
 Performance evidence (2026-08-22):
 - Before: live-state scoring was roughly 635–745 ms per refresh and the deferred full refresh was roughly 779–885 ms
 - After: repeated player clicks painted interactively in an 11.0 ms median; live-state scoring was 120.9 ms median; the full deferred refresh was 276.3 ms median
 - Integrity/regressions: 717/717 board rows with 0 missing / unexpected / duplicates; canonical 165/165; calculation sanity 12/12; roadmap scenarios 4/4; ESPN website contract 12/12; extension tests 33/33
+- Latest cleanup: normalized `script.js` size reduced by 20,699 characters (4.5%); ten cached recommendation renders complete in 7.1 ms total while preserving the same DOM card and expanded state
+- Latest verification: marking workflow 63.1 ms end-to-end in automation; canonical 165/165; calculation sanity 14/14; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 33/33

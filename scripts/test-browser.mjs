@@ -37,6 +37,20 @@ await page.locator('.recommendation-card-summary').click();
 assert.equal(await recommendationCard.getAttribute('open'), '');
 assert.equal(await page.locator('.recommendation-factor').count(), 4);
 assert.equal(await page.getByRole('progressbar').count(), 4);
+const recommendationRender = await page.evaluate(() => {
+  const element = document.getElementById('recommended-pick-text');
+  const card = element.querySelector('.recommendation-card');
+  const shared = buildLiveDraftDebugState();
+  const started = performance.now();
+  for (let index = 0; index < 10; index++) updateRecommendedPick(shared);
+  return {
+    sameCard: card === element.querySelector('.recommendation-card'),
+    stayedOpen: element.querySelector('.recommendation-card').open,
+    totalMs: performance.now() - started
+  };
+});
+assert.equal(recommendationRender.sameCard, true);
+assert.equal(recommendationRender.stayedOpen, true);
 
 const first = page.locator('tr.draftrow').first();
 const t0 = performance.now();
@@ -140,4 +154,4 @@ const suiteSummary = Object.fromEntries(Object.entries(suites).map(([name, resul
 Object.entries(suites).forEach(([name, result]) => {
   assert.equal(result.failed || 0, 0, name + ': ' + JSON.stringify((result.results || []).filter(item => !item.passed)));
 });
-console.log(JSON.stringify({startup, markingMs:Number(markingMs.toFixed(1)), mobileOverflow, suites:suiteSummary}, null, 2));
+console.log(JSON.stringify({startup, markingMs:Number(markingMs.toFixed(1)), cachedRecommendationRenderMs:Number(recommendationRender.totalMs.toFixed(1)), mobileOverflow, suites:suiteSummary}, null, 2));
