@@ -11564,6 +11564,11 @@ function initApp() {
 
   addMobileHandcuffLabels();
 
+  var draftSettingsDetails = document.getElementById('draft-settings-details');
+  if (draftSettingsDetails) {
+    draftSettingsDetails.open = !window.matchMedia('(max-width: 768px)').matches;
+  }
+
   ['pcTeams', 'pcSlot', 'pcRounds'].forEach(function(id) {
     var el = document.getElementById(id);
 
