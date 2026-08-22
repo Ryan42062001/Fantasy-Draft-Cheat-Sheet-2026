@@ -7729,10 +7729,10 @@ var DISPLAY_NAME_OVERRIDES_2026 = {
   'rj harvey': 'RJ Harvey',
   'aj barner': 'AJ Barner',
   'kc concepcion': 'KC Concepcion',
-  'j.j. mccarthy': 'J.J. McCarthy',
-  'c.j. stroud': 'C.J. Stroud',
-  'a.j. brown': 'A.J. Brown',
-  'd.j. moore': 'DJ Moore'
+  'jj mccarthy': 'J.J. McCarthy',
+  'cj stroud': 'C.J. Stroud',
+  'aj brown': 'A.J. Brown',
+  'dj moore': 'DJ Moore'
 };
 
 
