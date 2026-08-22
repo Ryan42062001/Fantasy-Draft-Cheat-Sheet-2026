@@ -113,6 +113,7 @@
       ? parser.scanDocumentDetailed(document, config)
       : {picks: parser.scanDocument(document, config), candidateCount: 0};
     var picks = scanResult.picks;
+    var shape = parser.detectDraftShape ? parser.detectDraftShape(document) : {};
     var signature = JSON.stringify(picks);
     if (force || signature !== lastSignature) {
       lastSignature = signature;
@@ -123,6 +124,9 @@
       draftPage: true,
       captured: picks.length,
       candidates: scanResult.candidateCount,
+      detectedTeams: shape.teams,
+      detectedRounds: shape.rounds,
+      currentPick: shape.currentPick,
       topFrame: topFrame,
       url: location.href
     });
@@ -137,11 +141,15 @@
 
     scanStructuredDraft(force).then(function(directAvailable) {
       if (directAvailable) {
+        var shape = parser.detectDraftShape ? parser.detectDraftShape(document) : {};
         send({
           type: 'ESPN_HEARTBEAT',
           draftPage: true,
           topFrame: topFrame,
           apiAvailable: true,
+          detectedTeams: shape.teams,
+          detectedRounds: shape.rounds,
+          currentPick: shape.currentPick,
           url: location.href
         });
         return;
@@ -168,12 +176,13 @@
 
   var observer = new MutationObserver(function(mutations) {
     var relevant = mutations.some(function(mutation) {
-      return mutation.addedNodes && mutation.addedNodes.length;
+      return mutation.type === 'characterData' ||
+        (mutation.addedNodes && mutation.addedNodes.length);
     });
     if (relevant) scheduleScan(false);
   });
 
-  observer.observe(document.documentElement, {childList: true, subtree: true});
+  observer.observe(document.documentElement, {childList: true, characterData: true, subtree: true});
   scheduleScan(true);
-  setInterval(function() { scan(false); }, 10000);
+  setInterval(function() { scan(false); }, 3000);
 })();

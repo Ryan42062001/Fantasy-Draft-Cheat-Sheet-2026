@@ -57,6 +57,13 @@ function render(status) {
     message.textContent = Number(espn.visibleCandidates) > 0
       ? 'Draft detected, but no completed pick rows parsed yet. Press Rescan after a pick is made.'
       : 'Draft detected, but its pick log was not visible to the reader. Press Rescan or refresh ESPN once.';
+  } else if (
+    espn.method !== 'api' &&
+    Number(espn.expectedCompleted) > 0 &&
+    picks.length < Number(espn.expectedCompleted)
+  ) {
+    message.textContent = 'Screen fallback is behind (' + picks.length + ' of ' +
+      Number(espn.expectedCompleted) + ' completed picks). Open ESPN’s Board tab and press Rescan.';
   } else {
     message.textContent = espn.method === 'api'
       ? 'Direct ESPN data connected. Team ownership and pick numbers come from ESPN.'

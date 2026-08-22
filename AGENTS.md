@@ -272,9 +272,18 @@ Completion evidence (2026-08-22):
 Current verification (2026-08-22):
 - Existing War Room regressions: 165/165
 - ESPN website reconciliation contract: 11/11
-- Extension API, parser, manifest, and ledger tests: 27/27
-- Companion 0.4.1 uses structured ESPN pick/team IDs when available, treats a valid pre-draft zero-pick response as an authoritative clean slate, scopes ledgers to the current ESPN league, and prevents available-player ranks from entering the Board/history fallback
+- Extension API, parser, manifest, and ledger tests: 28/28
+- Companion 0.4.2 uses structured ESPN pick/team IDs when available; Screen fallback observes in-place text changes every three seconds, detects draft dimensions/current pick, and warns when captured history falls behind
 - Live ESPN mock-draft validation remains required because ESPN does not publish a stable draft-room DOM contract
+
+## User roster recommendation preferences
+- [x] Hard-cap the recommendation pool at one QB
+- [x] Hard-cap the recommendation pool at one TE
+- [x] Keep additional QBs and TEs visible/searchable on the board without recommending them
+- [x] Preserve FantasyPros ECR/ADP authority for every still-eligible player
+
+Preference verification (2026-08-22):
+- Calculation sanity suite: 12/12, including QB1/TE1 recommendation eligibility and QB2/TE2 exclusion
 
 Completion evidence (2026-08-22):
 - Clean draft UI: 717 rows, visible 2026-08-21 FantasyPros freshness badge, decision-focused Board Pressure, no console errors

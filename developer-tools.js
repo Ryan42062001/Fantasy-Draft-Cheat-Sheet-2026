@@ -4644,6 +4644,15 @@ function runCalculationSanityTests() {
     turnReplacement && turnReplacement.name
   );
 
+  test.assert(
+    'Roster preference: recommendation pool hard-caps QB and TE at one',
+    isRecommendationRosterEligible({position: 'QB'}, {QB: 0, TE: 0}) &&
+      !isRecommendationRosterEligible({position: 'QB'}, {QB: 1, TE: 0}) &&
+      isRecommendationRosterEligible({position: 'TE'}, {QB: 1, TE: 0}) &&
+      !isRecommendationRosterEligible({position: 'TE'}, {QB: 1, TE: 1}) &&
+      isRecommendationRosterEligible({position: 'RB'}, {QB: 1, TE: 1})
+  );
+
   var summary = test.summary();
   console.group('CALCULATION SANITY TEST SUITE');
   console.log('Result: ' + summary.passed + ' passed, ' + summary.failed + ' failed (' + summary.total + ' total)');

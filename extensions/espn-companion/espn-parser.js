@@ -183,6 +183,29 @@
     return directory;
   }
 
+  function detectDraftShape(documentObject) {
+    var text = cleanText(
+      documentObject && documentObject.body
+        ? documentObject.body.innerText || documentObject.body.textContent
+        : ''
+    );
+    var roundsMatch = text.match(/\bRND\s+\d{1,2}\s+OF\s+(\d{1,2})\b/i) ||
+      text.match(/\bROUND\s+\d{1,2}\s+OF\s+(\d{1,2})\b/i);
+    var currentPickMatch = text.match(/\bON THE CLOCK\s*:\s*PICK\s+(\d{1,3})\b/i) ||
+      text.match(/\bON THE CLOCK\b[^\n]{0,80}\bPICK\s+(\d{1,3})\b/i);
+    var observedTeams = 0;
+    var roundPickPattern = /\bR(?:ound)?\s*\d{1,2}\s*[,./-]?\s*P(?:ick)?\s*(\d{1,2})\b/ig;
+    var match;
+    while ((match = roundPickPattern.exec(text)) !== null) {
+      observedTeams = Math.max(observedTeams, Number(match[1]) || 0);
+    }
+    return {
+      teams: observedTeams >= 2 ? observedTeams : null,
+      rounds: roundsMatch ? Number(roundsMatch[1]) : null,
+      currentPick: currentPickMatch ? Number(currentPickMatch[1]) : null
+    };
+  }
+
   function scanDocument(documentObject, options) {
     return scanDocumentDetailed(documentObject, options).picks;
   }
@@ -270,6 +293,7 @@
     parsePlayerName: parsePlayerName,
     parsePickText: parsePickText,
     scanPlayerDirectory: scanPlayerDirectory,
+    detectDraftShape: detectDraftShape,
     scanDocument: scanDocument,
     scanDocumentDetailed: scanDocumentDetailed
   };
