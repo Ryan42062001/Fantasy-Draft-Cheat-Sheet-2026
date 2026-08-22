@@ -129,21 +129,21 @@ Treat this as the living roadmap. Update this file as phases are completed.
 - [x] Obtain FantasyPros 2026 Overall ADP CSV
 - [x] Build 717-player merged master dataset concept
 - [x] Define semantic tier architecture
-- [ ] Rebuild/verify master dataset directly from CSV files in the repo/workspace (do not trust manually pasted partial chunks)
-- [ ] Install authoritative 717-player dataset into the app
-- [ ] Make QB/RB/WR/TE/K/DST all authoritative from FantasyPros dataset
-- [ ] Remove old special handling that preserves stale K/DST rows separately
-- [ ] Populate row metadata for ECR, ADP, ADP rank, FantasyPros tier, semantic tier, source, positional rank
-- [ ] Verify page refresh reconstructs all 717 players automatically
-- [ ] Run board integrity audit: 717 board rows, 0 missing, 0 unexpected, 0 duplicates
-- [ ] Update visible section labels to ELITE / PREMIUM / CORE / VALUE / UPSIDE / DEPTH / LATE / DEEP while preserving internal IDs initially
+- [x] Rebuild/verify master dataset directly from CSV files in the repo/workspace (do not trust manually pasted partial chunks)
+- [x] Install authoritative 717-player dataset into the app
+- [x] Make QB/RB/WR/TE/K/DST all authoritative from FantasyPros dataset
+- [x] Remove old special handling that preserves stale K/DST rows separately
+- [x] Populate row metadata for ECR, ADP, ADP rank, FantasyPros tier, semantic tier, source, positional rank
+- [x] Verify page refresh reconstructs all 717 players automatically
+- [x] Run board integrity audit: 717 board rows, 0 missing, 0 unexpected, 0 duplicates
+- [x] Update visible section labels to ELITE / PREMIUM / CORE / VALUE / UPSIDE / DEPTH / LATE / DEEP while preserving internal IDs initially
 - [ ] Improve organization for large board: collapse LATE and DEEP by default; keep search across all players
 - [ ] Organize K and DST cleanly instead of dumping them into generic DEEP/F logic
-- [ ] Wire ADP into `calculateNextPickSurvival()` / timing calculations
-- [ ] Keep ECR as the value signal for board rank, VORP, scarcity, and recommendation value
+- [x] Wire ADP into `calculateNextPickSurvival()` / timing calculations
+- [x] Keep ECR as the value signal for board rank, VORP, scarcity, and recommendation value
 - [ ] Replace legacy tier-score assumptions with semantic consensus-tier scoring after distribution review
 - [ ] Fix any recommendation-decision inconsistencies exposed by simulations (example previously observed: negative score gap but still `DRAFT`)
-- [ ] Re-run all 165 regression tests; target 165/165
+- [x] Re-run all 165 regression tests; target 165/165
 - [ ] Run realistic draft recommendation simulations at early, middle, turn, and late picks
 - [ ] Perform mobile/UI audit after the 717-player board is stable
 - [ ] Mark ranking system complete

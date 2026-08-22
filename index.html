@@ -34,14 +34,14 @@
 </div>
 
 <div class="nav">
-  <a href="javascript:void(0)" onclick="jumpTo('tier-Sp')">S+</a>
-  <a href="javascript:void(0)" onclick="jumpTo('tier-S')">S</a>
-  <a href="javascript:void(0)" onclick="jumpTo('tier-A')">A</a>
-  <a href="javascript:void(0)" onclick="jumpTo('tier-B')">B</a>
-  <a href="javascript:void(0)" onclick="jumpTo('tier-C')">C</a>
-  <a href="javascript:void(0)" onclick="jumpTo('tier-D')">D</a>
-  <a href="javascript:void(0)" onclick="jumpTo('tier-E')">E</a>
-  <a href="javascript:void(0)" onclick="jumpTo('tier-F')">F</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-Sp')">ELITE</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-S')">PREMIUM</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-A')">CORE</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-B')">VALUE</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-C')">UPSIDE</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-D')">DEPTH</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-E')">LATE</a>
+  <a href="javascript:void(0)" onclick="jumpTo('tier-F')">DEEP</a>
 </div>
 
 <main>
@@ -166,6 +166,24 @@
 
   <div id="scarcity-alerts"></div>
 
+  <details class="developer-test-panel" id="developer-test-panel">
+    <summary>Developer: Draft Engine Tests</summary>
+    <p>Runs isolated engine checks. Your tracked draft board is restored after every scenario.</p>
+    <div class="developer-test-actions">
+      <button type="button" onclick="runDraftEngineTests()">Run full suite</button>
+      <button type="button" onclick="runFantasyProsMigrationVerification()">Run migration verification</button>
+      <button type="button" onclick="runDraftEngineScenario('empty-roster')">Empty roster</button>
+      <button type="button" onclick="runDraftEngineScenario('rb-need')">RB need</button>
+      <button type="button" onclick="runDraftEngineScenario('wr-run')">WR run</button>
+    </div>
+    <div class="developer-player-test">
+      <label for="developer-player-name">Player</label>
+      <input id="developer-player-name" type="text" placeholder="e.g. jahmyr gibbs">
+      <button type="button" onclick="runDraftEnginePlayerTest()">Test player</button>
+    </div>
+    <pre id="developer-test-results" aria-live="polite">No tests run yet.</pre>
+  </details>
+
 
     <div class="table-wrap" id="big-board-wrap" style="max-height:none;">
     <table class="rt" id="big-table">
@@ -175,11 +193,11 @@
           <th>Val</th><th>Bye</th><th>Handcuff</th><th>Note</th>
         </tr>
       </thead>
-      <tbody class="tier-group" data-tier-name="Round 1 Slam Dunks" id="tbody-Sp">
+      <tbody class="tier-group" data-tier-name="ELITE" id="tbody-Sp">
       <tr class="tier-divider-row" id="tier-Sp">
       <td colspan="9">
         <div class="divider-inner">
-          <span class="tier-badge-inline tier-badge-Sp">S+</span>
+          <span class="tier-badge-inline tier-badge-Sp">ELITE</span>
           <span class="divider-title">Round 1 Slam Dunks</span>
           <span class="divider-sub">The 3 players worth taking blind at any pick 1-3</span>
         </div>
@@ -197,11 +215,11 @@
       <td class="hc">—</td><td class="notecell">League-leading 185 targets. 32.23% tgt share. 2.23 YPRR. 125 rec/1412 yds.</td>
     </tr>
     </tbody>
-<tbody class="tier-group" data-tier-name="Elite Blue Chips" id="tbody-S">
+<tbody class="tier-group" data-tier-name="PREMIUM" id="tbody-S">
       <tr class="tier-divider-row" id="tier-S">
       <td colspan="9">
         <div class="divider-inner">
-          <span class="tier-badge-inline tier-badge-S">S</span>
+          <span class="tier-badge-inline tier-badge-S">PREMIUM</span>
           <span class="divider-title">Elite Blue Chips</span>
           <span class="divider-sub">Take without hesitation</span>
         </div>
@@ -222,11 +240,11 @@
       <td class="hc">—</td><td class="notecell">31.27% tgt share. 2.47 YPRR (3rd PFF). 172 targets (2nd NFL).</td>
     </tr>
     </tbody>
-<tbody class="tier-group" data-tier-name="High-End Starters" id="tbody-A">
+<tbody class="tier-group" data-tier-name="CORE" id="tbody-A">
       <tr class="tier-divider-row" id="tier-A">
       <td colspan="9">
         <div class="divider-inner">
-          <span class="tier-badge-inline tier-badge-A">A</span>
+          <span class="tier-badge-inline tier-badge-A">CORE</span>
           <span class="divider-title">High-End Starters</span>
           <span class="divider-sub">Elite starters, small gap from S tier</span>
         </div>
@@ -256,11 +274,11 @@
       <td class="hc">—</td><td class="notecell">Traded to NE, paired with Drake Maye.</td>
     </tr>
     </tbody>
-<tbody class="tier-group" data-tier-name="Solid Starters" id="tbody-B">
+<tbody class="tier-group" data-tier-name="VALUE" id="tbody-B">
       <tr class="tier-divider-row" id="tier-B">
       <td colspan="9">
         <div class="divider-inner">
-          <span class="tier-badge-inline tier-badge-B">B</span>
+          <span class="tier-badge-inline tier-badge-B">VALUE</span>
           <span class="divider-title">Solid Starters</span>
           <span class="divider-sub">Reliable weekly starters</span>
         </div>
@@ -311,11 +329,11 @@
       <td class="hc">—</td><td class="notecell">—</td>
     </tr>
     </tbody>
-<tbody class="tier-group" data-tier-name="Flex Starters" id="tbody-C">
+<tbody class="tier-group" data-tier-name="UPSIDE" id="tbody-C">
       <tr class="tier-divider-row" id="tier-C">
       <td colspan="9">
         <div class="divider-inner">
-          <span class="tier-badge-inline tier-badge-C">C</span>
+          <span class="tier-badge-inline tier-badge-C">UPSIDE</span>
           <span class="divider-title">Flex Starters</span>
           <span class="divider-sub">Flex/streaming-caliber with real weekly upside</span>
         </div>
@@ -381,11 +399,11 @@
       <td class="hc">—</td><td class="notecell">—</td>
     </tr>
     </tbody>
-<tbody class="tier-group" data-tier-name="Bench Depth" id="tbody-D">
+<tbody class="tier-group" data-tier-name="DEPTH" id="tbody-D">
       <tr class="tier-divider-row" id="tier-D">
       <td colspan="9">
         <div class="divider-inner">
-          <span class="tier-badge-inline tier-badge-D">D</span>
+          <span class="tier-badge-inline tier-badge-D">DEPTH</span>
           <span class="divider-title">Bench Depth</span>
           <span class="divider-sub">Backup QB/TE, RB2/WR3 depth</span>
         </div>
@@ -454,11 +472,11 @@
       <td class="hc">Zach Charbonnet</td><td class="notecell">—</td>
     </tr>
     </tbody>
-<tbody class="tier-group" data-tier-name="Late-Round Targets" id="tbody-E">
+<tbody class="tier-group" data-tier-name="LATE" id="tbody-E">
       <tr class="tier-divider-row" id="tier-E">
       <td colspan="9">
         <div class="divider-inner">
-          <span class="tier-badge-inline tier-badge-E">E</span>
+          <span class="tier-badge-inline tier-badge-E">LATE</span>
           <span class="divider-title">Late-Round Targets</span>
           <span class="divider-sub">Hidden gems, value picks, and injury discounts live here</span>
         </div>
@@ -551,11 +569,11 @@
       <td class="hc">—</td><td class="notecell">Big-play WR; boom-or-bust.</td>
     </tr>
     </tbody>
-<tbody class="tier-group" data-tier-name="Deep Sleepers &amp; Streaming" id="tbody-F">
+<tbody class="tier-group" data-tier-name="DEEP" id="tbody-F">
       <tr class="tier-divider-row" id="tier-F">
       <td colspan="9">
         <div class="divider-inner">
-          <span class="tier-badge-inline tier-badge-F">F</span>
+          <span class="tier-badge-inline tier-badge-F">DEEP</span>
           <span class="divider-title">Deep Sleepers &amp; Streaming</span>
           <span class="divider-sub">Waiver radar, handcuffs, DST/K, deep stashes</span>
         </div>
@@ -792,6 +810,7 @@
   Merged &amp; fact-checked draft board &middot; verify injury/PUP designations day-of-draft
 </footer>
 
+<script src="fantasypros-2026-data.js"></script>
 <script src="script.js"></script>
 
 </body>
