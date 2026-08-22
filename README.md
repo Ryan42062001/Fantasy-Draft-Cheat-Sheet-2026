@@ -10,8 +10,8 @@ A real-time draft companion web app for 10-team fantasy football leagues. Track 
 
 1. **Open the app**: Double-click `index.html` (no server needed)
 2. **Configure your league** (optional):
-   - Click the "Draft Position" widget
-   - Set your league size, pick number, and round count
+   - Use the controls in the "Draft Position" widget
+   - On mobile, tap "Edit draft settings" first
 3. **Start drafting**:
    - Click a player row once (green) = you drafted them
    - Click again (gray) = someone else took them
@@ -26,17 +26,23 @@ That's it! Your draft is automatically saved to browser storage.
 
 ```
 Fantasy-Draft-Cheat-Sheet-2026/
-├── index.html          (~926 lines) - Main UI structure
-├── script.js           (~950 lines) - All game logic
-├── style.css           (~350 lines) - Styling & animations
-└── README.md           (this file)
+├── AGENTS.md                         - Project source of truth and roadmap
+├── index.html                        - UI shell and semantic tier sections
+├── script.js                         - Production board and recommendation engine
+├── developer-tools.js                - On-demand tests and draft simulations
+├── fantasypros-2026-data.js          - Browser-ready generated dataset
+├── style.css                         - Styling and responsive behavior
+├── data/                              - Source CSVs and generated master JSON
+├── scripts/build-fantasypros-2026.mjs - Reproducible dataset generator
+└── README.md                          - User and contributor guide
 ```
 
 ### Key Components
 
 **index.html**
-- 8 tier sections (S+ down to F) with 195 ranked players
-- 3 side panels: My Team, Export/Import, Draft Summary
+- 8 semantic tier containers (ELITE through DEEP)
+- Player rows are constructed from the generated FantasyPros dataset at startup
+- Side panels for My Team and Draft Summary
 - Toolbar with search, position filters, and controls
 - Tier navigation links
 - Widgets: Draft Position, Recommended Pick, Best Available, Position Scarcity
@@ -46,7 +52,11 @@ Fantasy-Draft-Cheat-Sheet-2026/
 - **Draft Cycle**: `toggleDraft(row)` is the main entry point
 - **UI Updates**: Called after every draft action
 - **Persistence**: localStorage autosave with 400ms debounce
-- **Calculations**: Recommendations, scarcity alerts, value tracking
+- **Calculations**: ECR-backed value/VORP and ADP-backed timing/survival
+
+**developer-tools.js**
+- Loaded only when a Developer-panel action is run
+- Contains the 165 regression assertions and realistic draft simulations
 
 **style.css**
 - Dark green football field theme
@@ -71,7 +81,6 @@ Fantasy-Draft-Cheat-Sheet-2026/
 - ✅ **Autosave**: Browser localStorage, optional toggle (on/off)
 - ✅ **Search & Filters**: Find players by name, position, or team
 - ✅ **Sorting**: Click column headers to sort within a tier
-- ✅ **Export/Import**: Backup and restore your draft state
 - ✅ **Best Available Now**: Top 5 available players at a glance
 - ✅ **My Team Panel**: Full roster view with bye week warnings and value tracking
 - ✅ **Draft Summary**: Final grade, position breakdown, value analysis
@@ -149,10 +158,10 @@ Click "Draft Position" widget to set:
 - Total rounds
 
 ### Customize Tier Names
-Edit `script.js` lines 23-24:
+Edit `TIER_IDS` / `TIER_LABELS` near the top of `script.js`:
 ```javascript
 var TIER_IDS = ['Sp','S','A','B','C','D','E','F'];
-var TIER_LABELS = {Sp:'S+', S:'S', A:'A', ...};
+var TIER_LABELS = {Sp:'ELITE', S:'PREMIUM', A:'CORE', ...};
 ```
 
 ---
@@ -161,14 +170,12 @@ var TIER_LABELS = {Sp:'S+', S:'S', A:'A', ...};
 
 ### Current Issues
 - ❌ **Keyboard shortcuts** attempted but caused click conflicts (needs refactor)
-- ❌ **Deep waiver picks** (rank 141+) lack value data
-- ❌ **Rank edits** don't update "RdX" round tags (intentional, complex to fix)
 - ❌ **No keeper tracking** for dynasty/keeper leagues
 
 ### Browser Support
 - ✅ Chrome, Firefox, Safari, Edge (all modern versions)
 - ⚠️ localStorage required (will gracefully degrade without it)
-- ⚠️ No offline mode (needs internet for initial page load, then works offline)
+- ✅ No runtime network dependency; the generated FantasyPros dataset is local
 
 ---
 
@@ -197,12 +204,10 @@ var TIER_LABELS = {Sp:'S+', S:'S', A:'A', ...};
 ## 🤖 For AI Assistants
 
 ### Code Organization
-Search for these section markers in `script.js`:
-- `// ==== POSITION FILTERING ====` - Search & filter logic
-- `// ==== DRAFT DAY DASHBOARD ====` - Scarcity tracking
-- `// ==== AUTOSAVE UTILITIES ====` - localStorage persistence
-- `// ==== RECOMMENDATIONS ====` - Top-3 picks engine
-- `// ==== MY TEAM PANEL ====` - Roster tracking
+- Read `AGENTS.md` first; it defines ranking authority and compatibility constraints.
+- `script.js` contains production state, board construction, persistence, and scoring.
+- `developer-tools.js` contains regression, scenario, and full-draft diagnostic tooling.
+- `scripts/build-fantasypros-2026.mjs` regenerates both runtime data artifacts from the checked-in CSVs.
 
 ### Key Functions to Know
 ```javascript
@@ -217,9 +222,9 @@ loadState()                   // Restore from localStorage
 
 ### How to Help
 1. **Understand the flow**: Read through `toggleDraft()` to see update sequence
-2. **Test locally**: Just open `index.html` in a browser
-3. **Use the console**: Open DevTools (F12) → Console for debugging
-4. **Before making changes**: Check if updates need to be added to `toggleDraft()`
+2. **Test locally**: Serve the repository with a local static web server
+3. **Run verification**: Open the Developer panel and run migration verification
+4. **Before making changes**: Check whether updates belong in `triggerAllBoardUpdates()`
 
 ### Common Pitfalls
 - ❌ Forgot to add new function to `toggleDraft()` update chain → UI doesn't refresh
@@ -259,6 +264,8 @@ loadState()                   // Restore from localStorage
 
 Before publishing changes:
 
+- [ ] Migration verification reports 717/717 and 165/165
+- [ ] Roadmap simulations report 4/4 clean
 - [ ] Click player rows → toggle between 3 states
 - [ ] Mark 5 players as "yours" → My Team panel updates
 - [ ] Position Scarcity shows correct counts
@@ -266,7 +273,6 @@ Before publishing changes:
 - [ ] Refresh page → roster state restored
 - [ ] Search and position filters work
 - [ ] Reset button → clears all drafted status
-- [ ] Export/Import → can backup and restore
 - [ ] Mobile view (resize to <600px) → buttons wrap, readable
 
 ---
