@@ -75,18 +75,21 @@
     return directory;
   }
 
-  function rawDraftPicks(payload) {
+  function draftPickCollection(payload) {
     if (payload && payload.draftDetail && Array.isArray(payload.draftDetail.picks)) {
-      return payload.draftDetail.picks;
+      return {present: true, picks: payload.draftDetail.picks};
     }
-    if (payload && payload.draft && Array.isArray(payload.draft.picks)) return payload.draft.picks;
-    if (payload && Array.isArray(payload.picks)) return payload.picks;
-    return [];
+    if (payload && payload.draft && Array.isArray(payload.draft.picks)) {
+      return {present: true, picks: payload.draft.picks};
+    }
+    if (payload && Array.isArray(payload.picks)) return {present: true, picks: payload.picks};
+    return {present: false, picks: []};
   }
 
   function extractDraftSnapshot(payload, context, seedDirectory) {
     var directory = buildPlayerDirectory(payload || {}, seedDirectory);
-    var rawPicks = rawDraftPicks(payload || {}).filter(function(pick) {
+    var collection = draftPickCollection(payload || {});
+    var rawPicks = collection.picks.filter(function(pick) {
       return Number(pick && (pick.overallPickNumber || pick.overallPick || pick.pickNumber)) > 0;
     });
     var unresolved = [];
@@ -126,7 +129,8 @@
     picks.sort(function(a, b) { return a.overallPick - b.overallPick; });
     return {
       rawCount: rawPicks.length,
-      complete: rawPicks.length > 0 && unresolved.length === 0,
+      feedPresent: collection.present,
+      complete: collection.present && unresolved.length === 0,
       picks: picks,
       unresolved: unresolved,
       directory: directory

@@ -29,7 +29,7 @@ function loadBackground(storedState) {
     },
     scripting: {executeScript: async () => {}}
   };
-  const context = vm.createContext({chrome, console, Date, Promise, Object, Number, String, Boolean, Math});
+  const context = vm.createContext({chrome, console, Date, Promise, Object, Number, String, Boolean, Math, URL});
   const source = fs.readFileSync(path.resolve(__dirname, '..', 'background.js'), 'utf8');
   vm.runInContext(source, context);
   return context;
@@ -68,4 +68,17 @@ test('changing only the user slot preserves correctly numbered captured picks', 
   assert.equal(change.teamsChanged, false);
   assert.equal(context.getPicks().length, 1);
   assert.equal(context.state.config.draftSlot, 11);
+});
+
+test('opening a different ESPN draft clears the previous mock ledger', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.draftKey = '2026:111';
+  context.state.picksByNumber = {'1': {overallPick: 1, playerName: 'Ja\'Marr Chase', position: 'WR'}};
+  assert.equal(
+    context.activateDraft('https://fantasy.espn.com/football/draft?leagueId=222&seasonId=2026&teamId=14'),
+    true
+  );
+  assert.equal(context.state.draftKey, '2026:222');
+  assert.equal(context.getPicks().length, 0);
 });

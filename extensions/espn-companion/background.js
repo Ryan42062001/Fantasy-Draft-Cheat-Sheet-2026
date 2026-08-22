@@ -13,6 +13,7 @@ var ESPN_URLS = [
 
 var state = {
   config: {teams: 10, draftSlot: 1, rounds: 16},
+  draftKey: null,
   picksByNumber: {},
   ledgerTeams: null,
   espn: {connected: false, draftPage: false, captured: 0, lastSeenAt: null},
@@ -25,6 +26,7 @@ function storageGet() {
     if (stored && typeof stored === 'object') {
       state = Object.assign({}, state, stored);
       state.config = Object.assign({teams: 10, draftSlot: 1, rounds: 16}, stored.config || {});
+      state.draftKey = stored.draftKey || null;
       state.picksByNumber = Object.assign({}, stored.picksByNumber || {});
       state.ledgerTeams = Number(stored.ledgerTeams) || null;
       state.espn = Object.assign({}, state.espn, stored.espn || {});
@@ -33,7 +35,7 @@ function storageGet() {
       // Pick numbers parsed from R#/P# notation depend on league size. Older
       // ledgers did not record which team count produced them, so discard them
       // once rather than risk replaying incorrectly numbered selections.
-      if (state.ledgerTeams !== Number(state.config.teams)) {
+      if (!state.draftKey || state.ledgerTeams !== Number(state.config.teams)) {
         state.picksByNumber = {};
         state.ledgerTeams = Number(state.config.teams);
         state.espn.captured = 0;
@@ -161,6 +163,34 @@ function mergePicks(picks) {
   state.espn.captured = getPicks().length;
 }
 
+function draftKeyFromUrl(url) {
+  try {
+    var parsed = new URL(String(url || ''));
+    var leagueId = parsed.searchParams.get('leagueId');
+    var seasonId = parsed.searchParams.get('seasonId');
+    if (!/^\d+$/.test(String(leagueId || ''))) return null;
+    return String(seasonId || 'unknown') + ':' + String(leagueId);
+  } catch (error) {
+    return null;
+  }
+}
+
+function activateDraft(url) {
+  var nextKey = draftKeyFromUrl(url);
+  if (!nextKey) return false;
+  var changed = state.draftKey !== nextKey;
+  if (changed) {
+    state.draftKey = nextKey;
+    state.picksByNumber = {};
+    state.ledgerTeams = Number(state.config.teams);
+    state.espn.captured = 0;
+    state.espn.visibleCaptured = 0;
+    state.espn.structuredAt = null;
+    state.espn.method = null;
+  }
+  return changed;
+}
+
 function replacePicks(picks, method) {
   state.picksByNumber = {};
   mergePicks(picks);
@@ -222,11 +252,14 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     if (!message || !message.type) return null;
 
     if (message.type === 'ESPN_CONTENT_READY') {
+      var newDraft = activateDraft(message.url);
       state.espn.connected = true;
       state.espn.lastSeenAt = new Date().toISOString();
       state.espn.lastUrl = message.url || state.espn.lastUrl || null;
       if (sender.tab) sendTabQuiet(sender.tab.id, {type: 'COMPANION_CONFIG', config: state.config});
-      return storageSave();
+      return storageSave().then(function() {
+        return newDraft ? broadcastWarRoom(true) : null;
+      });
     }
 
     if (message.type === 'ESPN_HEARTBEAT') {
@@ -246,6 +279,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     }
 
     if (message.type === 'ESPN_PICKS_FOUND') {
+      activateDraft(message.url);
       if (structuredFeedIsFresh()) return storageSave();
       mergePicks(message.picks);
       state.espn.method = 'dom';
@@ -256,6 +290,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     }
 
     if (message.type === 'ESPN_STRUCTURED_PICKS') {
+      activateDraft(message.url);
       replacePicks(message.picks, 'api');
       state.espn.connected = true;
       state.espn.draftPage = true;

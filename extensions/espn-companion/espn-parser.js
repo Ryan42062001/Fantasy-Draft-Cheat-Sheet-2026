@@ -226,9 +226,14 @@
       var candidate = node;
       for (var depth = 0; candidate && depth < 4; depth++) {
         var text = cleanText(candidate.innerText || candidate.textContent || candidate.getAttribute('aria-label'));
-        var likelyPick = /\b(?:overall\s+)?pick\s*#?\s*\d{1,3}\b/i.test(text) ||
-          /\bR(?:ound)?\s*\d{1,2}\s*[,./-]?\s*P(?:ick)?\s*\d{1,2}\b/i.test(text) ||
-          /^\s*#?\d{1,3}\s*(?:[.):-]|\n)/m.test(text);
+        var labeledPick = /\b(?:overall\s+)?pick\s*#?\s*\d{1,3}\b/i.test(text);
+        var roundPick = /\bR(?:ound)?\s*\d{1,2}\s*[,./-]?\s*P(?:ick)?\s*\d{1,2}\b/i.test(text);
+        var historyContainer = candidate.closest && candidate.closest(
+          '[class*="history" i], [data-testid*="history" i], [class*="draft-board" i], [class*="draftBoard" i], [data-testid*="draft-board" i]'
+        );
+        var historyNumber = Boolean(historyContainer) && /^\s*#?\d{1,3}\s*(?:[.):-]|\n)/m.test(text);
+        var likelyPick = labeledPick || roundPick || historyNumber;
+        if (/\bavailable players?\b|\badd to queue\b|\bplayer rankings?\b/i.test(text)) likelyPick = false;
         if (likelyPick && text.length <= 900) {
           candidateCount++;
           var link = candidate.matches && candidate.matches('a[href]')
