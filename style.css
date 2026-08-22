@@ -41,6 +41,18 @@ body {
   min-height: 100vh;
 }
 
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 header {
   min-height: 74px;
   padding: 10px 16px;
@@ -300,7 +312,7 @@ header p {
   z-index: 18;
 }
 
-.nav a {
+.nav button {
   flex: 0 0 auto;
   color: var(--chalk);
   background: rgba(255, 255, 255, 0.06);
@@ -311,6 +323,13 @@ header p {
   text-decoration: none;
   white-space: nowrap;
   font-weight: 700;
+  cursor: pointer;
+}
+
+.nav button:hover,
+.nav button:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--gem);
 }
 
 main {
@@ -517,6 +536,11 @@ tr.draftrow:hover td {
   transition: all 0.15s ease;
 }
 
+tr.draftrow:focus-visible {
+  outline: 2px solid var(--gem);
+  outline-offset: -2px;
+}
+
 tr.drafted-mine {
   background: rgba(95, 168, 122, 0.2) !important;
   transition: all 0.2s ease;
@@ -575,21 +599,49 @@ tr.special-teams-row td:first-child {
 .pos-K { background: #555; color: #eee; }
 .pos-DST { background: #3f3f5a; color: #ddd; }
 
-/* Hide legacy export/import components */
-#exportBtn,
-#importBtn,
-#export-panel,
-#import-panel,
-button[onclick*="export"],
-button[onclick*="import"] {
-  display: none !important;
-}
-
 /* Accessibility Focus States */
 button:focus,
-input:focus {
+input:focus,
+select:focus,
+summary:focus {
   outline: 2px solid var(--gem);
   outline-offset: 2px;
+}
+
+.mark-mode-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 7px;
+  border: 1px solid var(--hash);
+  border-radius: 16px;
+  color: #a9c2ab;
+  font-size: 0.63rem;
+  font-weight: 800;
+}
+
+.mark-mode-btn {
+  min-height: 25px;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: #dce9df;
+  cursor: pointer;
+  font-size: 0.64rem;
+  font-weight: 900;
+}
+
+.mark-mode-btn.active[data-mark-mode="taken"] {
+  border-color: rgba(193, 85, 75, 0.65);
+  background: rgba(193, 85, 75, 0.22);
+  color: #ffd8d2;
+}
+
+.mark-mode-btn.active[data-mark-mode="mine"] {
+  border-color: rgba(95, 168, 124, 0.7);
+  background: rgba(95, 168, 124, 0.25);
+  color: #d8ffe2;
 }
 
 /* ==== TIER DIVIDERS ==== */
