@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#122619">
 <link rel="icon" href="./favicon.ico" type="image/x-icon">
 <title>The War Room | 2026 Fantasy Draft</title>
-<link rel="stylesheet" href="style.css?v=20260822-9">
+<link rel="stylesheet" href="style.css?v=20260822-10">
 </head>
 <body>
 
@@ -45,7 +45,7 @@
 <div class="statusbar">
   <span id="remaining-status">All players available</span>
   <span id="save-indicator" style="color:#8fd4a0;font-size:0.65rem;"></span>
-  <div class="draft-session-control"><label for="draftSessionSelect">Draft</label><select id="draftSessionSelect" aria-label="Saved draft session" onchange="switchDraftSession(this.value)"></select><button type="button" class="filterbtn" onclick="createNewDraftSession()">New Draft</button></div>
+  <div class="draft-session-control"><label for="draftSessionSelect">Draft</label><select id="draftSessionSelect" aria-label="Saved draft session" onchange="switchDraftSession(this.value)"></select><button type="button" class="filterbtn" onclick="createNewDraftSession()">New Draft</button><button type="button" class="resetbtn delete-draft-btn" id="deleteDraftBtn" aria-label="Delete selected draft" onclick="deleteActiveDraftSession()">Delete Draft</button></div>
   <div class="mark-mode-control" role="group" aria-label="Player marking mode">
     <span>Mark as</span>
     <button type="button" class="mark-mode-btn active" data-mark-mode="taken" aria-pressed="true" onclick="setDraftMarkMode('taken')">Taken</button>
@@ -320,7 +320,7 @@
 
 <script src="fantasypros-2026-data.js"></script>
 <script src="war-room-config.js?v=20260822-2"></script>
-<script src="script.js?v=20260822-39"></script>
+<script src="script.js?v=20260822-40"></script>
 
 </body>
 </html>

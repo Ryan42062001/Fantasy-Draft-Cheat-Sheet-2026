@@ -221,6 +221,7 @@ Do not call the migration complete until all of these are true:
 - [x] Add explicit Taken/Mine marking mode with Taken default, one-shot Mine, toggle-to-clear, keyboard support, autosave, and ESPN compatibility
 - [x] Add an `M` keyboard shortcut to toggle Taken/Mine mode while avoiding form fields, dialogs, modifiers, key repeat, and Custom Board mode
 - [x] Add isolated saved draft sessions, safe legacy-save migration, session-scoped final-report state, New Draft controls, and ESPN `draftKey` routing
+- [x] Add confirmed saved-draft deletion with session-scoped cleanup and a safe fresh-draft fallback
 - [x] Improve navigation, player-row, tab, dialog, focus, Escape, and screen-reader semantics
 - [x] Centralize league, roster, tier, FLEX, and recommendation-cap configuration in `war-room-config.js`
 - [x] Commit a hash/count-protected FantasyPros dataset baseline with explicit `baseline:accept` workflow
