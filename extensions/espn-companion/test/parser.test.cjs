@@ -101,3 +101,35 @@ test('snake slot mapping handles both turns', () => {
   assert.equal(parser.snakeTeamSlot(20, 10), 1);
   assert.equal(parser.snakeTeamSlot(21, 10), 1);
 });
+
+test('screen fallback does not treat an available-player ranking as draft history', () => {
+  const node = {
+    innerText: "1\nJa'Marr Chase\nCIN\nWR",
+    textContent: '',
+    parentElement: null,
+    attributes: [],
+    getAttribute: () => null,
+    closest: () => null,
+    matches: () => false,
+    querySelector: () => null
+  };
+  const document = {querySelectorAll: () => [node]};
+  assert.deepEqual(parser.scanDocumentDetailed(document, {teams: 12}).picks, []);
+});
+
+test('screen fallback accepts the same numbered row inside Pick History', () => {
+  const node = {
+    innerText: "1\nJa'Marr Chase\nCIN\nWR",
+    textContent: '',
+    parentElement: null,
+    attributes: [],
+    getAttribute: () => null,
+    closest: () => ({}),
+    matches: () => false,
+    querySelector: () => null
+  };
+  const document = {querySelectorAll: () => [node]};
+  const picks = parser.scanDocumentDetailed(document, {teams: 12}).picks;
+  assert.equal(picks.length, 1);
+  assert.equal(picks[0].playerName, "Ja'Marr Chase");
+});

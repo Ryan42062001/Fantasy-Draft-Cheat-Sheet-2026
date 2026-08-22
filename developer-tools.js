@@ -4743,6 +4743,15 @@ function runEspnSyncContractTests() {
       corrected.applied === 1 && !gibbs.classList.contains('drafted-other')
     );
 
+    var preDraft = applyEspnDraftSnapshot({force: true, picks: []});
+    test.assert(
+      'Authoritative pre-draft empty snapshot clears prior mock selections',
+      preDraft.applied === 0 &&
+        !chase.classList.contains('drafted-mine') &&
+        !chase.classList.contains('drafted-other') &&
+        document.querySelectorAll('tr.draftrow[data-sync-source="espn"]').length === 0
+    );
+
     var unmatched = applyEspnDraftSnapshot({
       force: true,
       picks: [

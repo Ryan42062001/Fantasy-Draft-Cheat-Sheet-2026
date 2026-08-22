@@ -43,3 +43,13 @@ test('does not claim structured authority until every ESPN pick resolves', () =>
   assert.equal(snapshot.rawCount, 1);
   assert.equal(snapshot.unresolved.length, 1);
 });
+
+test('treats a valid empty ESPN draft feed as authoritative before pick one', () => {
+  const snapshot = api.extractDraftSnapshot({
+    draftDetail: {picks: []}
+  }, {teamId: '14'}, {});
+  assert.equal(snapshot.feedPresent, true);
+  assert.equal(snapshot.complete, true);
+  assert.equal(snapshot.rawCount, 0);
+  assert.deepEqual(snapshot.picks, []);
+});
