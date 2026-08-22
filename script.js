@@ -57,7 +57,7 @@ function loadDeveloperTools() {
   if (!developerToolsPromise) {
     developerToolsPromise = new Promise(function(resolve, reject) {
       var script = document.createElement('script');
-      script.src = 'developer-tools.js?v=20260822-6';
+      script.src = 'developer-tools.js?v=20260822-7';
       script.onload = resolve;
       script.onerror = function() {
         developerToolsPromise = null;
@@ -2083,7 +2083,10 @@ if (!Number.isFinite(currentScore)) {
       path.firstFuturePosition,
       path.firstNextPick,
       context
-    );
+    ).filter(function(option) {
+      return canonicalExpertPlayerName(option && option.name) !==
+        canonicalExpertPlayerName(player.name);
+    });
 
   var firstPlayer =
     firstOptions.length
@@ -2102,7 +2105,10 @@ if (!Number.isFinite(currentScore)) {
       path.secondFuturePosition,
       path.secondNextPick,
       context
-    );
+    ).filter(function(option) {
+      return canonicalExpertPlayerName(option && option.name) !==
+        canonicalExpertPlayerName(player.name);
+    });
 
 
   /*
@@ -8021,6 +8027,9 @@ function applyEspnDraftSnapshot(snapshot) {
   if (snapshot.config) applyEspnSyncSettings(snapshot.config);
   var settings = getEspnSyncSettings();
   var incoming = Array.isArray(snapshot.picks) ? snapshot.picks : [];
+  var incomingUnavailable = Array.isArray(snapshot.unavailablePlayers)
+    ? snapshot.unavailablePlayers
+    : [];
   var picksByNumber = new Map();
 
   incoming.forEach(function(rawPick) {
@@ -8038,6 +8047,9 @@ function applyEspnDraftSnapshot(snapshot) {
     teams: settings.teams,
     picks: picks.map(function(pick) {
       return [pick.overallPick, pick.playerName, pick.position, pick.teamSlot, pick.teamId, pick.isMine];
+    }),
+    unavailablePlayers: incomingUnavailable.map(function(player) {
+      return [String(player.playerName || ''), normalizeEspnSyncPosition(player.position)];
     })
   });
 
@@ -8090,12 +8102,31 @@ function applyEspnDraftSnapshot(snapshot) {
     if (isMine) mine++;
   });
 
+  var unavailableApplied = 0;
+  incomingUnavailable.forEach(function(player) {
+    var playerName = String(player && player.playerName || '').trim();
+    var position = normalizeEspnSyncPosition(player && player.position);
+    if (!playerName || !position) return;
+    var row = resolveEspnDraftRow(playerName, position);
+    if (!row || usedRows.has(row) || row.classList.contains('drafted-mine')) return;
+    usedRows.add(row);
+    row.classList.remove('drafted-mine');
+    row.classList.add('drafted-other');
+    row.setAttribute('data-sync-source', 'espn');
+    row.setAttribute('data-sync-method', 'drafted-label');
+    if (player.espnPlayerId) {
+      row.setAttribute('data-espn-player-id', String(player.espnPlayerId).slice(0, 40));
+    }
+    unavailableApplied++;
+  });
+
   espnSyncLastSignature = signature;
   latestEspnSyncResult = {
     captured: picks.length,
     applied: applied,
     mine: mine,
     unmatched: unmatched,
+    unavailableApplied: unavailableApplied,
     latestPick: picks.length ? picks[picks.length - 1].overallPick : 0,
     syncedAt: new Date().toISOString()
   };
@@ -8107,7 +8138,11 @@ function applyEspnDraftSnapshot(snapshot) {
       'ESPN Sync · ' + applied + ' applied · ' + unmatched.length + ' unmatched'
     );
   } else {
-    updateEspnSyncStatus('connected', 'ESPN Sync · ' + applied + ' picks');
+    updateEspnSyncStatus(
+      'connected',
+      'ESPN Sync · ' + applied + ' picks' +
+        (unavailableApplied ? ' · ' + unavailableApplied + ' drafted labels' : '')
+    );
   }
 
   triggerAllBoardUpdates({deferIntelligence: true});
@@ -13720,8 +13755,8 @@ function getDraftAssistantPlayers() {
      * Get player name and position from the existing row.
      */
     var name =
+      getDraftRowDisplayName(row) ||
       row.getAttribute('data-name') ||
-      row.querySelector('.player-name')?.textContent?.trim() ||
       'Unknown Player';
 
     var position =

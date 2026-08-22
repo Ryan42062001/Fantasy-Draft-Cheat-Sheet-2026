@@ -4761,6 +4761,21 @@ function runEspnSyncContractTests() {
         document.querySelectorAll('tr.draftrow[data-sync-source="espn"]').length === 0
     );
 
+    var draftedLabel = applyEspnDraftSnapshot({
+      force: true,
+      picks: [],
+      unavailablePlayers: [
+        {playerName: 'Jahmyr Gibbs', position: 'RB', espnPlayerId: '4427366'}
+      ]
+    });
+    test.assert(
+      'ESPN drafted labels suppress unavailable players when pick history lags',
+      draftedLabel.unavailableApplied === 1 &&
+        gibbs.classList.contains('drafted-other') &&
+        gibbs.getAttribute('data-sync-method') === 'drafted-label' &&
+        gibbs.getAttribute('data-pick') == null
+    );
+
     var unmatched = applyEspnDraftSnapshot({
       force: true,
       picks: [

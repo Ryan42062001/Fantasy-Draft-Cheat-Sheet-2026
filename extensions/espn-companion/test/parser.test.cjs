@@ -140,3 +140,16 @@ test('detects rounds and current pick without guessing team count from ambiguous
   });
   assert.deepEqual(shape, {teams: null, rounds: 16, currentPick: 150});
 });
+
+test('detects an explicitly drafted player row without inventing pick ownership', () => {
+  const node = {
+    innerText: '132\nJalen Coker\nCAR WR\nDRAFTED\n0',
+    textContent: '',
+    attributes: [],
+    getAttribute: () => null,
+    matches: () => false,
+    querySelector: () => null
+  };
+  const players = parser.scanDraftedPlayerLabels({querySelectorAll: () => [node]});
+  assert.deepEqual(players, [{playerName: 'Jalen Coker', position: 'WR', espnPlayerId: null}]);
+});

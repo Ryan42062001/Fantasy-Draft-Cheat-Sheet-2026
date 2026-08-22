@@ -15,6 +15,7 @@ var state = {
   config: {teams: 10, draftSlot: 1, rounds: 16},
   draftKey: null,
   picksByNumber: {},
+  unavailablePlayersByKey: {},
   ledgerTeams: null,
   espn: {connected: false, draftPage: false, captured: 0, lastSeenAt: null},
   warRoom: {connected: false, applied: 0, unmatched: 0, lastSeenAt: null}
@@ -28,6 +29,7 @@ function storageGet() {
       state.config = Object.assign({teams: 10, draftSlot: 1, rounds: 16}, stored.config || {});
       state.draftKey = stored.draftKey || null;
       state.picksByNumber = Object.assign({}, stored.picksByNumber || {});
+      state.unavailablePlayersByKey = Object.assign({}, stored.unavailablePlayersByKey || {});
       state.ledgerTeams = Number(stored.ledgerTeams) || null;
       state.espn = Object.assign({}, state.espn, stored.espn || {});
       state.warRoom = Object.assign({}, state.warRoom, stored.warRoom || {});
@@ -37,6 +39,7 @@ function storageGet() {
       // once rather than risk replaying incorrectly numbered selections.
       if (!state.draftKey || state.ledgerTeams !== Number(state.config.teams)) {
         state.picksByNumber = {};
+        state.unavailablePlayersByKey = {};
         state.ledgerTeams = Number(state.config.teams);
         state.espn.captured = 0;
         state.espn.visibleCaptured = 0;
@@ -84,6 +87,33 @@ function getPicks() {
     });
 }
 
+function unavailablePlayerKey(player) {
+  return String(player && player.playerName || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim() + '|' + String(player && player.position || '').toUpperCase();
+}
+
+function mergeUnavailablePlayers(players) {
+  (Array.isArray(players) ? players : []).forEach(function(player) {
+    var playerName = String(player && player.playerName || '').trim();
+    var position = String(player && player.position || '').toUpperCase();
+    if (!playerName || ['QB', 'RB', 'WR', 'TE', 'K', 'DST'].indexOf(position) < 0) return;
+    var normalized = {
+      playerName: playerName.slice(0, 100),
+      position: position,
+      espnPlayerId: player.espnPlayerId == null ? null : String(player.espnPlayerId).slice(0, 40)
+    };
+    state.unavailablePlayersByKey[unavailablePlayerKey(normalized)] = normalized;
+  });
+}
+
+function getUnavailablePlayers() {
+  return Object.keys(state.unavailablePlayersByKey || {}).map(function(key) {
+    return state.unavailablePlayersByKey[key];
+  }).filter(Boolean);
+}
+
 function queryTabs(urls) {
   return chrome.tabs.query({url: urls}).catch(function() { return []; });
 }
@@ -128,6 +158,7 @@ function broadcastWarRoom(force, applyConfig) {
         snapshot: {
           version: 1,
           picks: picks,
+          unavailablePlayers: getUnavailablePlayers(),
           force: Boolean(force),
           config: applyConfig ? Object.assign({}, state.config) : null
         }
@@ -182,6 +213,7 @@ function activateDraft(url) {
   if (changed) {
     state.draftKey = nextKey;
     state.picksByNumber = {};
+    state.unavailablePlayersByKey = {};
     state.ledgerTeams = Number(state.config.teams);
     state.espn.captured = 0;
     state.espn.visibleCaptured = 0;
@@ -355,7 +387,10 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     if (message.type === 'ESPN_PICKS_FOUND') {
       activateDraft(message.url);
-      if (structuredFeedIsFresh() && state.espn.method === 'api') return storageSave();
+      mergeUnavailablePlayers(message.unavailablePlayers);
+      if (structuredFeedIsFresh() && state.espn.method === 'api') {
+        return storageSave().then(function() { return broadcastWarRoom(false); });
+      }
       if (structuredFeedIsFresh() && state.espn.method === 'hybrid') {
         mergeUnresolvedScreenPicks(message.picks);
       } else {
@@ -411,7 +446,11 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         });
         sendTabQuiet(sender.tab.id, {
           type: 'WAR_ROOM_SNAPSHOT',
-          snapshot: {version: 1, picks: getPicks()}
+          snapshot: {
+            version: 1,
+            picks: getPicks(),
+            unavailablePlayers: getUnavailablePlayers()
+          }
         });
       }
       return storageSave();
@@ -451,6 +490,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     if (message.type === 'RESET_PICKS') {
       state.picksByNumber = {};
+      state.unavailablePlayersByKey = {};
       state.ledgerTeams = Number(state.config.teams);
       state.espn.captured = 0;
       return storageSave()

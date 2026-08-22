@@ -149,11 +149,19 @@
       ? parser.scanDocumentDetailed(document, config)
       : {picks: parser.scanDocument(document, config), candidateCount: 0};
     var picks = scanResult.picks;
+    var unavailablePlayers = parser.scanDraftedPlayerLabels
+      ? parser.scanDraftedPlayerLabels(document)
+      : [];
     var shape = parser.detectDraftShape ? parser.detectDraftShape(document) : {};
-    var signature = JSON.stringify(picks);
+    var signature = JSON.stringify({picks: picks, unavailablePlayers: unavailablePlayers});
     if (force || signature !== lastSignature) {
       lastSignature = signature;
-      send({type: 'ESPN_PICKS_FOUND', picks: picks, url: location.href});
+      send({
+        type: 'ESPN_PICKS_FOUND',
+        picks: picks,
+        unavailablePlayers: unavailablePlayers,
+        url: location.href
+      });
     }
     send({
       type: 'ESPN_HEARTBEAT',
