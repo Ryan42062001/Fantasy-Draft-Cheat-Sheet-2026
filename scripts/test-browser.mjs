@@ -49,6 +49,13 @@ await page.getByRole('button', {name:'Mine', exact:true}).click();
 await first.press('Enter');
 assert.equal(await first.evaluate(row => row.classList.contains('drafted-mine')), true);
 assert.equal(await page.getByRole('button', {name:'Taken', exact:true}).getAttribute('aria-pressed'), 'true');
+await page.locator('body').press('m');
+assert.equal(await page.getByRole('button', {name:'Mine', exact:true}).getAttribute('aria-pressed'), 'true');
+await page.locator('body').press('M');
+assert.equal(await page.getByRole('button', {name:'Taken', exact:true}).getAttribute('aria-pressed'), 'true');
+await page.getByPlaceholder('Search player or team...').fill('m');
+assert.equal(await page.getByRole('button', {name:'Taken', exact:true}).getAttribute('aria-pressed'), 'true');
+await page.getByPlaceholder('Search player or team...').fill('');
 
 const sessionBefore = await page.locator('#draftSessionSelect option').count();
 await page.getByRole('button', {name:'New Draft'}).click();
