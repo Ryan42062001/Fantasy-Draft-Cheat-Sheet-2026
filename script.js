@@ -56,7 +56,7 @@ function loadDeveloperTools() {
   if (!developerToolsPromise) {
     developerToolsPromise = new Promise(function(resolve, reject) {
       var script = document.createElement('script');
-      script.src = 'developer-tools.js';
+      script.src = 'developer-tools.js?v=20260822-2';
       script.onload = resolve;
       script.onerror = function() {
         developerToolsPromise = null;
@@ -3796,6 +3796,41 @@ function applyPackagePathAdjustments(
 
   });
 
+
+  return scoredPlayers;
+}
+
+function enforceAuthoritativePositionOrder(scoredPlayers) {
+  scoredPlayers = Array.isArray(scoredPlayers) ? scoredPlayers : [];
+
+  VORP_POSITIONS.forEach(function(position) {
+    var positionPlayers = scoredPlayers
+      .filter(function(player) {
+        return player && player.position === position &&
+          hasAuthoritativeEcr(player) && Number.isFinite(Number(player.finalScore));
+      })
+      .slice()
+      .sort(function(a, b) { return Number(a.rank) - Number(b.rank); });
+
+    var previousScore = null;
+    positionPlayers.forEach(function(player) {
+      var score = Number(player.finalScore);
+      player.authorityOrderAdjustment = 0;
+
+      if (previousScore != null && score >= previousScore) {
+        var adjustedScore = previousScore - 0.01;
+        player.authorityOrderAdjustment = Number((adjustedScore - score).toFixed(2));
+        player.finalScore = adjustedScore;
+        score = adjustedScore;
+      }
+
+      previousScore = score;
+    });
+  });
+
+  scoredPlayers.sort(function(a, b) {
+    return Number(b.finalScore || 0) - Number(a.finalScore || 0);
+  });
 
   return scoredPlayers;
 }
@@ -13573,6 +13608,16 @@ function debugDraftAssistant() {
  */
 var VORP_POSITIONS = ['QB', 'RB', 'WR', 'TE'];
 
+function hasAuthoritativeEcr(player) {
+  if (!player) return false;
+
+  var ecr = Number(player.ecr);
+  if (Number.isFinite(ecr) && ecr > 0) return true;
+
+  /* Unit-test fixtures predate source metadata; production ADP-only rows do not. */
+  return player.source !== 'ADP_ONLY' && Number(player.rank) > 0;
+}
+
 
 /*
  * Get current league settings.
@@ -13611,7 +13656,8 @@ function getAvailableVorpPlayers(players) {
 
       return player.available &&
         VORP_POSITIONS.includes(player.position) &&
-        player.rank;
+        player.rank &&
+        hasAuthoritativeEcr(player);
     })
     .sort(function(a, b) {
 
@@ -13630,7 +13676,8 @@ function getAvailableAtPosition(players, position) {
 
       return player.available &&
         player.position === position &&
-        player.rank;
+        player.rank &&
+        hasAuthoritativeEcr(player);
     })
     .sort(function(a, b) {
 
@@ -13697,9 +13744,6 @@ function calculateReplacementLevels(players) {
   var settings =
     getVorpLeagueSettings();
 
-  var draftState =
-    getDraftAssistantState();
-
   /*
    * -------------------------------------------------------
    * REPLACEMENT LEVEL MODEL
@@ -13719,35 +13763,9 @@ function calculateReplacementLevels(players) {
    * FLEX is shared between RB / WR / TE and is handled
    * separately below.
    *
-   * We then make the replacement level draft-aware by
-   * projecting players who are likely to disappear before
-   * our next selection.
+   * Waiting risk is modeled separately by
+   * calculateDraftAwareVorpOpportunity().
    */
-
-
-  /*
-   * -------------------------------------------------------
-   * PICKS UNTIL NEXT TURN
-   * -------------------------------------------------------
-   */
-
-var currentPick =
-  Number(draftState.currentPick) || 0;
-
-var teams =
-  Number(draftState.teams) || 10;
-
-var draftWindow =
-  calculateMyNextDraftPick(
-    currentPick,
-    teams
-  );
-
-var nextPick =
-  draftWindow.nextPick;
-
-var picksUntilNext =
-  draftWindow.picksBetween;
 
   /*
    * -------------------------------------------------------
@@ -13766,6 +13784,7 @@ var picksUntilNext =
           return player &&
             player.available &&
             player.position === position &&
+            hasAuthoritativeEcr(player) &&
             player.rank !== undefined &&
             player.rank !== null &&
             player.rank !== '';
@@ -13783,88 +13802,15 @@ var picksUntilNext =
 
 
   /*
-   * -------------------------------------------------------
-   * PROJECT PLAYERS TAKEN BEFORE OUR NEXT PICK
-   * -------------------------------------------------------
-   *
-   * Use overall ranking as the baseline projection.
-   *
-   * This does NOT mean these exact players will be taken.
-   * It simply gives the engine a deterministic estimate.
+   * VORP is a current player-value measurement. Keep the
+   * replacement pool anchored to currently available ECR
+   * players; the separate draft-aware opportunity model is
+   * responsible for projecting losses before the next pick.
    */
-
-  var projectedPlayers =
-    players
-      .filter(function(player) {
-
-        return player &&
-          player.available &&
-          VORP_POSITIONS.includes(
-            player.position
-          ) &&
-          player.rank !== undefined &&
-          player.rank !== null &&
-          player.rank !== '';
-
-      })
-      .slice()
-      .sort(function(a, b) {
-
-        return Number(a.rank) -
-               Number(b.rank);
-
-      });
-
-
-  var projectedGoneCount =
-  Math.min(
-    picksUntilNext,
-    projectedPlayers.length
-  );
-
-
-  var projectedGone =
-    projectedPlayers.slice(
-      0,
-      projectedGoneCount
-    );
-
-
-  /*
-   * Build lookup of projected players.
-   */
-
-  var projectedGoneNames = {};
-
-  projectedGone.forEach(function(player) {
-
-    projectedGoneNames[
-      String(player.name).toLowerCase()
-    ] = true;
-
-  });
-
-
-  /*
-   * -------------------------------------------------------
-   * PROJECTED POSITION POOLS
-   * -------------------------------------------------------
-   */
-
   var projectedPositionPools = {};
 
   ['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
-
-    projectedPositionPools[position] =
-      positionPools[position]
-        .filter(function(player) {
-
-          return !projectedGoneNames[
-            String(player.name).toLowerCase()
-          ];
-
-        });
-
+    projectedPositionPools[position] = (positionPools[position] || []).slice();
   });
 
 
@@ -13987,17 +13933,8 @@ var picksUntilNext =
    */
 
   draftScoringLog(
-  'DRAFT-AWARE REPLACEMENT LEVELS:',
+  'CURRENT REPLACEMENT LEVELS:',
   {
-    currentPick:
-      currentPick,
-
-    nextPick:
-      nextPick,
-
-    picksUntilNext:
-      picksUntilNext,
-
     settings:
       settings,
 
@@ -14483,6 +14420,7 @@ function calculateTierDrop(
         return p.available &&
           p.position === player.position &&
           p.rank &&
+          hasAuthoritativeEcr(p) &&
           p.rank > player.rank;
       })
       .sort(function(a, b) {
@@ -14556,7 +14494,8 @@ function calculatePositionTierCliff(
         return player &&
           player.available &&
           player.position === position &&
-          player.rank;
+          player.rank &&
+          hasAuthoritativeEcr(player);
 
       })
       .sort(function(a, b) {
@@ -15659,87 +15598,51 @@ function calculatePositionScarcity(
   replacements
 ) {
 
-  if (!player || !player.rank) {
-    return 0;
-  }
-
-  var replacement =
-    getEffectiveReplacement(
-      player,
-      replacements
-    );
-
-  if (!replacement || !replacement.rank) {
-    return 0;
-  }
-
-  var playerRank =
-    Number(player.rank);
-
-  var replacementRank =
-    Number(replacement.rank);
-
-  /*
-   * -------------------------------------------------------
-   * RELATIVE POSITIONAL SCARCITY
-   * -------------------------------------------------------
-   *
-   * Measure how much of the positional player pool exists
-   * between this player and the replacement level.
-   *
-   * A player sitting much farther above replacement gets
-   * a higher scarcity score.
-   *
-   * Unlike the old model, this does NOT simply multiply
-   * the rank gap by 2 and immediately cap most elite
-   * players at 100.
-   */
-
-  var gap =
-    replacementRank -
-    playerRank;
-
-  if (gap <= 0) {
+  if (!player || !player.rank || !hasAuthoritativeEcr(player) || !Array.isArray(players)) {
     return 0;
   }
 
   /*
-   * Express the player's distance above replacement
-   * as a percentage of the entire replacement range.
+   * -------------------------------------------------------
+   * LOCAL ECR DEPTH
+   * -------------------------------------------------------
    *
-   * Example:
+   * VORP already measures distance above replacement.
+   * Scarcity should answer a different question: how large
+   * is the ECR drop across the best few options currently
+   * available at this position?
    *
-   * Gibbs:
-   *   replacement = 73
-   *   player = 1
-   *
-   *   72 / 72 = 100
-   *
-   * Chase:
-   *   replacement = 63
-   *   player = 3
-   *
-   *   60 / 62 ≈ 96.8
-   *
-   * Bowers:
-   *   replacement = 112
-   *   player = 15
-   *
-   *   97 / 111 ≈ 87.4
+   * Every candidate at a position receives the same pool-
+   * pressure score. This prevents a lower-ECR player from
+   * leapfrogging a better player at the same position merely
+   * because the lower player happens to sit above a local gap.
    */
 
-  var maximumGap =
-    replacementRank - 1;
+  var positionPlayers = players
+    .filter(function(candidate) {
+      return candidate && candidate.available !== false &&
+        candidate.position === player.position &&
+        candidate.rank &&
+        hasAuthoritativeEcr(candidate);
+    })
+    .slice()
+    .sort(function(a, b) {
+      return Number(a.rank) - Number(b.rank);
+    })
+    .slice(0, 5);
 
-  if (maximumGap <= 0) {
-    return 0;
+  if (positionPlayers.length < 2) return 100;
+
+  var gaps = [];
+  for (var index = 1; index < positionPlayers.length; index++) {
+    gaps.push(Math.max(0, Math.min(20,
+      Number(positionPlayers[index].rank) - Number(positionPlayers[index - 1].rank)
+    )));
   }
 
-  var scarcity =
-    (
-      gap /
-      maximumGap
-    ) * 100;
+  var immediateGap = gaps[0] || 0;
+  var averageGap = gaps.reduce(function(total, gap) { return total + gap; }, 0) / gaps.length;
+  var scarcity = (immediateGap * 8) + (averageGap * 4);
 
   scarcity =
     Math.max(
@@ -15755,14 +15658,10 @@ function calculatePositionScarcity(
     player.name,
     'position =',
     player.position || player.pos,
-    'playerRank =',
-    playerRank,
-    'replacement =',
-    replacement.name,
-    'replacementRank =',
-    replacementRank,
-    'gap =',
-    gap,
+    'bestAvailableEcrGap =',
+    immediateGap,
+    'averageNearbyEcrGap =',
+    averageGap,
     'scarcity =',
     scarcity
   );
@@ -15783,8 +15682,7 @@ function getFantasyProsMarketRank(player) {
   var candidates = [
     player && player.adp,
     player && player.realTimeAdp,
-    player && player.adpRank,
-    player && player.rank
+    player && player.adpRank
   ];
 
   for (var index = 0; index < candidates.length; index++) {
@@ -15795,7 +15693,7 @@ function getFantasyProsMarketRank(player) {
     }
   }
 
-  return 9999;
+  return null;
 }
 
 function calculateLateAvailability(
@@ -15816,6 +15714,11 @@ function calculateLateAvailability(
 
   var playerRank =
     getFantasyProsMarketRank(player);
+
+  /* Missing ADP is unknown timing, not permission to substitute ECR. */
+  if (!Number.isFinite(playerRank)) {
+    return 0;
+  }
 
   var nextPick =
     Number(
@@ -15866,7 +15769,7 @@ function calculateLateAvailability(
       return p &&
         p.available &&
         p.position === player.position &&
-        p.rank;
+        Number.isFinite(getFantasyProsMarketRank(p));
 
     });
 
@@ -16838,12 +16741,12 @@ function calculateVorpProfile(
       players
     );
 
-  var scarcity =
-    calculatePositionScarcity(
-      player,
-      players,
-      replacements
-    );
+  var cachedScarcity = draftAwareContext &&
+    draftAwareContext.positionScarcityScores &&
+    draftAwareContext.positionScarcityScores[player.position];
+  var scarcity = Number.isFinite(Number(cachedScarcity))
+    ? Number(cachedScarcity)
+    : calculatePositionScarcity(player, players, replacements);
 
 
 /*
@@ -16876,7 +16779,10 @@ draftState =
           draftState.currentPick,
 
         nextPick:
-          draftState.myNextPick
+          calculateMyNextDraftPick(
+            Number(draftState.currentPick) || 0,
+            Number(draftState.teams) || 10
+          ).nextPick
       }
     );
 
@@ -17101,6 +17007,15 @@ var draftAwarePositionShares = {};
   }
 );
 
+var positionScarcityScores = {};
+
+['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
+  var positionPool = draftAwarePositionPools[position] || [];
+  positionScarcityScores[position] = positionPool.length
+    ? calculatePositionScarcity(positionPool[0], available, replacements)
+    : 0;
+});
+
 
 var sharedDraftAwareContext = {
 
@@ -17123,7 +17038,10 @@ var sharedDraftAwareContext = {
     draftAwarePressureSample,
 
   positionShares:
-    draftAwarePositionShares
+    draftAwarePositionShares,
+
+  positionScarcityScores:
+    positionScarcityScores
 
 };
 
@@ -18132,11 +18050,16 @@ var rosterSaturationPenalty =
    * Earlier overall rankings receive more value.
    */
 
-  var rankScore =
-    Math.max(0, 100 - ((rank - 1) * 1.5));
-
-  rankScore =
-    Math.min(100, rankScore);
+  var rankDecay = Math.max(
+    60,
+    (Number(context.totalPicks) ||
+      (Number(context.teams) * Number(context.rounds)) ||
+      160) / 2
+  );
+  var rankScore = Math.max(
+    0,
+    Math.min(100, 100 * Math.exp(-Math.max(0, rank - 1) / rankDecay))
+  );
 
 
   /*
@@ -18216,15 +18139,12 @@ if(context.rosterNeeds &&
      position === 'TE'){
 
     rosterNeedScore =
-      Math.max(
-        dedicatedNeed,
-        flexNeed
-      );
+      Math.min(100, Math.max(dedicatedNeed, flexNeed) * 25);
 
   } else {
 
     rosterNeedScore =
-      dedicatedNeed;
+      Math.min(100, dedicatedNeed * 25);
 
   }
 }
@@ -18244,11 +18164,8 @@ var lateAvailability =
     player,
     context.players || [],
     {
-      currentPick:
-        draftState.currentPick,
-
-      nextPick:
-        draftState.myNextPick
+      currentPick: Number(context.currentPick) || draftState.currentPick,
+      nextPick: Number(context.calculatedNextPick || context.nextPick) || draftState.myNextPick
     }
   );
 
@@ -19403,7 +19320,8 @@ var positionPool =
           candidate.pos
         ) !== position ||
         candidate.name === player.name ||
-        !candidate.rank
+        !candidate.rank ||
+        !hasAuthoritativeEcr(candidate)
       ) {
         return false;
       }
@@ -19805,8 +19723,10 @@ if (picksBetween <= 0) {
 var rank =
   getFantasyProsMarketRank(candidate);
 
-var timing =
-  Number(candidate.timingScore) || 0;
+/* No FantasyPros ADP means market survival is unknown. */
+if (!Number.isFinite(rank)) {
+  return 50;
+}
 
   /*
  * -------------------------------------------------------
@@ -19841,10 +19761,6 @@ if (
 }
 
 
-var currentRank =
-  Number(context.currentRank) || 0;
-
-
 var position =
   candidate.position ||
   candidate.pos ||
@@ -19855,11 +19771,9 @@ var survivalCacheKey =
   [
     position,
     rank,
-    timing,
     currentPick,
     nextPick,
-    picksBetween,
-    currentRank
+    picksBetween
   ].join('|');
 
 
@@ -19877,93 +19791,28 @@ if (
 
 }
   
-  /*
-   * Start with a neutral survival estimate.
-   */
-
- var startingSurvival = 100;
-
-var rankPressure =
-  nextPick
-    ? nextPick - rank
-    : 0;
-
-var rankPenalty =
-  rankPressure > 0
-    ? -(rankPressure * 7)
-    : 0;
-
-  /*
- * -------------------------------------------------------
- * POST-PICK SURVIVAL BONUS
- * -------------------------------------------------------
- *
- * A player ranked after our future pick should become
- * progressively more likely to survive as their rank
- * moves farther beyond that pick.
- *
- * Example at Pick 20:
- *
- * Rank 21 = slightly safer
- * Rank 25 = safer
- * Rank 30 = considerably safer
+/*
+ * FantasyPros ADP is the center of the market distribution.
+ * A candidate with ADP equal to our next pick starts at 50%
+ * survival; each ADP step later raises survival smoothly.
  */
+var marketDistance = rank - nextPick;
+var marketSpread = Math.max(5, Math.min(10, picksBetween * 0.5));
+var marketSurvival = 100 / (1 + Math.exp(-marketDistance / marketSpread));
 
-var postPickBonus = 0;
-
-if (
-  nextPick &&
-  rank >= nextPick
-) {
-
-  var ranksAfterPick =
-    rank - nextPick;
-
-  postPickBonus =
-    Math.min(
-      12,
-      ranksAfterPick * 1.5
+var opponentThreat = context.skipOpponentThreat
+  ? 0
+  : calculateOpponentDraftThreat(
+      candidate,
+      context
     );
-
-}
-
-var timingPenalty =
-  -(timing * 0.10);
-
-  var opponentThreat =
-  calculateOpponentDraftThreat(
-    candidate,
-    context
-  );
 
 var opponentThreatPenalty =
   -(opponentThreat * 0.15);
 
-var rankDistance =
-  rank -
-  currentRank;
-
-var rankDistancePenalty =
-  rankDistance <= 2
-    ? -5
-    : rankDistance <= 4
-      ? -3
-      : 0;
-
-var pickDistancePenalty =
-  -Math.min(
-    15,
-    picksUntilNext * 0.5
-  );
-
 var survival =
-  startingSurvival +
-  rankPenalty +
-  postPickBonus +
-  timingPenalty +
-  opponentThreatPenalty +
-  rankDistancePenalty +
-  pickDistancePenalty;
+  marketSurvival +
+  opponentThreatPenalty;
 
 /*
  * -------------------------------------------------------
@@ -20004,32 +19853,14 @@ survival =
       candidateRank:
         rank,
 
-      timingScore:
-        timing,
+      marketDistance:
+        marketDistance,
 
-      startingSurvival:
-        startingSurvival,
+      marketSpread:
+        marketSpread,
 
-      rankPressure:
-        rankPressure,
-
-      rankPenalty:
-        rankPenalty,
-
-      timingPenalty:
-        timingPenalty,
-
-      rankDistance:
-        rankDistance,
-
-      postPickBonus:
-  postPickBonus,
-
-      rankDistancePenalty:
-        rankDistancePenalty,
-
-      pickDistancePenalty:
-        pickDistancePenalty,
+      marketSurvival:
+        marketSurvival,
 
       opponentThreat:
   opponentThreat,
@@ -21477,13 +21308,13 @@ function generateDecisionExplanation(result, comparisonResult) {
    * -------------------------------------------------------
    */
 
-  if (result.rosterNeedScore >= 2) {
+  if (result.rosterNeedScore >= 50) {
 
     positives.push(
       'Strong roster need'
     );
 
-  } else if (result.rosterNeedScore >= 1) {
+  } else if (result.rosterNeedScore >= 25) {
 
     positives.push(
       'Fills an open roster need'
@@ -23069,6 +22900,12 @@ function buildLiveDraftDebugState() {
     teams:
       teams,
 
+    rounds:
+      Number(draftState.rounds) || 16,
+
+    totalPicks:
+      Number(draftState.totalPicks) || (teams * 16),
+
     currentPick:
       draftState.currentPick,
 
@@ -23169,6 +23006,7 @@ players
     return (
       player &&
       player.available &&
+      hasAuthoritativeEcr(player) &&
       (
         player.position === 'K' ||
         player.position === 'DST'
@@ -23445,6 +23283,10 @@ applyPackagePathAdjustments(
   context,
   8
 );
+
+/* A worse ECR option cannot dominate a better available player
+ * at the same position solely because of derived strategy nudges. */
+enforceAuthoritativePositionOrder(scored);
 
   return {
     players:

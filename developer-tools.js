@@ -1028,6 +1028,7 @@ test.assert(
       name: 'Just After Pick',
       position: 'WR',
       rank: 21,
+      adp: 21,
       timingScore: 0
     },
     {
@@ -1045,6 +1046,7 @@ var fartherAfterPickSurvival =
       name: 'Farther After Pick',
       position: 'WR',
       rank: 28,
+      adp: 28,
       timingScore: 0
     },
     {
@@ -2993,17 +2995,39 @@ function runRecommendationExplanationTests() {
   assert(
     'Explanation prioritizes strong score advantage',
     !!(
+      buildRecommendationExplanation(
+        {
+          player: 'Test RB',
+          nextBest: 'Test WR',
+          scoreGap: 10,
+          recommendation: 'DRAFT',
+          confidence: 'HIGH'
+        },
+        {
+          name: 'Test RB',
+          tierScore: 90,
+          rankScore: 90,
+          vorpScore: 85,
+          scarcityScore: 40,
+          rosterNeedScore: 25,
+          timingScore: 50,
+          finalScore: 90,
+          draftPhase: 'FOUNDATION'
+        },
+        {
+          name: 'Test WR',
+          finalScore: 80
+        }
+      ).reasons[0]
+        .indexOf('leads') !== -1
+      /*
+       * The live top recommendation is allowed to be a close
+       * call; use a deterministic large-gap fixture here.
+       */
+      &&
       normalExplanation &&
       normalExplanation.reasons &&
-      normalExplanation.reasons.length &&
-      (
-        normalExplanation.reasons[0]
-          .indexOf('leads') !== -1 ||
-        normalExplanation.reasons[0]
-          .indexOf('tier cliff') !== -1 ||
-        normalExplanation.reasons[0]
-          .indexOf('gone before') !== -1
-      )
+      normalExplanation.reasons.length
     )
   );
 
@@ -4359,6 +4383,7 @@ function runFantasyProsRoadmapSimulations() {
     );
     var primary = result && result.primary;
     var recommendation = primary && primary.recommendation;
+    var scoredPrimary = primary && primary.primary;
     var warnings = result && Array.isArray(result.warnings)
       ? result.warnings
       : [];
@@ -4375,6 +4400,39 @@ function runFantasyProsRoadmapSimulations() {
       action: recommendation ? recommendation.recommendation : null,
       scoreGap: recommendation ? Number(recommendation.scoreGap || 0) : null,
       backToBackTurn: Boolean(recommendation && recommendation.backToBackTurn),
+      factorSnapshot: scoredPrimary ? {
+        finalScore: Number(scoredPrimary.finalScore || 0),
+        rank: Number(scoredPrimary.rank || 0),
+        tier: Number(scoredPrimary.tierScore || 0),
+        rankScore: Number(scoredPrimary.rankScore || 0),
+        vorp: Number(scoredPrimary.vorpScore || 0),
+        scarcity: Number(scoredPrimary.scarcityScore || 0),
+        rosterNeed: Number(scoredPrimary.rosterNeedScore || 0),
+        timing: Number(scoredPrimary.timingScore || 0),
+        adjustments: Number((
+          Number(scoredPrimary.finalScore || 0) -
+          Number(scoredPrimary.tierScore || 0) * 0.35 -
+          Number(scoredPrimary.rankScore || 0) * 0.25 -
+          Number(scoredPrimary.vorpScore || 0) * 0.20 -
+          Number(scoredPrimary.scarcityScore || 0) * 0.10 -
+          Number(scoredPrimary.rosterNeedScore || 0) * 0.05 -
+          Number(scoredPrimary.timingScore || 0) * 0.05
+        ).toFixed(2))
+      } : null,
+      topCandidates: result && result.liveResult && result.liveResult.state &&
+        Array.isArray(result.liveResult.state.scored)
+        ? result.liveResult.state.scored.slice(0, 5).map(function(candidate) {
+            return {
+              name: candidate.name,
+              position: candidate.position,
+              rank: candidate.rank,
+              finalScore: Number(candidate.finalScore || 0),
+              timing: Number(candidate.timingScore || 0),
+              vorp: Number(candidate.vorpScore || 0),
+              scarcity: Number(candidate.scarcityScore || 0)
+            };
+          })
+        : [],
       warnings: warnings,
       inconsistencies: inconsistencies,
       passed: Boolean(primary && recommendation) && inconsistencies.length === 0
@@ -4427,6 +4485,172 @@ function runFantasyProsRoadmapSimulations() {
     };
   }));
 
+  return summary;
+}
+
+function runCalculationSanityTests() {
+  var test = draftEngineTestCreateRunner();
+
+  test.assert(
+    'Authority: ADP-only depth is excluded from ECR calculations',
+    !hasAuthoritativeEcr({rank: 600, ecr: null, source: 'ADP_ONLY'})
+  );
+
+  test.equal(
+    'Authority: ECR is not substituted for missing ADP',
+    getFantasyProsMarketRank({rank: 10, ecr: 10, source: 'ECR_ONLY'}),
+    null
+  );
+
+  var survivalContext = {
+    teams: 10,
+    currentPick: 1,
+    calculatedNextPick: 20,
+    calculatedPicksUntilNext: 18,
+    skipOpponentThreat: true
+  };
+  var survivalBefore = calculateNextPickSurvival(
+    {name: 'Before ADP', position: 'WR', adp: 10},
+    Object.assign({}, survivalContext)
+  );
+  var survivalAt = calculateNextPickSurvival(
+    {name: 'At ADP', position: 'WR', adp: 20},
+    Object.assign({}, survivalContext)
+  );
+  var survivalAfter = calculateNextPickSurvival(
+    {name: 'After ADP', position: 'WR', adp: 30},
+    Object.assign({}, survivalContext)
+  );
+
+  test.assert(
+    'Survival: ADP curve is monotonic around the next pick',
+    survivalBefore < survivalAt && survivalAt < survivalAfter
+  );
+  test.between('Survival: next-pick ADP centers near 50%', survivalAt, 45, 55);
+  test.equal(
+    'Survival: missing ADP stays neutral',
+    calculateNextPickSurvival(
+      {name: 'Unknown Market', position: 'RB', rank: 15},
+      Object.assign({}, survivalContext)
+    ),
+    50
+  );
+
+  function scoreFixture(rank, rosterNeeds) {
+    return calculateDraftDecisionScore(
+      {
+        name: 'Rank ' + rank,
+        position: 'RB',
+        rank: rank,
+        ecr: rank,
+        source: 'ECR_ONLY',
+        semanticTier: 'DEEP',
+        vorp: 0,
+        scarcity: 0,
+        available: true
+      },
+      {
+        currentPick: 100,
+        teams: 10,
+        rounds: 16,
+        totalPicks: 160,
+        players: [],
+        rosterNeeds: rosterNeeds || {RB: 0, FLEX: 0},
+        replacements: {},
+        strategy: {},
+        skipFutureDepth: true,
+        skipMultiPickPlanning: true
+      }
+    );
+  }
+
+  var rank80 = scoreFixture(80);
+  var rank160 = scoreFixture(160);
+  test.assert(
+    'ECR rank: late-round ranks remain positive and ordered',
+    rank80.rankScore > rank160.rankScore && rank160.rankScore > 0
+  );
+
+  test.equal(
+    'Roster need: two open RB starters normalize to 50',
+    scoreFixture(80, {RB: 2, FLEX: 1}).rosterNeedScore,
+    50
+  );
+  test.equal(
+    'Roster need: one open RB/FLEX slot normalizes to 25',
+    scoreFixture(80, {RB: 0, FLEX: 1}).rosterNeedScore,
+    25
+  );
+
+  function scarcityFixture(ranks) {
+    var players = ranks.map(function(rank) {
+      return {
+        name: 'RB ' + rank,
+        position: 'RB',
+        rank: rank,
+        ecr: rank,
+        source: 'ECR_ONLY',
+        available: true
+      };
+    });
+    return calculatePositionScarcity(players[0], players, {});
+  }
+
+  test.assert(
+    'Scarcity: wider nearby ECR gaps score higher than dense depth',
+    scarcityFixture([10, 20, 30, 40, 50]) >
+      scarcityFixture([10, 12, 14, 16, 18])
+  );
+
+  var orderedPosition = enforceAuthoritativePositionOrder([
+    {name: 'Better RB', position: 'RB', rank: 10, ecr: 10, finalScore: 50},
+    {name: 'Worse RB', position: 'RB', rank: 20, ecr: 20, finalScore: 55}
+  ]);
+  test.assert(
+    'Authority: derived nudges cannot invert same-position ECR order',
+    orderedPosition[0].name === 'Better RB' &&
+      orderedPosition[0].finalScore > orderedPosition[1].finalScore
+  );
+
+  var originalStateGetter = getDraftAssistantState;
+  var replacementPlayers = [];
+  for (var index = 1; index <= 25; index++) {
+    replacementPlayers.push({
+      name: 'Replacement RB ' + index,
+      position: 'RB',
+      rank: index * 3,
+      ecr: index * 3,
+      source: 'ECR_ONLY',
+      available: true
+    });
+  }
+  var earlyReplacement = null;
+  var turnReplacement = null;
+  try {
+    getDraftAssistantState = function() {
+      return {teams: 10, rounds: 16, draftSlot: 1, totalPicks: 160, currentPick: 1};
+    };
+    earlyReplacement = calculateReplacementLevels(replacementPlayers).RB;
+    getDraftAssistantState = function() {
+      return {teams: 10, rounds: 16, draftSlot: 10, totalPicks: 160, currentPick: 10};
+    };
+    turnReplacement = calculateReplacementLevels(replacementPlayers).RB;
+  } finally {
+    getDraftAssistantState = originalStateGetter;
+  }
+  test.equal(
+    'VORP: current replacement value does not change with pick-slot wait',
+    earlyReplacement && earlyReplacement.name,
+    turnReplacement && turnReplacement.name
+  );
+
+  var summary = test.summary();
+  console.group('CALCULATION SANITY TEST SUITE');
+  console.log('Result: ' + summary.passed + ' passed, ' + summary.failed + ' failed (' + summary.total + ' total)');
+  summary.results.forEach(function(result) {
+    console.log((result.passed ? '✓ ' : '✗ ') + result.name + (result.error ? ' — ' + result.error : ''));
+  });
+  console.groupEnd();
   return summary;
 }
 
