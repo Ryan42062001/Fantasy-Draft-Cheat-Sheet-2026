@@ -270,7 +270,8 @@ Completion evidence (2026-08-22):
 Current verification (2026-08-22):
 - Existing War Room regressions: 165/165
 - ESPN website reconciliation contract: 8/8
-- Extension parser and manifest tests: 10/10
+- Extension parser and manifest tests: 13/13
+- Companion 0.2.0 repairs first-run rescans for ESPN tabs opened before extension installation, scans embedded draft frames, and exposes parser diagnostics/icon counts without requiring the popup to remain open
 - Live ESPN mock-draft validation remains required because ESPN does not publish a stable draft-room DOM contract
 
 Completion evidence (2026-08-22):

@@ -38,6 +38,10 @@ function render(status) {
     message.textContent = 'Open both the ESPN draft room and The War Room, then press Rescan ESPN.';
   } else if (Number(warRoom.unmatched) > 0) {
     message.textContent = 'Some ESPN names did not match the FantasyPros board. Use manual marking for those picks and report the names.';
+  } else if (espn.draftPage && picks.length === 0) {
+    message.textContent = Number(espn.visibleCandidates) > 0
+      ? 'Draft detected, but no completed pick rows parsed yet. Press Rescan after a pick is made.'
+      : 'Draft detected, but its pick log was not visible to the reader. Press Rescan or refresh ESPN once.';
   } else {
     message.textContent = 'Connected. New ESPN picks will be reconciled automatically.';
   }
@@ -81,4 +85,10 @@ document.getElementById('reset').addEventListener('click', function(event) {
   send({type: 'RESET_PICKS'}).then(render);
 });
 
+document.getElementById('open-tab').addEventListener('click', function() {
+  chrome.tabs.create({url: chrome.runtime.getURL('popup.html')});
+  window.close();
+});
+
 refresh();
+setInterval(refresh, 1000);

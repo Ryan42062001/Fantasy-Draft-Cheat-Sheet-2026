@@ -34,10 +34,20 @@ function storageGet() {
 function storageSave() {
   var payload = {};
   payload[STORAGE_KEY] = state;
-  return chrome.storage.local.set(payload);
+  return chrome.storage.local.set(payload).then(updateActionBadge);
+}
+
+function updateActionBadge() {
+  var count = getPicks().length;
+  var text = count > 999 ? '999+' : count > 0 ? String(count) : '';
+  return Promise.all([
+    chrome.action.setBadgeText({text: text}),
+    chrome.action.setBadgeBackgroundColor({color: '#2f7d4a'})
+  ]).catch(function() {});
 }
 
 var ready = storageGet().catch(function() {});
+ready.then(updateActionBadge).catch(function() {});
 
 function snakeTeamSlot(overallPick, teams) {
   overallPick = Number(overallPick);
@@ -65,7 +75,33 @@ function queryTabs(urls) {
 }
 
 function sendTab(tabId, message) {
-  return chrome.tabs.sendMessage(tabId, message).catch(function() {});
+  return chrome.tabs.sendMessage(tabId, message);
+}
+
+function sendTabQuiet(tabId, message) {
+  return sendTab(tabId, message).catch(function() {});
+}
+
+function injectEspnReader(tab) {
+  if (!tab || !tab.id) return Promise.resolve();
+  return chrome.scripting.executeScript({
+    target: {tabId: tab.id, allFrames: true},
+    files: ['espn-parser.js', 'espn-content.js']
+  }).then(function() {
+    return sendTabQuiet(tab.id, {type: 'COMPANION_CONFIG', config: state.config});
+  }).catch(function() {});
+}
+
+function ensureEspnReader(tab, force) {
+  if (!tab || !tab.id) return Promise.resolve();
+  return sendTab(tab.id, {type: force ? 'RESCAN_ESPN' : 'COMPANION_CONFIG', config: state.config})
+    .catch(function() { return injectEspnReader(tab); });
+}
+
+function ensureReadersInOpenEspnTabs(force) {
+  return queryTabs(ESPN_URLS).then(function(tabs) {
+    return Promise.all(tabs.map(function(tab) { return ensureEspnReader(tab, force); }));
+  });
 }
 
 function broadcastWarRoom(force) {
@@ -73,7 +109,7 @@ function broadcastWarRoom(force) {
   return queryTabs(WAR_ROOM_URLS).then(function(tabs) {
     state.warRoom.connected = tabs.length > 0;
     return Promise.all(tabs.map(function(tab) {
-      return sendTab(tab.id, {
+      return sendTabQuiet(tab.id, {
         type: 'WAR_ROOM_SNAPSHOT',
         snapshot: {version: 1, picks: picks, force: Boolean(force)}
       });
@@ -84,7 +120,7 @@ function broadcastWarRoom(force) {
 function sendConfigToEspn() {
   return queryTabs(ESPN_URLS).then(function(tabs) {
     return Promise.all(tabs.map(function(tab) {
-      return sendTab(tab.id, {type: 'COMPANION_CONFIG', config: state.config});
+      return sendTabQuiet(tab.id, {type: 'COMPANION_CONFIG', config: state.config});
     }));
   });
 }
@@ -120,16 +156,23 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     if (message.type === 'ESPN_CONTENT_READY') {
       state.espn.connected = true;
       state.espn.lastSeenAt = new Date().toISOString();
-      if (sender.tab) sendTab(sender.tab.id, {type: 'COMPANION_CONFIG', config: state.config});
+      state.espn.lastUrl = message.url || state.espn.lastUrl || null;
+      if (sender.tab) sendTabQuiet(sender.tab.id, {type: 'COMPANION_CONFIG', config: state.config});
       return storageSave();
     }
 
     if (message.type === 'ESPN_HEARTBEAT') {
       state.espn.connected = true;
-      state.espn.draftPage = Boolean(message.draftPage);
+      if (message.draftPage || message.topFrame) {
+        state.espn.draftPage = Boolean(message.draftPage);
+      }
       state.espn.lastSeenAt = new Date().toISOString();
+      state.espn.lastUrl = message.url || state.espn.lastUrl || null;
       if (Number.isFinite(Number(message.captured))) {
         state.espn.visibleCaptured = Number(message.captured);
+      }
+      if (Number.isFinite(Number(message.candidates))) {
+        state.espn.visibleCandidates = Number(message.candidates);
       }
       return storageSave();
     }
@@ -146,14 +189,14 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.warRoom.connected = true;
       state.warRoom.lastSeenAt = new Date().toISOString();
       if (sender.tab) {
-        sendTab(sender.tab.id, {
+        sendTabQuiet(sender.tab.id, {
           type: 'WAR_ROOM_STATUS',
           status: state.espn.draftPage ? 'connected' : 'scanning',
           detail: state.espn.draftPage
             ? 'ESPN Sync · ' + getPicks().length + ' picks'
             : 'ESPN companion connected'
         });
-        sendTab(sender.tab.id, {
+        sendTabQuiet(sender.tab.id, {
           type: 'WAR_ROOM_SNAPSHOT',
           snapshot: {version: 1, picks: getPicks()}
         });
@@ -192,11 +235,8 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     }
 
     if (message.type === 'RESCAN') {
-      return queryTabs(ESPN_URLS).then(function(tabs) {
-        return Promise.all(tabs.map(function(tab) {
-          return sendTab(tab.id, {type: 'RESCAN_ESPN'});
-        }));
-      }).then(function() { sendResponse(statusSnapshot()); });
+      return ensureReadersInOpenEspnTabs(true)
+        .then(function() { sendResponse(statusSnapshot()); });
     }
 
     if (message.type === 'RESET_PICKS') {
@@ -213,6 +253,14 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   });
 
   return true;
+});
+
+chrome.runtime.onInstalled.addListener(function() {
+  ready.then(function() { return ensureReadersInOpenEspnTabs(true); }).catch(function() {});
+});
+
+chrome.runtime.onStartup.addListener(function() {
+  ready.then(function() { return ensureReadersInOpenEspnTabs(true); }).catch(function() {});
 });
 
 chrome.tabs.onRemoved.addListener(function() {
