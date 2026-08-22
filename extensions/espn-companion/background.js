@@ -337,23 +337,18 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         state.espn.currentPick = Number(message.currentPick);
         state.espn.expectedCompleted = Math.max(0, Number(message.currentPick) - 1);
       }
-      var detectedTeams = Number(message.detectedTeams);
       var detectedRounds = Number(message.detectedRounds);
-      var shouldIncreaseTeams = Number.isInteger(detectedTeams) && detectedTeams > Number(state.config.teams);
       var shouldUpdateRounds = Number.isInteger(detectedRounds) && detectedRounds >= 1 &&
         detectedRounds !== Number(state.config.rounds);
-      if (shouldIncreaseTeams || shouldUpdateRounds) {
-        var detectedChange = updateConfig({
-          teams: shouldIncreaseTeams ? detectedTeams : state.config.teams,
+      if (shouldUpdateRounds) {
+        updateConfig({
+          teams: state.config.teams,
           draftSlot: state.config.draftSlot,
-          rounds: shouldUpdateRounds ? detectedRounds : state.config.rounds
+          rounds: detectedRounds
         });
         return storageSave()
           .then(sendConfigToEspn)
-          .then(function() { return broadcastWarRoom(true, true); })
-          .then(function() {
-            return detectedChange.teamsChanged ? ensureReadersInOpenEspnTabs(true) : null;
-          });
+          .then(function() { return broadcastWarRoom(true, true); });
       }
       return storageSave();
     }

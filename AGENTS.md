@@ -273,7 +273,7 @@ Current verification (2026-08-22):
 - Existing War Room regressions: 165/165
 - ESPN website reconciliation contract: 11/11
 - Extension API, parser, manifest, and ledger tests: 31/31
-- Companion 0.5.0 uses structured ESPN pick/team IDs when available, retains partial structured authority in Hybrid mode, exposes direct-feed diagnostics, and supplements only unresolved names from the visible table
+- Companion 0.5.1 uses structured ESPN pick/team IDs when available, retains partial structured authority in Hybrid mode, exposes direct-feed diagnostics, supplements only unresolved names from the visible table, and keeps the user-set league size authoritative
 - Live ESPN mock-draft validation remains required because ESPN does not publish a stable draft-room DOM contract
 
 ## User roster recommendation preferences

@@ -21,7 +21,7 @@ The extension does **not** read or store ESPN passwords, cookies, or authenticat
 6. Open an ESPN fantasy-football mock or live draft in another Chrome tab.
 7. Open the extension popup. Confirm that both ESPN and The War Room show as connected.
 8. Press **Rescan ESPN** after the draft room finishes loading.
-9. After any extension code update, return to `chrome://extensions` and press **Reload** on the companion card. Version 0.5.0 keeps ESPN's structured pick numbers and team ownership when only some player names resolve, then supplements just those unresolved slots from the visible table.
+9. After any extension code update, return to `chrome://extensions` and press **Reload** on the companion card. Version 0.5.1 keeps ESPN's structured pick numbers and team ownership when only some player names resolve, supplements just those unresolved slots from the visible table, and never overwrites your team-count setting from ambiguous ESPN `P#` labels.
 
 Chrome displays an extension popup over the upper-right corner of the current page. It is not part of ESPN and closes as soon as you click the draft room. Use **Open controls in a tab** if you want status to stay visible without covering ESPN. The extension-icon badge shows the captured-pick count while the popup is closed.
 

@@ -134,9 +134,9 @@ test('screen fallback accepts the same numbered row inside Pick History', () => 
   assert.equal(picks[0].playerName, "Ja'Marr Chase");
 });
 
-test('detects late-round draft dimensions and current overall pick', () => {
+test('detects rounds and current pick without guessing team count from ambiguous P labels', () => {
   const shape = parser.detectDraftShape({
     body: {innerText: 'RND 13 OF 16\nON THE CLOCK: PICK 150\nRecent: R13, P6'}
   });
-  assert.deepEqual(shape, {teams: 6, rounds: 16, currentPick: 150});
+  assert.deepEqual(shape, {teams: null, rounds: 16, currentPick: 150});
 });
