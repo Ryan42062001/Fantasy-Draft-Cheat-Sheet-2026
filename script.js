@@ -4,12 +4,6 @@
  */
 
 // ==== CONFIGURATION ====
-var LEAGUE_SIZE = 10;
-var MY_DRAFT_SLOT = 10;
-var TOTAL_ROUNDS = 16;
-var ROSTER_SLOTS = {QB:1, RB:2, WR:2, TE:1, FLEX:1, DST:1, K:1};
-var BENCH_SLOTS = {QB:0, RB:2, WR:5, TE:0, K:0, DST:0};
-var RECOMMENDATION_POSITION_CAPS = {QB:1, TE:1};
 var AUTOSAVE_KEY = 'draft-state-v1';
 var AUTOSAVE_ENABLED_KEY = 'draft-autosave-enabled-v1';
 var FINAL_SUMMARY_SHOWN_KEY = 'draft-final-summary-shown-v1';
@@ -23,8 +17,6 @@ var TEAM_COLORS = {
   PHI:'#004C54', PIT:'#FFB612', SEA:'#69BE28', SF:'#AA0000', TB:'#D50A0A',
   TEN:'#4B92DB', WAS:'#5A1414'
 };
-var TIER_IDS = ['Sp','S','A','B','C','D','E','F'];
-var TIER_LABELS = {Sp:'ELITE', S:'PREMIUM', A:'CORE', B:'VALUE', C:'UPSIDE', D:'DEPTH', E:'LATE', F:'DEEP'};
 
 // ==== INTERNAL STATE ====
 var currentPosFilter = 'ALL';
@@ -32,7 +24,9 @@ var resetArmed = false;
 var resetArmTimer = null;
 var _saveTimer = null;
 var _finalSummaryTimer = null;
-var appObserver = null;
+var draftMarkMode = 'taken';
+var lastFocusedElementBeforeModal = null;
+var customBoardEnabled = false;
 var searchMatches = [];
 var currentSearchIndex = -1;
 var developerToolsPromise = null;
@@ -161,27 +155,27 @@ function updateMyTeam() {
    */
   players.forEach(function(player) {
 
-    if (player.pos === 'QB' && starters.QB.length < 1) {
+    if (player.pos === 'QB' && starters.QB.length < starterLimits.QB) {
       starters.QB.push(player);
     }
 
-    else if (player.pos === 'RB' && starters.RB.length < 2) {
+    else if (player.pos === 'RB' && starters.RB.length < starterLimits.RB) {
       starters.RB.push(player);
     }
 
-    else if (player.pos === 'WR' && starters.WR.length < 2) {
+    else if (player.pos === 'WR' && starters.WR.length < starterLimits.WR) {
       starters.WR.push(player);
     }
 
-    else if (player.pos === 'TE' && starters.TE.length < 1) {
+    else if (player.pos === 'TE' && starters.TE.length < starterLimits.TE) {
       starters.TE.push(player);
     }
 
-    else if (player.pos === 'K' && starters.K.length < 1) {
+    else if (player.pos === 'K' && starters.K.length < starterLimits.K) {
       starters.K.push(player);
     }
 
-    else if (player.pos === 'DST' && starters.DST.length < 1) {
+    else if (player.pos === 'DST' && starters.DST.length < starterLimits.DST) {
       starters.DST.push(player);
     }
   });
@@ -201,7 +195,7 @@ function updateMyTeam() {
 
     if (
       !isDedicatedStarter &&
-      starters.FLEX.length < 1 &&
+      starters.FLEX.length < starterLimits.FLEX &&
       ['RB', 'WR', 'TE'].includes(player.pos)
     ) {
       starters.FLEX.push(player);
@@ -223,7 +217,7 @@ function updateMyTeam() {
 
   if (starterCountElement) {
     starterCountElement.textContent =
-      totalStarters + ' / 9 starters';
+      totalStarters + ' / ' + getConfiguredStarterTotal() + ' starters';
   }
 
   /* ---- Update My Team button ---- */
@@ -416,10 +410,13 @@ function toggleMyTeam() {
   if (!panel) return;
 
   var isOpen = panel.classList.toggle('open');
+  panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
 
   if (isOpen) {
     updateMyTeam();
     updateDraftSummary();
+    var closeButton = panel.querySelector('.close-btn');
+    if (closeButton) closeButton.focus();
   }
 
   if (button) {
@@ -433,13 +430,16 @@ function setDraftHubView(view) {
   var selectedView = view === 'lineup' ? 'lineup' : 'summary';
 
   document.querySelectorAll('.draft-hub-view').forEach(function(panel) {
-    panel.classList.toggle('active', panel.id === selectedView + '-panel');
+    var isActive = panel.id === selectedView + '-panel';
+    panel.classList.toggle('active', isActive);
+    panel.hidden = !isActive;
   });
 
   document.querySelectorAll('.draft-hub-tab').forEach(function(tab) {
     var isSelected = tab.id === 'draft-' + selectedView + '-tab';
     tab.classList.toggle('active', isSelected);
     tab.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+    tab.setAttribute('tabindex', isSelected ? '0' : '-1');
   });
 
   if (selectedView === 'summary') updateDraftSummary();
@@ -990,14 +990,25 @@ function openFinalDraftSummary(picks, positionCounts, startersFilled, averageEcr
     averageEcrValue,
     grade
   );
+  lastFocusedElementBeforeModal = document.activeElement;
   modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
   document.body.classList.add('final-summary-open');
+  var dialog = modal.querySelector('.final-summary-dialog');
+  if (dialog) dialog.focus();
 }
 
 function closeFinalDraftSummary() {
   var modal = document.getElementById('final-summary-modal');
-  if (modal) modal.classList.remove('open');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
   document.body.classList.remove('final-summary-open');
+  if (lastFocusedElementBeforeModal && document.contains(lastFocusedElementBeforeModal)) {
+    lastFocusedElementBeforeModal.focus();
+  }
+  lastFocusedElementBeforeModal = null;
 }
 
 function showFinalDraftSummary() {
@@ -7690,6 +7701,7 @@ function setTierSectionCollapsed(tierGroup, collapsed) {
   tierGroup.classList.toggle('is-collapsed', Boolean(collapsed));
   if (!collapsed) tierGroup.classList.remove('is-temporarily-expanded');
   updateTierCollapseButton(tierGroup);
+  if (typeof refreshDraftRowAccessibility === 'function') refreshDraftRowAccessibility();
 }
 
 function toggleTierSection(tierGroup) {
@@ -7717,6 +7729,11 @@ function initializeTierSectionOrganization() {
     }
 
     var tierId = tierGroup.id.replace('tbody-', '');
+    var subtitle = tierGroup.querySelector('.divider-sub');
+    var playerCount = tierGroup.querySelectorAll('tr.draftrow').length;
+    if (subtitle && WAR_ROOM_CONFIG.tierFantasyProsRanges[tierId]) {
+      subtitle.textContent = WAR_ROOM_CONFIG.tierFantasyProsRanges[tierId] + ' · ' + playerCount + ' players';
+    }
     setTierSectionCollapsed(tierGroup, tierId === 'E' || tierId === 'F');
   });
 }
@@ -8195,135 +8212,148 @@ window.WarRoomEspnSync = {
   settings: getEspnSyncSettings
 };
 
+function setDraftMarkMode(mode) {
+  draftMarkMode = mode === 'mine' ? 'mine' : 'taken';
+  document.querySelectorAll('.mark-mode-btn').forEach(function(button) {
+    var active = button.getAttribute('data-mark-mode') === draftMarkMode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  refreshDraftRowAccessibility();
+}
+
+function clearDraftRowMetadata(row) {
+  ['data-pick', 'data-team-slot', 'data-sync-source', 'data-espn-player-id',
+    'data-team-id', 'data-sync-method'].forEach(function(attribute) {
+    row.removeAttribute(attribute);
+  });
+}
+
+function assignManualDraftMetadata(row, isMine) {
+  var draftState = getDraftAssistantState();
+  var currentPick = Number(row.getAttribute('data-pick')) || Number(draftState.currentPick) || 0;
+  var teams = Number(draftState.teams) || LEAGUE_SIZE || 10;
+  var mapping = getSnakeDraftTeamForPick(currentPick, teams);
+
+  row.removeAttribute('data-sync-source');
+  row.removeAttribute('data-espn-player-id');
+  row.removeAttribute('data-team-id');
+  row.removeAttribute('data-sync-method');
+
+  if (currentPick > 0) row.setAttribute('data-pick', String(currentPick));
+  if (isMine) {
+    row.setAttribute('data-team-slot', String(Number(draftState.draftSlot) || MY_DRAFT_SLOT || 1));
+  } else if (mapping && mapping.teamSlot) {
+    row.setAttribute('data-team-slot', String(mapping.teamSlot));
+  }
+}
+
+function getDraftRowStatus(row) {
+  if (row.classList.contains('drafted-mine')) return 'mine';
+  if (row.classList.contains('drafted-other')) return 'taken';
+  return 'available';
+}
+
+function updateDraftRowAccessibility(row) {
+  if (!row) return;
+  var name = getDraftRowDisplayName(row);
+  var position = row.getAttribute('data-pos') || '';
+  var status = getDraftRowStatus(row);
+  var action = status === draftMarkMode
+    ? 'clear this status'
+    : 'mark as ' + (draftMarkMode === 'mine' ? 'Mine' : 'Taken');
+  row.setAttribute('aria-label', [name, position, status, 'Press Enter to ' + action].filter(Boolean).join('. '));
+}
+
+function isDraftRowKeyboardVisible(row) {
+  if (!row || row.classList.contains('hidden-row')) return false;
+  var tier = row.closest('tbody.tier-group');
+  return !tier || !tier.classList.contains('is-collapsed') || tier.classList.contains('is-temporarily-expanded');
+}
+
+function refreshDraftRowAccessibility(preferredRow) {
+  var rows = getCachedDraftRows();
+  var visibleRows = rows.filter(isDraftRowKeyboardVisible);
+  var focusRow = preferredRow && visibleRows.indexOf(preferredRow) >= 0
+    ? preferredRow
+    : visibleRows[0] || null;
+
+  rows.forEach(function(row) {
+    row.setAttribute('role', 'button');
+    row.setAttribute('tabindex', row === focusRow ? '0' : '-1');
+    updateDraftRowAccessibility(row);
+  });
+}
+
+function announceDraftAction(row) {
+  var announcer = document.getElementById('draft-action-announcer');
+  if (!announcer || !row) return;
+  var status = getDraftRowStatus(row);
+  announcer.textContent = getDraftRowDisplayName(row) + ' marked ' + status + '.';
+}
+
+function setupDraftBoardInteractions() {
+  var table = document.getElementById('big-table');
+  if (!table || table.getAttribute('data-interactions-ready') === 'true') return;
+  table.setAttribute('data-interactions-ready', 'true');
+
+  table.addEventListener('click', function(event) {
+    if (event.target.closest('button, select, input, a')) return;
+    var row = event.target.closest('tr.draftrow');
+    if (row) toggleDraft(row);
+  });
+
+  table.addEventListener('keydown', function(event) {
+    var row = event.target.closest('tr.draftrow');
+    if (!row) return;
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleDraft(row);
+      return;
+    }
+
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    var visibleRows = getCachedDraftRows().filter(isDraftRowKeyboardVisible);
+    var index = visibleRows.indexOf(row);
+    var direction = event.key === 'ArrowDown' ? 1 : -1;
+    var next = visibleRows[Math.max(0, Math.min(visibleRows.length - 1, index + direction))];
+    if (next) {
+      refreshDraftRowAccessibility(next);
+      next.focus();
+    }
+  });
+
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      var modal = document.getElementById('final-summary-modal');
+      if (modal && modal.classList.contains('open')) {
+        event.preventDefault();
+        closeFinalDraftSummary();
+      }
+    }
+  });
+}
+
 function toggleDraft(row) {
+  if (!row || document.body.classList.contains('edit-mode')) return;
 
-  if (
-    !row ||
-    document.body.classList.contains('edit-mode')
-  ) {
-    return;
-  }
+  var currentStatus = getDraftRowStatus(row);
+  var desiredStatus = draftMarkMode;
 
-
-  /*
-   * -------------------------------------------------------
-   * TAKEN -> MINE
-   * -------------------------------------------------------
-   *
-   * Keep the original draft pick / team metadata.
-   */
-
-  if (
-    row.classList.contains('drafted-other')
-  ) {
-
-    row.classList.remove(
-      'drafted-other'
-    );
-
-    row.classList.add(
-      'drafted-mine'
-    );
-
-
-  /*
-   * -------------------------------------------------------
-   * MINE -> AVAILABLE
-   * -------------------------------------------------------
-   *
-   * Player is no longer drafted, so remove the
-   * stored draft-history metadata.
-   */
-
-  } else if (
-    row.classList.contains('drafted-mine')
-  ) {
-
-    row.classList.remove(
-      'drafted-mine'
-    );
-
-    row.removeAttribute(
-      'data-pick'
-    );
-
-    row.removeAttribute(
-      'data-team-slot'
-    );
-
-    row.removeAttribute('data-sync-source');
-    row.removeAttribute('data-espn-player-id');
-    row.removeAttribute('data-team-id');
-    row.removeAttribute('data-sync-method');
-
-
-  /*
-   * -------------------------------------------------------
-   * AVAILABLE -> TAKEN
-   * -------------------------------------------------------
-   *
-   * Record the current pick and which team owns it.
-   */
-
+  row.classList.remove('drafted-mine', 'drafted-other');
+  if (currentStatus === desiredStatus) {
+    clearDraftRowMetadata(row);
   } else {
-
-    row.removeAttribute('data-sync-source');
-    row.removeAttribute('data-espn-player-id');
-    row.removeAttribute('data-team-id');
-    row.removeAttribute('data-sync-method');
-
-    var draftState =
-      getDraftAssistantState();
-
-    var currentPick =
-      Number(
-        draftState.currentPick
-      ) || 0;
-
-    var teams =
-      Number(
-        draftState.teams
-      ) || 10;
-
-    var mapping =
-      getSnakeDraftTeamForPick(
-        currentPick,
-        teams
-      );
-
-
-    row.classList.add(
-      'drafted-other'
-    );
-
-
-    if (currentPick > 0) {
-
-      row.setAttribute(
-        'data-pick',
-        currentPick
-      );
-
-    }
-
-
-    if (
-      mapping &&
-      mapping.teamSlot
-    ) {
-
-      row.setAttribute(
-        'data-team-slot',
-        mapping.teamSlot
-      );
-
-    }
-
+    row.classList.add(desiredStatus === 'mine' ? 'drafted-mine' : 'drafted-other');
+    assignManualDraftMetadata(row, desiredStatus === 'mine');
   }
 
-
+  updateDraftRowAccessibility(row);
+  announceDraftAction(row);
+  if (desiredStatus === 'mine') setDraftMarkMode('taken');
   triggerAllBoardUpdates({deferIntelligence: true});
-
   scheduleSave();
 }
 function resetBoard(){
@@ -8396,12 +8426,10 @@ function saveState(){
       EXPERT_RANKINGS_2026.length > 0;
     var order = [];
 
-    /*
-     * The FantasyPros board is rebuilt from source data on every startup, so
-     * serializing all 717 row locations cannot affect restoration. Retain the
-     * legacy order payload only for installations without that dataset.
-     */
-    if (!hasAuthoritativeBoard) {
+    /* Persist authoritative-board ordering only when the user explicitly
+     * enables Custom Board mode. The snapshot date prevents stale overrides
+     * from silently replacing a future FantasyPros refresh. */
+    if (customBoardEnabled || !hasAuthoritativeBoard) {
       document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
         var tid = tbody.id.replace('tbody-','');
         tbody.querySelectorAll('tr.draftrow').forEach(function(row){
@@ -8410,7 +8438,20 @@ function saveState(){
         });
       });
     }
-    var payload = { savedAt: new Date().toISOString(), teams: LEAGUE_SIZE, slot: MY_DRAFT_SLOT, rounds: TOTAL_ROUNDS, state: state, draftMeta: draftMeta, order: order };
+    var payload = {
+      version: 2,
+      savedAt: new Date().toISOString(),
+      datasetSnapshotDate: typeof FANTASYPROS_2026_DATASET_META !== 'undefined'
+        ? FANTASYPROS_2026_DATASET_META.sourceSnapshotDate || null
+        : null,
+      customBoard: customBoardEnabled,
+      teams: LEAGUE_SIZE,
+      slot: MY_DRAFT_SLOT,
+      rounds: TOTAL_ROUNDS,
+      state: state,
+      draftMeta: draftMeta,
+      order: order
+    };
     localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(payload));
     flashSaveIndicator('Saved', '#8fd4a0');
     var diagEl = document.getElementById('storage-diag'); if(diagEl) diagEl.innerHTML = 'Autosave: On (last saved '+ new Date().toLocaleTimeString()+')';
@@ -8482,33 +8523,21 @@ function loadState(){
         if (pcSlot && pcSlot.value) MY_DRAFT_SLOT = parseInt(pcSlot.value, 10) || 10;
         if (pcRounds && pcRounds.value) TOTAL_ROUNDS = parseInt(pcRounds.value, 10) || 16;
 
-        /*
- * Expert consensus is now authoritative for ranking
- * order and tiers.
- *
- * Legacy autosave order must not override it.
- *
- * Keep this fallback so older/non-expert versions of
- * the board can still use saved custom ordering.
- */
-if (
-  payload.order &&
-  (
-    typeof EXPERT_RANKINGS_2026 ===
-      'undefined' ||
-    !Array.isArray(
-      EXPERT_RANKINGS_2026
-    ) ||
-    EXPERT_RANKINGS_2026.length === 0
-  )
-) {
+        var datasetSnapshotDate = typeof FANTASYPROS_2026_DATASET_META !== 'undefined'
+          ? FANTASYPROS_2026_DATASET_META.sourceSnapshotDate || null
+          : null;
+        var hasExpertBoard = typeof EXPERT_RANKINGS_2026 !== 'undefined' &&
+          Array.isArray(EXPERT_RANKINGS_2026) && EXPERT_RANKINGS_2026.length > 0;
+        var customSnapshotMatches = Boolean(
+          payload.customBoard &&
+          payload.datasetSnapshotDate &&
+          payload.datasetSnapshotDate === datasetSnapshotDate
+        );
 
-  applyCustomOrder(
-    payload.order,
-    true
-  );
-
-}
+        customBoardEnabled = customSnapshotMatches;
+        if (payload.order && payload.order.length && (customSnapshotMatches || !hasExpertBoard)) {
+          applyCustomOrder(payload.order, true);
+        }
         
         if(payload.state) {
           document.querySelectorAll('tr.draftrow').forEach(function(row){
@@ -8540,7 +8569,8 @@ if (
     if(diagEl) diagEl.innerHTML = '<b>Autosave restore failed.</b>';
   }
   
-  addEditControls();
+  updateCustomBoardUi();
+  refreshDraftRowAccessibility();
   triggerAllBoardUpdates();
 }
 
@@ -8790,19 +8820,8 @@ function createExpertPlayerRow(player) {
     player
   );
 
-  row.onclick =
-    function() {
-
-      if (
-        typeof toggleDraft ===
-        'function'
-      ) {
-
-        toggleDraft(row);
-
-      }
-
-    };
+  row.setAttribute('role', 'button');
+  row.setAttribute('tabindex', '-1');
 
 
   var displayName =
@@ -9970,6 +9989,15 @@ function runFantasyProsMigrationVerification() {
 
 // ==== EDIT RANKS ====
 
+function updateCustomBoardUi() {
+  var button = document.getElementById('editRanksBtn');
+  if (!button || document.body.classList.contains('edit-mode')) return;
+  button.innerHTML = customBoardEnabled
+    ? '&#9998; Edit Custom Board'
+    : '&#9998; Customize Board';
+  button.classList.toggle('customized', customBoardEnabled);
+}
+
 function toggleEditMode(){
   var isEditing = document.body.classList.toggle('edit-mode');
   var btn = document.getElementById('editRanksBtn');
@@ -9977,18 +10005,21 @@ function toggleEditMode(){
   if(btn){
     btn.innerHTML = isEditing
       ? '&#10003; Done Editing'
-      : '&#9998; Edit Ranks';
+      : (customBoardEnabled ? '&#9998; Edit Custom Board' : '&#9998; Customize Board');
 
     btn.classList.toggle('editing', isEditing);
   }
 
   if(isEditing){
+    customBoardEnabled = true;
     addEditControlsCustom();
   } else {
     document.querySelectorAll('.rank-controls').forEach(function(el){
       el.remove();
     });
+    scheduleSave();
   }
+  updateCustomBoardUi();
 }
 
 function addEditControlsCustom(){
@@ -10136,7 +10167,7 @@ function applyCustomOrder(orderArray, skipSave){
 });
 
 syncRankData();
-addEditControls();
+if (document.body.classList.contains('edit-mode')) addEditControls();
 syncEditControls();
   if(!skipSave) {
     triggerAllBoardUpdates();
@@ -10161,7 +10192,15 @@ function resetRanks(){
 
   applyCustomOrder(window.ORIGINAL_ORDER);
 
+  customBoardEnabled = false;
+  document.body.classList.remove('edit-mode');
+  document.querySelectorAll('.rank-controls').forEach(function(element) {
+    element.remove();
+  });
+
   syncEditControls();
+  updateCustomBoardUi();
+  scheduleSave();
 
   flashSaveIndicator('Ranks reset', '#8fd4a0');
 }
@@ -12529,32 +12568,6 @@ if (round > TOTAL_ROUNDS) {
 
 }
 
-function removeExportImportButtons() {
-  if (appObserver) appObserver.disconnect();
-
-  var selectors = [
-    '#exportBtn', '#importBtn', '#export-panel', '#import-panel',
-    '.export-btn', '.import-btn', '.export-toggle', '.import-toggle',
-    '[onclick*="Export"]', '[onclick*="import"]', '[onclick*="ExportImport"]',
-    '[data-action="export"]', '[data-action="import"]'
-  ];
-
-  document.querySelectorAll(selectors.join(',')).forEach(function(el) {
-    el.remove();
-  });
-
-  document.querySelectorAll('button, a.btn, div.btn').forEach(function(btn) {
-    var txt = (btn.innerText || btn.textContent || '').toLowerCase();
-    if (txt.includes('export') || txt.includes('import')) {
-      btn.remove();
-    }
-  });
-
-  if (appObserver) {
-    appObserver.observe(document.body, { childList: true, subtree: true });
-  }
-}
-
 function setupSearchUI() {
   var searchInput = document.getElementById('searchBox');
   if (!searchInput) return;
@@ -12632,6 +12645,7 @@ function applyFilters() {
     if (nextBtn) nextBtn.disabled = true;
     updateTierFilterExpansion('');
     updateNextPickMarker();
+    refreshDraftRowAccessibility();
     return;
   }
 
@@ -12657,6 +12671,7 @@ function applyFilters() {
 
   updateTierFilterExpansion(q);
   updateNextPickMarker();
+  refreshDraftRowAccessibility(searchMatches[0] || null);
 }
 
 function navigateSearch(direction) {
@@ -12707,83 +12722,11 @@ function scrollToCurrentMatch() {
   }, 2500);
 }
 
-function addMobileHandcuffLabels() {
-
-  document.querySelectorAll(
-    '#big-table tr.draftrow'
-  ).forEach(function(row) {
-
-    var playerCell =
-      row.querySelector('.pname');
-
-    var handcuffCell =
-      row.querySelector('.hc');
-
-    if (
-      !playerCell ||
-      !handcuffCell
-    ) {
-      return;
-    }
-
-
-    /*
-     * Prevent duplicates if this function
-     * ever runs more than once.
-     */
-
-    if (
-      playerCell.querySelector(
-        '.mobile-handcuff'
-      )
-    ) {
-      return;
-    }
-
-
-    var handcuff =
-      (handcuffCell.textContent || '')
-        .trim();
-
-
-    /*
-     * Don't display empty / dash handcuffs.
-     */
-
-    if (
-      !handcuff ||
-      handcuff === '—' ||
-      handcuff === '-'
-    ) {
-      return;
-    }
-
-
-    var label =
-      document.createElement('span');
-
-    label.className =
-      'mobile-handcuff';
-
-    label.textContent =
-      'HC: ' + handcuff;
-
-
-    playerCell.appendChild(
-      label
-    );
-
-  });
-
-}
-
 // ==== INITIALIZATION RUNNER ====
 function initApp() {
 
   setupSearchUI();
   updateDataFreshnessIndicator();
-
-  addMobileHandcuffLabels();
 
   var draftSettingsDetails = document.getElementById('draft-settings-details');
   if (draftSettingsDetails) {
@@ -12812,6 +12755,7 @@ function initApp() {
   build2026ExpertBoardStructure();
 
   initializeTierSectionOrganization();
+  setupDraftBoardInteractions();
 
 
   /*
@@ -12819,6 +12763,7 @@ function initApp() {
    * state onto the rebuilt board.
    */
   loadState();
+  refreshDraftRowAccessibility();
 
 }
 
@@ -13753,6 +13698,15 @@ function getDraftRowNumber(row, attributeName) {
 
 function getDraftAssistantPlayers() {
   var players = [];
+  var starterLimits = {
+    QB: getConfiguredStarterSlots('QB'),
+    RB: getConfiguredStarterSlots('RB'),
+    WR: getConfiguredStarterSlots('WR'),
+    TE: getConfiguredStarterSlots('TE'),
+    FLEX: getConfiguredStarterSlots('FLEX'),
+    K: getConfiguredStarterSlots('K'),
+    DST: getConfiguredStarterSlots('DST')
+  };
 
   getCachedDraftRows().forEach(function(row) {
 
