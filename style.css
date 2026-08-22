@@ -127,6 +127,35 @@ header p {
   transition: all 0.2s ease;
 }
 
+.data-freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px;
+  padding: 3px 8px;
+  border: 1px solid rgba(143, 212, 160, 0.28);
+  border-radius: 999px;
+  color: #a9d5b4;
+  background: rgba(95, 168, 124, 0.09);
+  font-size: 0.59rem;
+  font-weight: 800;
+}
+
+.data-freshness::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8fd4a0;
+  content: "";
+}
+
+.data-freshness-review { color: #e0c98a; border-color: rgba(224, 168, 63, 0.35); }
+.data-freshness-review::before { background: #e0a83f; }
+.data-freshness-stale,
+.data-freshness-unknown { color: #e7aaa5; border-color: rgba(193, 85, 75, 0.4); }
+.data-freshness-stale::before,
+.data-freshness-unknown::before { background: #c1554b; }
+
 .statusbar {
   display: flex;
   justify-content: space-between;
@@ -772,6 +801,22 @@ body.edit-mode tr.draftrow:hover td {
   font-size: 0.54rem;
 }
 
+.board-pressure-card .pressure-best {
+  display: block;
+  min-height: 28px;
+  margin-top: 7px;
+  overflow: hidden;
+  color: #dce9df;
+  font-size: 0.66rem;
+  line-height: 1.25;
+}
+
+.board-pressure-loading {
+  padding: 8px 0;
+  color: #829888;
+  font-size: 0.68rem;
+}
+
 .board-pressure-meter {
   height: 4px;
   margin: 7px 0 5px;
@@ -1007,6 +1052,37 @@ body.edit-mode tr.draftrow:hover td {
   color: #8fd4a0;
   font-size: 1.55rem;
 }
+
+.roster-guidance {
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px solid rgba(95, 168, 124, 0.25);
+  border-left: 3px solid #5fa87c;
+  border-radius: 9px;
+  background: rgba(95, 168, 124, 0.07);
+}
+
+.roster-guidance-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: #91aa96;
+  font-size: 0.61rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.roster-guidance > strong,
+.roster-guidance > small {
+  display: block;
+  line-height: 1.4;
+}
+
+.roster-guidance > strong { color: #e6f0e8; font-size: 0.73rem; }
+.roster-guidance > small { margin-top: 3px; color: #91aa96; font-size: 0.65rem; }
+.roster-guidance-watch { border-left-color: #e0a83f; background: rgba(224, 168, 63, 0.06); }
+.roster-guidance-urgent { border-left-color: #c1554b; background: rgba(193, 85, 75, 0.08); }
 
 .summary-section {
   margin-top: 16px;
@@ -1314,6 +1390,59 @@ body.final-summary-open {
   margin-top: 7px;
 }
 
+.final-waiver-watch {
+  margin-top: 12px;
+  padding: 13px;
+  border: 1px solid rgba(95, 168, 217, 0.25);
+  border-radius: 9px;
+  background: rgba(95, 168, 217, 0.055);
+}
+
+.final-waiver-watch h3 { margin: 0; color: #a8d5f5; font-size: 0.75rem; }
+.final-waiver-watch p { margin: 3px 0 10px; color: #819486; font-size: 0.62rem; }
+
+.waiver-watch-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.waiver-watch-player {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 7px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.waiver-watch-player strong {
+  overflow: hidden;
+  color: #dce9df;
+  font-size: 0.67rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waiver-watch-player small { grid-column: 2; color: #819486; font-size: 0.57rem; }
+
+.draft-complete-card { padding: 2px 0; }
+.draft-complete-kicker { color: #8fd4a0; font-size: 0.61rem; font-weight: 900; letter-spacing: 0.12em; }
+.draft-complete-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; }
+.draft-complete-heading div { display: flex; flex-direction: column; gap: 2px; }
+.draft-complete-heading strong { color: #eef5ef; font-size: 0.9rem; }
+.draft-complete-heading span { color: #91aa96; font-size: 0.65rem; }
+.draft-complete-heading button,
+.summary-final-report-btn { cursor: pointer; }
+.draft-complete-heading button { padding: 7px 10px; border: 1px solid rgba(143,212,160,.4); border-radius: 8px; color: #e6f0e8; background: rgba(95,168,124,.16); font-size: .67rem; font-weight: 900; }
+.draft-complete-waivers { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); }
+.draft-complete-waivers > b { color: #a8d5f5; font-size: .7rem; }
+.draft-complete-waivers > small { margin-left: 6px; color: #819486; font-size: .59rem; }
+.draft-complete-waivers .waiver-watch-list { margin-top: 7px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+body.draft-complete-mode #board-pressure-widget { display: none; }
+
 .final-summary-note {
   margin-top: 12px;
   color: #819486;
@@ -1383,6 +1512,16 @@ body.final-summary-open {
 
   .final-feedback-grid {
     grid-template-columns: 1fr;
+  }
+
+  .waiver-watch-list,
+  .draft-complete-waivers .waiver-watch-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .draft-complete-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

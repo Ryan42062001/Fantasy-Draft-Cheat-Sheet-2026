@@ -4,6 +4,7 @@ var FANTASYPROS_2026_DATASET_META = {
     "FantasyPros_2026_Draft_ALL_Rankings.csv",
     "FantasyPros_2026_Overall_ADP_Rankings.csv"
   ],
+  "sourceSnapshotDate": "2026-08-21",
   "ecrPlayers": 520,
   "adpOnlyPlayers": 197,
   "totalPlayers": 717,

@@ -227,3 +227,16 @@ Do not call the migration complete until all of these are true:
 - [x] Simplify Recommended Pick into a compact primary decision with expandable strategy details
 - [x] Combine position availability and tier/scarcity alerts into one Board Pressure widget
 - [x] Remove developer test controls from the visible draft-day interface
+
+## Draft-day decision polish
+- [x] Replace full-pool availability counts with ECR-relevant depth, best available, tier-cliff distance, and ADP-based next-pick survival
+- [x] Add round-aware roster guidance for starter timing, FLEX, K/DST endgame planning, and crowded bye weeks
+- [x] Add a true draft-complete mode that retires live pressure/recommendation work and surfaces the final report plus an ECR-backed waiver watch
+- [x] Show the FantasyPros source snapshot date and freshness status in the live header
+
+Completion evidence (2026-08-22):
+- Clean draft UI: 717 rows, visible 2026-08-21 FantasyPros freshness badge, decision-focused Board Pressure, no console errors
+- Mid-draft UI: roster plan renders in My Draft Summary and FLEX remains visible
+- Draft-complete UI: Board Pressure hidden, live recommendation replaced, final report opens with six waiver-watch players
+- Responsive audit: 390 × 844 viewport, no horizontal page overflow
+- Regression suites: 152/152 draft engine + 5/5 turn package + 8/8 recommendation explanations = 165/165
