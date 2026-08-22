@@ -26634,15 +26634,24 @@ function testDraftPlayer(playerName) {
   var context =
     state.context;
 
-  var player =
-    scored.find(function(candidate) {
+var targetName =
+  canonicalExpertPlayerName(
+    playerName
+  );
 
-      return candidate &&
-        candidate.name &&
-        candidate.name.toLowerCase() ===
-          String(playerName).toLowerCase();
 
-    });
+var player =
+  scored.find(function(candidate) {
+
+    return (
+      candidate &&
+      candidate.name &&
+      canonicalExpertPlayerName(
+        candidate.name
+      ) === targetName
+    );
+
+  });
 
 
   if (!player) {
