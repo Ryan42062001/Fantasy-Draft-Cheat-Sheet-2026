@@ -9,6 +9,7 @@ var MY_DRAFT_SLOT = 10;
 var TOTAL_ROUNDS = 16;
 var ROSTER_SLOTS = {QB:1, RB:2, WR:2, TE:1, FLEX:1, DST:1, K:1};
 var BENCH_SLOTS = {QB:0, RB:2, WR:5, TE:0, K:0, DST:0};
+var RECOMMENDATION_POSITION_CAPS = {QB:1, TE:1};
 var AUTOSAVE_KEY = 'draft-state-v1';
 var AUTOSAVE_ENABLED_KEY = 'draft-autosave-enabled-v1';
 var FINAL_SUMMARY_SHOWN_KEY = 'draft-final-summary-shown-v1';
@@ -56,7 +57,7 @@ function loadDeveloperTools() {
   if (!developerToolsPromise) {
     developerToolsPromise = new Promise(function(resolve, reject) {
       var script = document.createElement('script');
-      script.src = 'developer-tools.js?v=20260822-5';
+      script.src = 'developer-tools.js?v=20260822-6';
       script.onload = resolve;
       script.onerror = function() {
         developerToolsPromise = null;
@@ -13915,6 +13916,14 @@ function hasAuthoritativeEcr(player) {
   return player.source !== 'ADP_ONLY' && Number(player.rank) > 0;
 }
 
+function isRecommendationRosterEligible(player, rosterCounts) {
+  if (!player) return false;
+  var position = player.position || player.pos || '';
+  var cap = Number(RECOMMENDATION_POSITION_CAPS[position]);
+  if (!Number.isFinite(cap)) return true;
+  return (Number(rosterCounts && rosterCounts[position]) || 0) < cap;
+}
+
 
 /*
  * Get current league settings.
@@ -21525,6 +21534,7 @@ function generateDecisionExplanation(result, comparisonResult) {
 
 
 
+
   /*
    * -------------------------------------------------------
    * 2. OVERALL RANK
@@ -23142,6 +23152,9 @@ function buildLiveDraftDebugState() {
       return player && player.available;
     });
 
+  var rosterState = getDraftAssistantRosterState();
+  var rosterCounts = rosterState.counts;
+
 
   var vorpResult =
     calculateAllFantasyVorp(players);
@@ -23240,6 +23253,9 @@ opponentThreatCache:
     rosterNeeds:
   rosterNeeds,
 
+    rosterCounts:
+      rosterCounts,
+
     strategy:
       draftStrategy,
 
@@ -23263,7 +23279,8 @@ opponentThreatCache:
 
         return profile &&
           profile.player &&
-          profile.player.available;
+          profile.player.available &&
+          isRecommendationRosterEligible(profile.player, rosterCounts);
 
       })
       .map(function(profile) {

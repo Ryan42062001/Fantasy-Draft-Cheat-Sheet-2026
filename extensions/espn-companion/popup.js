@@ -22,7 +22,7 @@ function render(status) {
   setOnline('espn-dot', espn.connected && espn.draftPage);
   setOnline('war-room-dot', warRoom.connected);
   document.getElementById('espn-status').textContent = espn.draftPage
-    ? 'Draft detected · ' + (espn.method === 'api' ? 'Direct' : 'Screen')
+    ? 'Draft detected · ' + (espn.method === 'api' ? 'Direct' : espn.method === 'hybrid' ? 'Hybrid' : 'Screen')
     : espn.connected ? 'ESPN open' : 'Not connected';
   document.getElementById('war-room-status').textContent = warRoom.connected
     ? 'Connected'
@@ -30,6 +30,17 @@ function render(status) {
   document.getElementById('captured-count').textContent = picks.length;
   document.getElementById('applied-count').textContent = Number(warRoom.applied) || 0;
   document.getElementById('unmatched-count').textContent = Number(warRoom.unmatched) || 0;
+  var directParts = [];
+  if (espn.apiHttpStatus) directParts.push('HTTP ' + espn.apiHttpStatus);
+  if (espn.apiRole) directParts.push('role ' + espn.apiRole);
+  if (espn.apiAvailable) {
+    directParts.push((Number(espn.apiResolved) || 0) + '/' + (Number(espn.apiRawCount) || 0) + ' picks resolved');
+    if (Number(espn.apiUnresolved) > 0) directParts.push(espn.apiUnresolved + ' supplemented from screen');
+  }
+  if (espn.apiError) directParts.push(espn.apiError);
+  document.getElementById('direct-status').textContent = directParts.length
+    ? directParts.join(' · ')
+    : 'No structured response received yet.';
   var draftSlot = Number(config.draftSlot) || 1;
   var minePicks = picks.filter(function(pick) {
     return typeof pick.isMine === 'boolean'
@@ -57,9 +68,18 @@ function render(status) {
     message.textContent = Number(espn.visibleCandidates) > 0
       ? 'Draft detected, but no completed pick rows parsed yet. Press Rescan after a pick is made.'
       : 'Draft detected, but its pick log was not visible to the reader. Press Rescan or refresh ESPN once.';
+  } else if (
+    espn.method !== 'api' &&
+    Number(espn.expectedCompleted) > 0 &&
+    picks.length < Number(espn.expectedCompleted)
+  ) {
+    message.textContent = 'Screen fallback is behind (' + picks.length + ' of ' +
+      Number(espn.expectedCompleted) + ' completed picks). Open ESPN’s Board tab and press Rescan.';
   } else {
     message.textContent = espn.method === 'api'
       ? 'Direct ESPN data connected. Team ownership and pick numbers come from ESPN.'
+      : espn.method === 'hybrid'
+        ? 'Hybrid sync active. ESPN supplies pick ownership and numbering; the visible table fills unresolved names.'
       : 'Screen fallback active. Open ESPN’s Board tab once if any completed picks are missing.';
   }
 }

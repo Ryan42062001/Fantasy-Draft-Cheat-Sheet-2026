@@ -111,7 +111,12 @@
       var teamId = rawPick.teamId == null ? null : String(rawPick.teamId);
 
       if (!playerName || !position) {
-        unresolved.push({overallPick: overallPick, playerId: playerId == null ? null : String(playerId)});
+        unresolved.push({
+          overallPick: overallPick,
+          playerId: playerId == null ? null : String(playerId),
+          teamId: teamId,
+          isMine: Boolean(context && context.teamId && teamId === String(context.teamId))
+        });
         return;
       }
 
@@ -129,6 +134,9 @@
     picks.sort(function(a, b) { return a.overallPick - b.overallPick; });
     return {
       rawCount: rawPicks.length,
+      rawPickNumbers: rawPicks.map(function(pick) {
+        return Number(pick.overallPickNumber || pick.overallPick || pick.pickNumber);
+      }),
       feedPresent: collection.present,
       complete: collection.present && unresolved.length === 0,
       picks: picks,
