@@ -102,6 +102,13 @@ The project already has working logic around:
 
 Autosave/load architecture was previously fixed so the authoritative dataset rebuilds the board structure BEFORE `loadState()` restores drafted/taken state. Saved legacy board ordering should not override the authoritative expert/FantasyPros order.
 
+## Current code organization
+- `index.html` contains the UI and eight tier containers, but no static player rows; `script.js` constructs the authoritative board before `loadState()`.
+- `script.js` contains production board, persistence, recommendation, and live-state logic.
+- `developer-tools.js` contains regression tests and draft simulations and is loaded on demand from the Developer panel.
+- Normal scoring diagnostics are quiet by default. Set `DEBUG_DRAFT_SCORING = true` when detailed console traces are needed.
+- Board construction indexes existing rows once by canonical name and appends players in tier-level document fragments; preserve this batched path when changing initialization.
+
 ## Important past bugs / lessons
 1. A previous custom dataset badly mis-ranked players (example: Alvin Kamara was around #57). Do not reuse or trust that custom board.
 2. Structural DOM changes originally did not survive refresh because autosave only stored state/order, not row definitions. The current architecture rebuilds the authoritative board on startup before restoring saved draft state.
