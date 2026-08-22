@@ -252,6 +252,9 @@ Verification (2026-08-22):
 - [x] Store recommendation audit observations per draft session without changing weights automatically
 - [x] Exclude noisy decision windows with at least 35% major ECR reaches from calibration summaries
 - [x] Require at least 10 eligible resolved decisions before treating audit survival rates as a useful sample
+- [x] Treat a recommended player selected at the decision pick as censored instead of a survival failure
+- [x] Exclude audit outcomes with less than 80% intervening-pick coverage
+- [x] Deduplicate recommendation observations by pick and player when the displayed action changes
 
 Completion evidence (2026-08-22):
 - Canonical regressions: 152/152 draft engine + 5/5 turn package + 8/8 recommendation explanations = 165/165
@@ -259,6 +262,7 @@ Completion evidence (2026-08-22):
 - Recommendation simulations: early / middle / turn / late = 4/4 clean with finite factor scores and no decision inconsistencies
 - Post-budget verification: calculation sanity 14/14, threshold boundaries 8/8, roadmap scenarios 4/4, and canonical regressions 165/165
 - Audit verification: session isolation retained; noisy observations excluded; 50% observed survival correctly calculated from one success and one failure while the noisy fixture is ignored
+- Audit edge verification: selected-now, incomplete, noisy, observed-failure, and action-update/deduplication fixtures all pass
 
 ## Draft report UX
 - [x] Combine My Team and Draft Summary into one My Draft panel with Summary and Lineup views

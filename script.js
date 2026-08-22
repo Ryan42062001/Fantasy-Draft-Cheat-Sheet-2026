@@ -10342,7 +10342,8 @@ function getCompactRecommendationReason(explanation, survival) {
 function buildCompactFactorHtml(label, value) {
   var score = Math.round(clampRecommendationFactor(value));
   return '<div class="recommendation-factor"><span><b>' + escapeSummaryHtml(label) + '</b><em>' + score + '</em></span>' +
-    '<div class="recommendation-factor-track"><i style="width:' + score + '%"></i></div></div>';
+    '<div class="recommendation-factor-track" role="progressbar" aria-label="' + escapeSummaryHtml(label) +
+    '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + score + '"><i style="width:' + score + '%"></i></div></div>';
 }
 
 function renderCompactRecommendationCard(element, recommendation, explanation, primary, state) {
@@ -10402,6 +10403,33 @@ function renderCompactRecommendationCard(element, recommendation, explanation, p
     '</summary>' + details + '</details>';
 }
 
+function classifyRecommendationAuditOutcome(entry, draftedAt, intervening) {
+  intervening = Array.isArray(intervening) ? intervening : [];
+  var expectedIntervening = Math.max(0, Number(entry.nextPick) - Number(entry.decisionPick) - 1);
+  var coverage = expectedIntervening === 0 ? 1 : Math.min(1, intervening.length / expectedIntervening);
+  var majorReaches = intervening.filter(function(item) {
+    return item.ecr != null && item.ecr - item.pick >= 30;
+  }).length;
+  var reachRatio = intervening.length ? majorReaches / intervening.length : 0;
+  var selectedNow = draftedAt === Number(entry.decisionPick);
+  var incomplete = coverage < 0.8;
+  var noisyDraft = !incomplete && intervening.length >= 3 && reachRatio >= 0.35;
+  var survived = selectedNow || incomplete ? null : draftedAt == null || draftedAt >= Number(entry.nextPick);
+  return {
+    survived: survived,
+    outcome: selectedNow ? 'SELECTED_NOW' : incomplete ? 'INCOMPLETE' : survived ? 'SURVIVED' : 'DRAFTED_BEFORE_NEXT',
+    actualDraftPick: draftedAt,
+    expectedInterveningPicks: expectedIntervening,
+    interveningPicks: intervening.length,
+    pickCoverage: Number(coverage.toFixed(3)),
+    majorReachCount: majorReaches,
+    noisyDraft: noisyDraft,
+    incomplete: incomplete,
+    censored: selectedNow,
+    calibrationEligible: !selectedNow && !incomplete && !noisyDraft
+  };
+}
+
 function updateRecommendationAudit(recommendation, primary, state) {
   if (!recommendation || !primary || !state || !state.context) return;
   var decisionPick = Number(state.context.currentPick) || 0;
@@ -10418,22 +10446,23 @@ function updateRecommendationAudit(recommendation, primary, state) {
         ecr: getDraftRowNumber(candidateRow, 'data-ecr')
       };
     }).filter(function(item) { return item.pick > entry.decisionPick && item.pick < entry.nextPick; });
-    var majorReaches = intervening.filter(function(item) {
-      return item.ecr != null && item.ecr - item.pick >= 30;
-    }).length;
-    var reachRatio = intervening.length ? majorReaches / intervening.length : 0;
+    var classification = classifyRecommendationAuditOutcome(entry, draftedAt, intervening);
     entry.resolved = true;
-    entry.survived = draftedAt == null || draftedAt >= entry.nextPick;
-    entry.actualDraftPick = draftedAt;
-    entry.interveningPicks = intervening.length;
-    entry.majorReachCount = majorReaches;
-    entry.noisyDraft = intervening.length >= 3 && reachRatio >= 0.35;
-    entry.calibrationEligible = !entry.noisyDraft;
+    Object.keys(classification).forEach(function(key) { entry[key] = classification[key]; });
     entry.resolvedAt = new Date().toISOString();
   });
 
-  var key = decisionPick + '|' + canonicalExpertPlayerName(primary.name) + '|' + recommendation.recommendation;
-  if (!recommendationAudit.some(function(entry) { return entry.key === key; })) {
+  var key = decisionPick + '|' + canonicalExpertPlayerName(primary.name);
+  var existingEntry = recommendationAudit.find(function(entry) { return entry.key === key; });
+  if (existingEntry) {
+    existingEntry.action = recommendation.recommendation;
+    existingEntry.scoreGap = Number(recommendation.scoreGap) || 0;
+    existingEntry.confidence = Number(recommendation.confidenceScore) || 0;
+    existingEntry.baseScore = Number(primary.baseScore) || 0;
+    existingEntry.strategyAdjustment = Number(primary.cappedStrategyAdjustment) || 0;
+    existingEntry.guardrailAdjustment = Number(primary.guardrailAdjustment) || 0;
+    existingEntry.updatedAt = new Date().toISOString();
+  } else {
     recommendationAudit.push({
       key: key,
       recordedAt: new Date().toISOString(),
@@ -10454,6 +10483,7 @@ function updateRecommendationAudit(recommendation, primary, state) {
     });
     if (recommendationAudit.length > 200) recommendationAudit = recommendationAudit.slice(-200);
   }
+  scheduleSave();
 }
 
 function getRecommendationAuditSummary() {
@@ -10463,7 +10493,9 @@ function getRecommendationAuditSummary() {
     total: recommendationAudit.length,
     resolved: resolved.length,
     calibrationEligible: eligible.length,
-    noisyDraftDecisions: resolved.length - eligible.length,
+    noisyDraftDecisions: resolved.filter(function(entry) { return entry.noisyDraft; }).length,
+    incompleteDecisions: resolved.filter(function(entry) { return entry.incomplete; }).length,
+    censoredDecisions: resolved.filter(function(entry) { return entry.censored; }).length,
     observedSurvivalRate: eligible.length
       ? Math.round(eligible.filter(function(entry) { return entry.survived; }).length / eligible.length * 100)
       : null,
@@ -18987,8 +19019,8 @@ var cappedStrategyAdjustment = Math.max(
   Number(adjustmentBudget.min) || -15,
   Math.min(Number(adjustmentBudget.max) || 15, rawStrategyAdjustment)
 );
-/* Hard roster guardrails remain outside the opportunity budget. They can
- * reject roster-breaking choices but cannot promote a lower-value player. */
+/* Hard roster guardrails remain outside the opportunity budget. They may
+ * decisively promote required endgame positions or reject roster-breaking choices. */
 var guardrailAdjustment = endgameRosterRequirementScore + mandatoryEndgameAdjustment + rosterSaturationPenalty;
 var finalScore = baseScore + cappedStrategyAdjustment + guardrailAdjustment;
 
