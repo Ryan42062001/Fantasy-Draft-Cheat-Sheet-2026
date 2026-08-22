@@ -56,7 +56,7 @@ function loadDeveloperTools() {
   if (!developerToolsPromise) {
     developerToolsPromise = new Promise(function(resolve, reject) {
       var script = document.createElement('script');
-      script.src = 'developer-tools.js?v=20260822-4';
+      script.src = 'developer-tools.js?v=20260822-5';
       script.onload = resolve;
       script.onerror = function() {
         developerToolsPromise = null;
@@ -7944,6 +7944,9 @@ function sanitizeEspnDraftPick(rawPick, totalPicks) {
     playerName: playerName,
     position: normalizeEspnSyncPosition(rawPick.position),
     teamSlot: Number.isInteger(teamSlot) && teamSlot > 0 ? teamSlot : null,
+    teamId: rawPick.teamId == null ? null : String(rawPick.teamId).slice(0, 40),
+    isMine: typeof rawPick.isMine === 'boolean' ? rawPick.isMine : null,
+    method: String(rawPick.method || 'dom').slice(0, 12),
     espnPlayerId: rawPick.espnPlayerId == null
       ? null
       : String(rawPick.espnPlayerId).slice(0, 40)
@@ -8033,7 +8036,7 @@ function applyEspnDraftSnapshot(snapshot) {
     draftSlot: settings.draftSlot,
     teams: settings.teams,
     picks: picks.map(function(pick) {
-      return [pick.overallPick, pick.playerName, pick.position, pick.teamSlot];
+      return [pick.overallPick, pick.playerName, pick.position, pick.teamSlot, pick.teamId, pick.isMine];
     })
   });
 
@@ -8046,8 +8049,12 @@ function applyEspnDraftSnapshot(snapshot) {
     row.classList.remove('drafted-mine', 'drafted-other');
     row.removeAttribute('data-pick');
     row.removeAttribute('data-team-slot');
+    row.removeAttribute('data-team-id');
+    row.removeAttribute('data-sync-method');
     row.removeAttribute('data-sync-source');
     row.removeAttribute('data-espn-player-id');
+    row.removeAttribute('data-team-id');
+    row.removeAttribute('data-sync-method');
   });
 
   var applied = 0;
@@ -8068,10 +8075,14 @@ function applyEspnDraftSnapshot(snapshot) {
 
     usedRows.add(row);
     row.classList.remove('drafted-mine', 'drafted-other');
-    var isMine = Number(pick.teamSlot) === Number(settings.draftSlot);
+    var isMine = typeof pick.isMine === 'boolean'
+      ? pick.isMine
+      : Number(pick.teamSlot) === Number(settings.draftSlot);
     row.classList.add(isMine ? 'drafted-mine' : 'drafted-other');
     row.setAttribute('data-pick', String(pick.overallPick));
     if (pick.teamSlot) row.setAttribute('data-team-slot', String(pick.teamSlot));
+    if (pick.teamId) row.setAttribute('data-team-id', pick.teamId);
+    row.setAttribute('data-sync-method', pick.method);
     row.setAttribute('data-sync-source', 'espn');
     if (pick.espnPlayerId) row.setAttribute('data-espn-player-id', pick.espnPlayerId);
     applied++;
@@ -8186,6 +8197,8 @@ function toggleDraft(row) {
 
     row.removeAttribute('data-sync-source');
     row.removeAttribute('data-espn-player-id');
+    row.removeAttribute('data-team-id');
+    row.removeAttribute('data-sync-method');
 
 
   /*
@@ -8200,6 +8213,8 @@ function toggleDraft(row) {
 
     row.removeAttribute('data-sync-source');
     row.removeAttribute('data-espn-player-id');
+    row.removeAttribute('data-team-id');
+    row.removeAttribute('data-sync-method');
 
     var draftState =
       getDraftAssistantState();
@@ -8280,6 +8295,8 @@ function resetBoard(){
     row.removeAttribute('data-team-slot');
     row.removeAttribute('data-sync-source');
     row.removeAttribute('data-espn-player-id');
+    row.removeAttribute('data-team-id');
+    row.removeAttribute('data-sync-method');
   });
   try { localStorage.removeItem(FINAL_SUMMARY_SHOWN_KEY); } catch(e) {}
   closeFinalDraftSummary();
@@ -21502,6 +21519,7 @@ function generateDecisionExplanation(result, comparisonResult) {
       'Lower player tier'
 );
 }
+
 
 
 

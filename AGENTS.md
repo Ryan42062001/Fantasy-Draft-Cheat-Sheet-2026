@@ -264,14 +264,16 @@ Completion evidence (2026-08-22):
 - [x] Build a narrowly permissioned Manifest V3 companion package under `extensions/espn-companion`
 - [x] Add connection health, captured/applied/unmatched counts, rescan, and guarded reset controls
 - [x] Add parser, manifest, and website reconciliation regression suites
-- [ ] Validate ESPN DOM selectors in a live 2026 ESPN football mock draft
-- [ ] Add any display-name aliases or selector fixtures observed during the mock draft
+- [x] Prefer ESPN's structured draft-detail records and exact team IDs over inferred DOM ownership
+- [x] Retain Pick History and Board-table parsing as an automatic fallback
+- [x] Add the live ESPN display formats and Board selectors observed during mock-draft testing
+- [ ] Validate structured Direct mode and the Board fallback in a live 2026 ESPN football mock draft
 
 Current verification (2026-08-22):
 - Existing War Room regressions: 165/165
-- ESPN website reconciliation contract: 9/9
-- Extension parser, manifest, and ledger tests: 19/19
-- Companion 0.3.0 repairs first-run rescans for ESPN tabs opened before installation, scans embedded draft frames, invalidates pick-number ledgers when league size changes, and exposes the exact picks classified as Mine
+- ESPN website reconciliation contract: 10/10
+- Extension API, parser, manifest, and ledger tests: 23/23
+- Companion 0.4.0 uses structured ESPN pick/team IDs when available, retains Board/history parsing as fallback, invalidates pick-number ledgers when league size changes, and exposes the exact picks classified as Mine
 - Live ESPN mock-draft validation remains required because ESPN does not publish a stable draft-room DOM contract
 
 Completion evidence (2026-08-22):

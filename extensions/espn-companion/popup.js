@@ -22,7 +22,7 @@ function render(status) {
   setOnline('espn-dot', espn.connected && espn.draftPage);
   setOnline('war-room-dot', warRoom.connected);
   document.getElementById('espn-status').textContent = espn.draftPage
-    ? 'Draft detected'
+    ? 'Draft detected · ' + (espn.method === 'api' ? 'Direct' : 'Screen')
     : espn.connected ? 'ESPN open' : 'Not connected';
   document.getElementById('war-room-status').textContent = warRoom.connected
     ? 'Connected'
@@ -32,7 +32,9 @@ function render(status) {
   document.getElementById('unmatched-count').textContent = Number(warRoom.unmatched) || 0;
   var draftSlot = Number(config.draftSlot) || 1;
   var minePicks = picks.filter(function(pick) {
-    return Number(pick.teamSlot) === draftSlot;
+    return typeof pick.isMine === 'boolean'
+      ? pick.isMine
+      : Number(pick.teamSlot) === draftSlot;
   });
   document.getElementById('mine-audit').textContent = minePicks.length
     ? 'Marked Mine: ' + minePicks.slice(-4).map(function(pick) {
@@ -56,7 +58,9 @@ function render(status) {
       ? 'Draft detected, but no completed pick rows parsed yet. Press Rescan after a pick is made.'
       : 'Draft detected, but its pick log was not visible to the reader. Press Rescan or refresh ESPN once.';
   } else {
-    message.textContent = 'Connected. New ESPN picks will be reconciled automatically.';
+    message.textContent = espn.method === 'api'
+      ? 'Direct ESPN data connected. Team ownership and pick numbers come from ESPN.'
+      : 'Screen fallback active. Open ESPN’s Board tab once if any completed picks are missing.';
   }
 }
 

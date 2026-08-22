@@ -153,6 +153,36 @@
     return result;
   }
 
+  function scanPlayerDirectory(documentObject) {
+    var directory = {};
+    if (!documentObject || !documentObject.querySelectorAll) return directory;
+    var nodes = [];
+    try {
+      nodes = Array.prototype.slice.call(documentObject.querySelectorAll(
+        '[data-player-id], [data-athlete-id], a[href*="/id/"]'
+      ));
+    } catch (error) {}
+
+    nodes.slice(0, 5000).forEach(function(node) {
+      var candidate = node;
+      var playerId = parseEspnPlayerId(readAttributes(node), node.getAttribute && node.getAttribute('href'));
+      if (!playerId) return;
+      for (var depth = 0; candidate && depth < 4; depth++) {
+        var text = cleanText(candidate.innerText || candidate.textContent || candidate.getAttribute('aria-label'));
+        if (text && text.length <= 400) {
+          var name = parsePlayerName(text, readAttributes(candidate));
+          var position = parsePosition(text);
+          if (name && position) {
+            directory[String(playerId)] = {playerName: name, position: position};
+            break;
+          }
+        }
+        candidate = candidate.parentElement;
+      }
+    });
+    return directory;
+  }
+
   function scanDocument(documentObject, options) {
     return scanDocumentDetailed(documentObject, options).picks;
   }
@@ -171,6 +201,9 @@
       '[class*="pickHistory" i] > *',
       '[class*="draftHistory" i] > *',
       '[class*="draftBoard" i] [class*="pick" i]',
+      '[class*="draft-board" i] [class*="cell" i]',
+      '[data-testid*="draft-board" i] [role="gridcell"]',
+      '[aria-label*="round" i][aria-label*="pick" i]',
       '[class*="pick-history" i] > *',
       '[class*="draft-history" i] > *',
       '[class*="draft-results" i] tr',
@@ -231,6 +264,7 @@
     parseOverallPick: parseOverallPick,
     parsePlayerName: parsePlayerName,
     parsePickText: parsePickText,
+    scanPlayerDirectory: scanPlayerDirectory,
     scanDocument: scanDocument,
     scanDocumentDetailed: scanDocumentDetailed
   };

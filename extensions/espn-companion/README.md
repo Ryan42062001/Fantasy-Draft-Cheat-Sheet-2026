@@ -4,9 +4,9 @@ Manifest V3 Chrome extension that reads the visible ESPN fantasy-football draft 
 
 ## Current status
 
-This is a testable first version. The War Room bridge, persistence, popup, draft-slot mapping, name reconciliation, and parser fixtures are implemented. ESPN changes its draft-room markup without publishing an integration contract, so the DOM adapter must be validated in an ESPN mock draft before relying on it for a real draft.
+The companion uses ESPN's structured draft-detail response as its primary source and the visible Pick History/Board as a fallback. The War Room bridge, persistence, popup, exact ESPN team-ID ownership, name reconciliation, and parser fixtures are implemented. Live mock validation is still required before relying on it for a real draft.
 
-The extension does **not** read or store ESPN passwords, cookies, or authentication tokens. It only reads draft information rendered in the ESPN tab.
+The extension does **not** read or store ESPN passwords, cookies, or authentication tokens. The browser attaches the existing ESPN session to a narrowly scoped draft-detail request, and the extension stores only normalized completed picks.
 
 ## Install locally
 
@@ -21,15 +21,15 @@ The extension does **not** read or store ESPN passwords, cookies, or authenticat
 6. Open an ESPN fantasy-football mock or live draft in another Chrome tab.
 7. Open the extension popup. Confirm that both ESPN and The War Room show as connected.
 8. Press **Rescan ESPN** after the draft room finishes loading.
-9. After any extension code update, return to `chrome://extensions` and press **Reload** on the companion card. Version 0.3.0 can inject its reader into an ESPN tab that was already open and automatically rebuilds picks when league size changes.
+9. After any extension code update, return to `chrome://extensions` and press **Reload** on the companion card. Version 0.4.0 prefers direct ESPN draft data and can rebuild from the visible Board when direct access is unavailable.
 
 Chrome displays an extension popup over the upper-right corner of the current page. It is not part of ESPN and closes as soon as you click the draft room. Use **Open controls in a tab** if you want status to stay visible without covering ESPN. The extension-icon badge shows the captured-pick count while the popup is closed.
 
 ## How synchronization works
 
 ```text
-ESPN draft DOM
-  -> espn-content.js
+ESPN draft-detail response (primary) or Pick History/Board DOM (fallback)
+  -> espn-api.js / espn-content.js
   -> background.js (validated, deduplicated pick ledger)
   -> war-room-content.js
   -> window message contract
@@ -38,8 +38,8 @@ ESPN draft DOM
 ```
 
 - Overall picks are deduplicated and stored by the extension.
-- Snake-draft team slots are derived from overall pick and league size.
-- The configured War Room draft slot determines `Mine` versus `Taken`.
+- Direct mode uses ESPN's actual team ID to determine `Mine` versus `Taken`.
+- Screen fallback derives snake-draft team slots from overall pick and league size.
 - The popup lists the exact captured pick numbers and players currently classified as `Mine`.
 - The website reconciles the complete ESPN snapshot instead of blindly replaying clicks.
 - FantasyPros canonical-name matching is used first, with suffix-tolerant and DST matching fallbacks.
@@ -49,6 +49,7 @@ ESPN draft DOM
 
 - Keep manual marking available as a fallback.
 - Verify the Captured, Applied, and Unmatched counts after the first few mock-draft picks.
+- Prefer a popup status of **Draft detected · Direct**. If it says **Screen**, open ESPN's Board tab once and press Rescan.
 - If Unmatched is nonzero, manually mark that player and record the exact ESPN display name so an alias or selector fixture can be added.
 - Use **Clear captured picks** only before starting a new mock or real draft.
 
