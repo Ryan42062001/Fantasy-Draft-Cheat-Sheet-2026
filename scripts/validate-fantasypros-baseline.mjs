@@ -11,8 +11,14 @@ const context = {};
 vm.runInNewContext(fs.readFileSync(runtimePath, 'utf8'), context);
 const meta = context.FANTASYPROS_2026_DATASET_META;
 const files = ['FantasyPros_2026_Draft_ALL_Rankings.csv', 'FantasyPros_2026_Overall_ADP_Rankings.csv'];
-const hashes = Object.fromEntries(files.map(name => [name, crypto.createHash('sha256').update(fs.readFileSync(path.join(root, 'data', name))).digest('hex')]));
-hashes['fantasypros-2026-data.js'] = crypto.createHash('sha256').update(fs.readFileSync(runtimePath)).digest('hex');
+
+function normalizedTextHash(filePath) {
+  const normalized = fs.readFileSync(filePath, 'utf8').replace(/\r\n?/g, '\n');
+  return crypto.createHash('sha256').update(normalized, 'utf8').digest('hex');
+}
+
+const hashes = Object.fromEntries(files.map(name => [name, normalizedTextHash(path.join(root, 'data', name))]));
+hashes['fantasypros-2026-data.js'] = normalizedTextHash(runtimePath);
 const current = {sourceSnapshotDate:meta.sourceSnapshotDate, ecrPlayers:meta.ecrPlayers, adpOnlyPlayers:meta.adpOnlyPlayers, totalPlayers:meta.totalPlayers, positionCounts:meta.positionCounts, duplicateCanonicalNames:meta.duplicateCanonicalNames, files:hashes};
 if (process.argv.includes('--accept')) {
   fs.writeFileSync(baselinePath, JSON.stringify(current, null, 2) + '\n');
