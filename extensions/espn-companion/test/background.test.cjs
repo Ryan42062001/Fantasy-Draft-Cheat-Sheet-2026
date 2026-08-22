@@ -82,3 +82,58 @@ test('opening a different ESPN draft clears the previous mock ledger', async () 
   assert.equal(context.state.draftKey, '2026:222');
   assert.equal(context.getPicks().length, 0);
 });
+
+test('partial structured data preserves screen names only for unresolved pick slots', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.picksByNumber = {
+    '1': {overallPick: 1, playerName: 'Wrong Screen Name', position: 'WR', method: 'dom'},
+    '2': {overallPick: 2, playerName: 'Screen Resolved Name', position: 'RB', method: 'dom'},
+    '3': {overallPick: 3, playerName: 'Stale Pick', position: 'WR', method: 'dom'}
+  };
+  context.reconcileStructuredPicks(
+    [{overallPick: 1, playerName: 'Direct Name', position: 'WR', teamId: '7', isMine: false, method: 'api'}],
+    [1, 2],
+    [{overallPick: 2, playerId: '99', teamId: '14', isMine: true}],
+    false
+  );
+  const picks = context.getPicks();
+  assert.equal(context.state.espn.method, 'hybrid');
+  assert.deepEqual(context.state.espn.unresolvedPickNumbers, [2]);
+  assert.equal(context.state.espn.unresolvedPickMetadata['2'].teamId, '14');
+  assert.equal(context.state.espn.unresolvedPickMetadata['2'].isMine, true);
+  assert.equal(picks.length, 2);
+  assert.equal(picks[0].playerName, 'Direct Name');
+  assert.equal(picks[0].method, 'api');
+  assert.equal(picks[1].playerName, 'Screen Resolved Name');
+});
+
+test('hybrid name supplementation retains ESPN team ownership', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.espn.unresolvedPickNumbers = [2];
+  context.state.espn.unresolvedPickMetadata = {
+    '2': {teamId: '14', isMine: true}
+  };
+  context.mergeUnresolvedScreenPicks([
+    {overallPick: 1, playerName: 'Ignored Player', position: 'WR', isMine: false},
+    {overallPick: 2, playerName: 'Resolved Player', position: 'RB', isMine: null}
+  ]);
+  const picks = context.getPicks();
+  assert.equal(picks.length, 1);
+  assert.equal(picks[0].playerName, 'Resolved Player');
+  assert.equal(picks[0].teamId, '14');
+  assert.equal(picks[0].isMine, true);
+  assert.equal(picks[0].method, 'hybrid');
+});
+
+test('complete structured data replaces stale screen picks', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.picksByNumber = {
+    '1': {overallPick: 1, playerName: 'Stale Pick', position: 'WR', method: 'dom'}
+  };
+  context.reconcileStructuredPicks([], [], [], true);
+  assert.equal(context.state.espn.method, 'api');
+  assert.equal(context.getPicks().length, 0);
+});

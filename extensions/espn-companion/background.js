@@ -187,6 +187,16 @@ function activateDraft(url) {
     state.espn.visibleCaptured = 0;
     state.espn.structuredAt = null;
     state.espn.method = null;
+    state.espn.apiAvailable = false;
+    state.espn.apiComplete = false;
+    state.espn.apiHttpStatus = null;
+    state.espn.apiRole = null;
+    state.espn.apiRawCount = 0;
+    state.espn.apiResolved = 0;
+    state.espn.apiUnresolved = 0;
+    state.espn.apiError = null;
+    state.espn.unresolvedPickNumbers = [];
+    state.espn.unresolvedPickMetadata = {};
   }
   return changed;
 }
@@ -196,6 +206,54 @@ function replacePicks(picks, method) {
   mergePicks(picks);
   state.espn.method = method || 'api';
   state.espn.structuredAt = new Date().toISOString();
+}
+
+function reconcileStructuredPicks(picks, rawPickNumbers, unresolved, complete) {
+  var previous = state.picksByNumber;
+  var structured = {};
+  (Array.isArray(picks) ? picks : []).forEach(function(pick) {
+    structured[String(Number(pick.overallPick))] = pick;
+  });
+  var rawNumbers = (Array.isArray(rawPickNumbers) ? rawPickNumbers : [])
+    .map(Number)
+    .filter(function(number) { return Number.isInteger(number) && number > 0; });
+  var next = {};
+  rawNumbers.forEach(function(number) {
+    var key = String(number);
+    if (structured[key]) next[key] = structured[key];
+    else if (previous[key]) next[key] = previous[key];
+  });
+  state.picksByNumber = next;
+  mergePicks(picks);
+  state.espn.unresolvedPickNumbers = (Array.isArray(unresolved) ? unresolved : [])
+    .map(function(item) { return Number(item && item.overallPick); })
+    .filter(function(number) { return Number.isInteger(number) && number > 0; });
+  state.espn.unresolvedPickMetadata = {};
+  (Array.isArray(unresolved) ? unresolved : []).forEach(function(item) {
+    var number = Number(item && item.overallPick);
+    if (!Number.isInteger(number) || number < 1) return;
+    state.espn.unresolvedPickMetadata[String(number)] = {
+      teamId: item.teamId == null ? null : String(item.teamId),
+      isMine: typeof item.isMine === 'boolean' ? item.isMine : null
+    };
+  });
+  state.espn.method = complete ? 'api' : 'hybrid';
+  state.espn.structuredAt = new Date().toISOString();
+}
+
+function mergeUnresolvedScreenPicks(picks) {
+  var unresolvedNumbers = new Set(state.espn.unresolvedPickNumbers || []);
+  var unresolvedMetadata = state.espn.unresolvedPickMetadata || {};
+  mergePicks((Array.isArray(picks) ? picks : []).filter(function(pick) {
+    return unresolvedNumbers.has(Number(pick && pick.overallPick));
+  }).map(function(pick) {
+    var metadata = unresolvedMetadata[String(Number(pick.overallPick))] || {};
+    return Object.assign({}, pick, {
+      teamId: metadata.teamId == null ? pick.teamId : metadata.teamId,
+      isMine: typeof metadata.isMine === 'boolean' ? metadata.isMine : pick.isMine,
+      method: 'hybrid'
+    });
+  }));
 }
 
 function structuredFeedIsFresh() {
@@ -302,9 +360,13 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     if (message.type === 'ESPN_PICKS_FOUND') {
       activateDraft(message.url);
-      if (structuredFeedIsFresh()) return storageSave();
-      mergePicks(message.picks);
-      state.espn.method = 'dom';
+      if (structuredFeedIsFresh() && state.espn.method === 'api') return storageSave();
+      if (structuredFeedIsFresh() && state.espn.method === 'hybrid') {
+        mergeUnresolvedScreenPicks(message.picks);
+      } else {
+        mergePicks(message.picks);
+        state.espn.method = 'dom';
+      }
       state.espn.connected = true;
       state.espn.draftPage = true;
       state.espn.lastSeenAt = new Date().toISOString();
@@ -313,10 +375,16 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     if (message.type === 'ESPN_STRUCTURED_PICKS') {
       activateDraft(message.url);
-      replacePicks(message.picks, 'api');
+      reconcileStructuredPicks(
+        message.picks,
+        message.rawPickNumbers,
+        message.unresolved,
+        Boolean(message.complete)
+      );
       state.espn.connected = true;
       state.espn.draftPage = true;
       state.espn.apiAvailable = true;
+      state.espn.apiComplete = Boolean(message.complete);
       state.espn.apiRawCount = Number(message.rawCount) || getPicks().length;
       state.espn.lastSeenAt = new Date().toISOString();
       return storageSave().then(function() { return broadcastWarRoom(true); });
@@ -324,6 +392,9 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     if (message.type === 'ESPN_API_STATUS') {
       state.espn.apiAvailable = Boolean(message.available);
+      state.espn.apiComplete = Boolean(message.complete);
+      state.espn.apiHttpStatus = Number(message.httpStatus) || null;
+      state.espn.apiRole = message.role ? String(message.role).slice(0, 40) : null;
       state.espn.apiRawCount = Number(message.rawCount) || 0;
       state.espn.apiResolved = Number(message.resolved) || 0;
       state.espn.apiUnresolved = Number(message.unresolved) || 0;

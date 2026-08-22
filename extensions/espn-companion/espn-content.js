@@ -46,15 +46,27 @@
       cache: 'no-store',
       headers: {'Accept': 'application/json'}
     }).then(function(response) {
-      if (!response.ok) throw new Error('ESPN draft feed returned ' + response.status);
-      return response.json();
-    }).then(function(payload) {
+      var telemetry = {
+        httpStatus: response.status,
+        role: response.headers.get('X-Fantasy-Role') || null
+      };
+      if (!response.ok) {
+        throw new Error('ESPN draft feed returned HTTP ' + response.status +
+          (telemetry.role ? ' (role ' + telemetry.role + ')' : ''));
+      }
+      return response.json().then(function(payload) {
+        return {payload: payload, telemetry: telemetry};
+      });
+    }).then(function(result) {
+      var payload = result.payload;
       var initial = api.extractDraftSnapshot(payload, context, directory);
       if (initial.complete || !initial.unresolved.length) {
-        return {payload: payload, snapshot: initial};
+        return {payload: payload, snapshot: initial, telemetry: result.telemetry};
       }
       var unresolvedIds = initial.unresolved.map(function(item) { return item.playerId; }).filter(Boolean);
-      if (!unresolvedIds.length) return {payload: payload, snapshot: initial};
+      if (!unresolvedIds.length) {
+        return {payload: payload, snapshot: initial, telemetry: result.telemetry};
+      }
       return fetch(api.buildPlayerLookupUrl(context), {
         credentials: 'include',
         cache: 'no-store',
@@ -67,30 +79,54 @@
         return response.json();
       }).then(function(players) {
         var expandedDirectory = api.buildPlayerDirectory(players, initial.directory);
-        return {payload: payload, snapshot: api.extractDraftSnapshot(payload, context, expandedDirectory)};
-      }).catch(function() {
-        return {payload: payload, snapshot: initial};
+        return {
+          payload: payload,
+          snapshot: api.extractDraftSnapshot(payload, context, expandedDirectory),
+          telemetry: result.telemetry
+        };
+      }).catch(function(error) {
+        return {
+          payload: payload,
+          snapshot: initial,
+          telemetry: result.telemetry,
+          lookupError: error && error.message ? error.message : String(error)
+        };
       });
     }).then(function(resolved) {
       var snapshot = resolved.snapshot;
-      var signature = JSON.stringify(snapshot.picks);
-      if (snapshot.complete && (force || signature !== lastApiSignature)) {
+      var signature = JSON.stringify({
+        picks: snapshot.picks,
+        unresolved: snapshot.unresolved,
+        rawPickNumbers: snapshot.rawPickNumbers
+      });
+      if (snapshot.feedPresent && (force || signature !== lastApiSignature)) {
         lastApiSignature = signature;
         send({
           type: 'ESPN_STRUCTURED_PICKS',
           picks: snapshot.picks,
           rawCount: snapshot.rawCount,
+          rawPickNumbers: snapshot.rawPickNumbers,
+          unresolved: snapshot.unresolved,
+          complete: snapshot.complete,
           url: location.href
         });
       }
       send({
         type: 'ESPN_API_STATUS',
-        available: snapshot.complete,
+        available: snapshot.feedPresent,
+        complete: snapshot.complete,
+        httpStatus: resolved.telemetry.httpStatus,
+        role: resolved.telemetry.role,
         rawCount: snapshot.rawCount,
         resolved: snapshot.picks.length,
         unresolved: snapshot.unresolved.length,
+        error: !snapshot.feedPresent
+          ? 'ESPN response did not contain draftDetail.picks'
+          : resolved.lookupError || null,
         url: location.href
       });
+      // A partial structured feed remains useful, but the visible table must
+      // still run so it can supply names for only the unresolved pick slots.
       lastApiAvailable = snapshot.complete;
       return snapshot.complete;
     }).catch(function(error) {
