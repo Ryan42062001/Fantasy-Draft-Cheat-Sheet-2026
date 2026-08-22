@@ -7725,18 +7725,38 @@ function createExpertPlayerRow(player) {
     };
 
 
-  var displayName =
+var DISPLAY_NAME_OVERRIDES_2026 = {
+  'rj harvey': 'RJ Harvey',
+  'aj barner': 'AJ Barner',
+  'kc concepcion': 'KC Concepcion',
+  'j.j. mccarthy': 'J.J. McCarthy',
+  'c.j. stroud': 'C.J. Stroud',
+  'a.j. brown': 'A.J. Brown',
+  'd.j. moore': 'DJ Moore'
+};
+
+
+var normalizedDisplayName =
+  normalizeExpertPlayerName(
     player.name
-      .split(' ')
-      .map(function(word) {
+  );
 
-        return word
-          ? word.charAt(0).toUpperCase() +
-            word.slice(1)
-          : word;
 
-      })
-      .join(' ');
+var displayName =
+  DISPLAY_NAME_OVERRIDES_2026[
+    normalizedDisplayName
+  ] ||
+  player.name
+    .split(' ')
+    .map(function(word) {
+
+      return word
+        ? word.charAt(0).toUpperCase() +
+          word.slice(1)
+        : word;
+
+    })
+    .join(' ');
 
 
   row.innerHTML =
@@ -11042,6 +11062,26 @@ function addRoundMarkers(
         rk / LEAGUE_SIZE
       );
 
+    /*
+ * Players ranked beyond the league's actual
+ * draft length are depth/watch-list players,
+ * not a real draft round.
+ */
+if (round > TOTAL_ROUNDS) {
+
+  var oldTag =
+    rkCell.querySelector(
+      '.round-tag'
+    );
+
+  if (oldTag) {
+    oldTag.remove();
+  }
+
+  delete rkCell.dataset.roundMarker;
+
+  return;
+}
 
     /*
      * Store the current round on the cell so we avoid
