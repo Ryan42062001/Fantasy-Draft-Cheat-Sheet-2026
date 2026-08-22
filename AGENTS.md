@@ -105,7 +105,7 @@ Autosave/load architecture was previously fixed so the authoritative dataset reb
 ## Current code organization
 - `index.html` contains the UI and eight tier containers, but no static player rows; `script.js` constructs the authoritative board before `loadState()`.
 - `script.js` contains production board, persistence, recommendation, and live-state logic.
-- `developer-tools.js` contains regression tests and draft simulations and is loaded on demand from the Developer panel.
+- `developer-tools.js` contains regression tests and draft simulations and is loaded on demand from the console; developer controls are intentionally hidden from the draft-day UI.
 - Normal scoring diagnostics are quiet by default. Set `DEBUG_DRAFT_SCORING = true` when detailed console traces are needed.
 - Board construction indexes existing rows once by canonical name and appends players in tier-level document fragments; preserve this batched path when changing initialization.
 
@@ -224,3 +224,6 @@ Do not call the migration complete until all of these are true:
 - [x] Preserve the final-pick Taken-to-Mine interaction before opening the report
 - [x] Share one live engine-state calculation across scarcity and recommendation widgets
 - [x] Let player status paint immediately while draft intelligence refreshes in the background
+- [x] Simplify Recommended Pick into a compact primary decision with expandable strategy details
+- [x] Combine position availability and tier/scarcity alerts into one Board Pressure widget
+- [x] Remove developer test controls from the visible draft-day interface

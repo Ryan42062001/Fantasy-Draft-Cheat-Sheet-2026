@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="./favicon.ico" type="image/x-icon">
 <title>Fantasy Draft Cheat Sheet 2026</title>
-<link rel="stylesheet" href="style.css?v=20260822-5">
+<link rel="stylesheet" href="style.css?v=20260822-6">
 </head>
 <body>
 
@@ -159,48 +159,21 @@
     <div id="recommended-pick-text">Tap a player to start tracking your team, and I'll suggest your best pick here.</div>
   </div>
 
-<div class="widget-box" id="dashboard-widget" style="background: rgba(95, 168, 124, 0.1); border-color: #5fa87c;">
-
-  <details class="mobile-collapse-panel" id="position-scarcity-details">
-
-    <summary class="mobile-collapse-summary">
-
-  <span>📊 Position Scarcity</span>
-
-  <span class="mobile-collapse-arrow"></span>
-
-</summary>
-
-    <div class="mobile-collapse-content">
-
-      <div id="draft-day-dashboard" style="min-height: 80px;"></div>
-
+<div class="widget-box" id="board-pressure-widget">
+  <details class="board-pressure-details" id="board-pressure-details" open>
+    <summary class="board-pressure-summary">
+      <span><b>&#128202; Board Pressure</b><small>Position availability and tier alerts</small></span>
+      <span class="board-pressure-arrow">&#9662;</span>
+    </summary>
+    <div class="board-pressure-content">
+      <div id="draft-day-dashboard"></div>
+      <div id="scarcity-alerts"></div>
     </div>
-
   </details>
-
 </div>
 
-  <div id="scarcity-alerts"></div>
-
-  <details class="developer-test-panel" id="developer-test-panel">
-    <summary>Developer: Draft Engine Tests</summary>
-    <p>Runs isolated engine checks. Your tracked draft board is restored after every scenario.</p>
-    <div class="developer-test-actions">
-      <button type="button" onclick="runDeveloperTool('runDraftEngineTests')">Run full suite</button>
-      <button type="button" onclick="runDeveloperTool('runFantasyProsMigrationVerification')">Run migration verification</button>
-      <button type="button" onclick="runDeveloperTool('runFantasyProsRoadmapSimulations')">Run roadmap simulations</button>
-      <button type="button" onclick="runDeveloperTool('runDraftEngineScenario',['empty-roster'])">Empty roster</button>
-      <button type="button" onclick="runDeveloperTool('runDraftEngineScenario',['rb-need'])">RB need</button>
-      <button type="button" onclick="runDeveloperTool('runDraftEngineScenario',['wr-run'])">WR run</button>
-    </div>
-    <div class="developer-player-test">
-      <label for="developer-player-name">Player</label>
-      <input id="developer-player-name" type="text" placeholder="e.g. jahmyr gibbs">
-      <button type="button" onclick="runDeveloperTool('runDraftEnginePlayerTest')">Test player</button>
-    </div>
-    <pre id="developer-test-results" aria-live="polite">No tests run yet.</pre>
-  </details>
+  <!-- Regression tools remain available from the console but are not part of the draft-day UI. -->
+  <pre id="developer-test-results" hidden aria-hidden="true"></pre>
 
 
     <div class="table-wrap" id="big-board-wrap" style="max-height:none;">
@@ -352,7 +325,7 @@
 </div>
 
 <script src="fantasypros-2026-data.js"></script>
-<script src="script.js?v=20260822-5"></script>
+<script src="script.js?v=20260822-8"></script>
 
 </body>
 </html>

@@ -45,7 +45,7 @@ Fantasy-Draft-Cheat-Sheet-2026/
 - Side panels for My Team and Draft Summary
 - Toolbar with search, position filters, and controls
 - Tier navigation links
-- Widgets: Draft Position, Recommended Pick, Best Available, Position Scarcity
+- Widgets: Draft Position, compact Recommended Pick, and combined Board Pressure
 
 **script.js**
 - **State Management**: Track drafted players via CSS classes
@@ -55,7 +55,7 @@ Fantasy-Draft-Cheat-Sheet-2026/
 - **Calculations**: ECR-backed value/VORP and ADP-backed timing/survival
 
 **developer-tools.js**
-- Loaded only when a Developer-panel action is run
+- Loaded only when requested from the browser console
 - Contains the 165 regression assertions and realistic draft simulations
 
 **style.css**
@@ -73,7 +73,7 @@ Fantasy-Draft-Cheat-Sheet-2026/
 - ✅ **3-State Draft Tracking**: Available → Your Pick (green) → Other's Pick (gray)
 - ✅ **Auto-Draft Recommendations**: Top 3 picks tailored to your roster needs
 - ✅ **Roster Needs Display**: Shows starters filled, bench slots filled per position
-- ✅ **Position Scarcity Dashboard**: Real-time count of available players by position (color-coded urgency)
+- ✅ **Board Pressure**: Position availability and live tier/scarcity alerts in one responsive widget
 - ✅ **Tier-Cliff Visualization**: Visual breaks between tiers with colored bars and spacing
 - ✅ **Scarcity Warnings**: Alerts when a tier is running out
 
@@ -223,7 +223,7 @@ loadState()                   // Restore from localStorage
 ### How to Help
 1. **Understand the flow**: Read through `toggleDraft()` to see update sequence
 2. **Test locally**: Serve the repository with a local static web server
-3. **Run verification**: Open the Developer panel and run migration verification
+3. **Run verification**: In the browser console, run `await loadDeveloperTools(); runFantasyProsMigrationVerification();`
 4. **Before making changes**: Check whether updates belong in `triggerAllBoardUpdates()`
 
 ### Common Pitfalls
@@ -268,7 +268,7 @@ Before publishing changes:
 - [ ] Roadmap simulations report 4/4 clean
 - [ ] Click player rows → toggle between 3 states
 - [ ] Mark 5 players as "yours" → My Team panel updates
-- [ ] Position Scarcity shows correct counts
+- [ ] Board Pressure shows position availability and tier alerts
 - [ ] Autosave toggle button changes color (green/red)
 - [ ] Refresh page → roster state restored
 - [ ] Search and position filters work
@@ -298,7 +298,7 @@ Before publishing changes:
 **v1.0** (Current)
 - ✅ Core draft tracking with 3-state cycle
 - ✅ Auto-draft recommendations
-- ✅ Position Scarcity Dashboard
+- ✅ Combined Board Pressure dashboard
 - ✅ Autosave to localStorage
 - ✅ My Team panel with needs
 - ✅ Export/Import backup
