@@ -251,6 +251,11 @@ Completion evidence (2026-08-22):
 - [x] Add a true draft-complete mode that retires live pressure/recommendation work and surfaces the final report plus an ECR-backed waiver watch
 - [x] Show the FantasyPros source snapshot date and freshness status in the live header
 
+## Interface identity and polish
+- [x] Rebrand the site masthead as **The War Room**
+- [x] Replace the stale hard-coded pick subtitle with draft-setting-safe command-center copy
+- [x] Keep the compact masthead responsive while preserving the mobile sticky-toolbar behavior
+
 Completion evidence (2026-08-22):
 - Clean draft UI: 717 rows, visible 2026-08-21 FantasyPros freshness badge, decision-focused Board Pressure, no console errors
 - Mid-draft UI: roster plan renders in My Draft Summary and FLEX remains visible

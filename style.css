@@ -42,24 +42,81 @@ body {
 }
 
 header {
-  padding: 16px 16px 12px;
-  text-align: center;
-  background: linear-gradient(180deg, var(--field-green), var(--field-dark));
+  min-height: 74px;
+  padding: 10px 16px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(224, 168, 63, 0.13), transparent 30%),
+    linear-gradient(180deg, #1b3a2b, var(--field-dark));
   border-bottom: 2px solid var(--hash);
   position: sticky;
   top: 0;
   z-index: 20;
 }
 
+.header-inner {
+  width: min(960px, 100%);
+  min-height: 52px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(224, 168, 63, 0.55);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(224, 168, 63, 0.22), rgba(224, 168, 63, 0.06));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 18px rgba(0, 0, 0, 0.18);
+  font-size: 1.2rem;
+}
+
+.brand-copy {
+  min-width: 0;
+  text-align: left;
+}
+
+.brand-kicker {
+  display: block;
+  margin-bottom: 1px;
+  color: #e0c98a;
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
 header h1 {
   margin: 0;
-  font-size: 1.2rem;
-  font-weight: 800;
+  color: #fffaf0;
+  font-size: 1.45rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.header-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
 }
 
 header p {
-  margin: 4px 0 0;
-  font-size: 0.72rem;
+  margin: 0;
+  font-size: 0.68rem;
   color: #c9d9c9;
 }
 
@@ -71,7 +128,7 @@ header p {
   background: var(--field-dark);
   border-bottom: 1px solid var(--hash);
   position: sticky;
-  top: 64px;
+  top: 74px;
   z-index: 19;
   align-items: center;
 }
@@ -131,7 +188,7 @@ header p {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-top: 7px;
+  margin-top: 5px;
   padding: 3px 8px;
   border: 1px solid rgba(143, 212, 160, 0.28);
   border-radius: 999px;
@@ -164,7 +221,7 @@ header p {
   background: #173028;
   border-bottom: 1px solid var(--hash);
   position: sticky;
-  top: 108px;
+  top: 118px;
   z-index: 19;
   font-size: 0.7rem;
   color: #c9d9c9;
@@ -200,7 +257,7 @@ header p {
   background: var(--field-dark);
   border-bottom: 1px solid var(--hash);
   position: sticky;
-  top: 142px;
+  top: 152px;
   z-index: 18;
 }
 
@@ -1778,6 +1835,41 @@ body.draft-complete-mode #board-pressure-widget { display: none; }
   /* Let the header scroll away on mobile */
   header {
     position: static;
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .header-inner {
+    min-height: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 9px;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  header h1 {
+    font-size: 1.3rem;
+  }
+
+  .header-meta {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: left;
+  }
+
+  .header-meta p {
+    font-size: 0.62rem;
+  }
+
+  .data-freshness {
+    margin-top: 0;
   }
 
   /* Keep the player filters/My Team button visible */
