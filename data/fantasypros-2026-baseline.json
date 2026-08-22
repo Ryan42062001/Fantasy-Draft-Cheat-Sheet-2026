@@ -1,0 +1,20 @@
+{
+  "sourceSnapshotDate": "2026-08-21",
+  "ecrPlayers": 520,
+  "adpOnlyPlayers": 197,
+  "totalPlayers": 717,
+  "positionCounts": {
+    "WR": 242,
+    "RB": 170,
+    "TE": 115,
+    "QB": 102,
+    "DST": 32,
+    "K": 56
+  },
+  "duplicateCanonicalNames": 0,
+  "files": {
+    "FantasyPros_2026_Draft_ALL_Rankings.csv": "d3b65975f1fb8ce393b96f3c99d889f87a80421c6d6ba766d93aebf469f40593",
+    "FantasyPros_2026_Overall_ADP_Rankings.csv": "7e97f4da26afa711c1c272ac26350155f15cf91f74e76bad4af0b3a365fa5410",
+    "fantasypros-2026-data.js": "7e2efd4aab2875ecfb8602610da012e6a64e4e963da541ee35296f8909764173"
+  }
+}

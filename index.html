@@ -45,6 +45,7 @@
 <div class="statusbar">
   <span id="remaining-status">All players available</span>
   <span id="save-indicator" style="color:#8fd4a0;font-size:0.65rem;"></span>
+  <div class="draft-session-control"><label for="draftSessionSelect">Draft</label><select id="draftSessionSelect" aria-label="Saved draft session" onchange="switchDraftSession(this.value)"></select><button type="button" class="filterbtn" onclick="createNewDraftSession()">New Draft</button></div>
   <div class="mark-mode-control" role="group" aria-label="Player marking mode">
     <span>Mark as</span>
     <button type="button" class="mark-mode-btn active" data-mark-mode="taken" aria-pressed="true" onclick="setDraftMarkMode('taken')">Taken</button>
