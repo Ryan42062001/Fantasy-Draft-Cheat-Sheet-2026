@@ -215,6 +215,23 @@ Do not call the migration complete until all of these are true:
 - Re-run migration verification, roadmap simulations, persistence checks, and responsive checks after each data refresh.
 - Treat recommendation tuning as a separate evidence-driven phase; preserve ECR as value and ADP as market timing.
 
+## Calculation model audit
+- [x] Keep ADP-only depth out of ECR, VORP, scarcity, tier-cliff, and recommendation-value pools
+- [x] Stop substituting ECR when FantasyPros ADP is missing; use neutral unknown-market survival
+- [x] Center next-pick survival on ADP with a smooth, monotonic probability curve
+- [x] Remove duplicate next-pick projection from base replacement level and keep it in draft-aware VORP only
+- [x] Make scarcity measure current local positional ECR depth instead of duplicating replacement-level VORP
+- [x] Normalize roster need to the documented 0–100 score scale
+- [x] Preserve useful ECR differentiation through late rounds instead of reducing every rank after 67 to zero
+- [x] Prevent derived strategy nudges from inverting authoritative same-position ECR order
+- [x] Cache the shared position-scarcity calculation once per scoring pass
+- [x] Add controlled calculation sanity scenarios and rerun the canonical regression suites
+
+Completion evidence (2026-08-22):
+- Canonical regressions: 152/152 draft engine + 5/5 turn package + 8/8 recommendation explanations = 165/165
+- Calculation sanity suite: 11/11 (authority separation, ADP survival, late ECR scoring, roster need, scarcity, replacement stability, same-position ordering)
+- Recommendation simulations: early / middle / turn / late = 4/4 clean with finite factor scores and no decision inconsistencies
+
 ## Draft report UX
 - [x] Combine My Team and Draft Summary into one My Draft panel with Summary and Lineup views
 - [x] Track draft-pick metadata in autosave so value results survive refresh
