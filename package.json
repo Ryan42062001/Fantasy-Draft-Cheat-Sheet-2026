@@ -1,0 +1,13 @@
+{
+  "name": "fantasy-draft-cheat-sheet-2026",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:syntax && npm run test:dataset && npm run test:extension && npm run test:browser",
+    "test:syntax": "node --check script.js && node --check developer-tools.js && node --check fantasypros-2026-data.js && node --check war-room-config.js",
+    "test:dataset": "node scripts/validate-fantasypros-baseline.mjs",
+    "test:extension": "npm --prefix extensions/espn-companion test",
+    "test:browser": "node scripts/test-browser.mjs",
+    "baseline:accept": "node scripts/validate-fantasypros-baseline.mjs --accept"
+  },
+  "devDependencies": {"playwright":"^1.55.0"}
+}

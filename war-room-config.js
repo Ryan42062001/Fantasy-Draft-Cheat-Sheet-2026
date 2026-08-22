@@ -60,5 +60,16 @@ function getConfiguredStarterTotal() {
 function getConfiguredFlexEligibleThreshold() {
   return getConfiguredStarterSlots('RB') +
     getConfiguredStarterSlots('WR') +
-    getConfiguredStarterSlots('TE');
+    getConfiguredStarterSlots('TE') +
+    getConfiguredStarterSlots('FLEX');
+}
+
+function getConfiguredStarterLimits() {
+  return {QB:getConfiguredStarterSlots('QB'), RB:getConfiguredStarterSlots('RB'), WR:getConfiguredStarterSlots('WR'), TE:getConfiguredStarterSlots('TE'), FLEX:getConfiguredStarterSlots('FLEX'), K:getConfiguredStarterSlots('K'), DST:getConfiguredStarterSlots('DST')};
+}
+
+function getConfiguredDedicatedStarterLimits() {
+  var limits = getConfiguredStarterLimits();
+  delete limits.FLEX;
+  return limits;
 }
