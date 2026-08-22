@@ -4654,6 +4654,115 @@ function runCalculationSanityTests() {
   return summary;
 }
 
+function runEspnSyncContractTests() {
+  var test = draftEngineTestCreateRunner();
+  var rows = Array.prototype.slice.call(document.querySelectorAll('tr.draftrow'));
+  var originalRows = rows.map(function(row) {
+    return {
+      row: row,
+      className: row.className,
+      pick: row.getAttribute('data-pick'),
+      teamSlot: row.getAttribute('data-team-slot'),
+      syncSource: row.getAttribute('data-sync-source'),
+      espnPlayerId: row.getAttribute('data-espn-player-id')
+    };
+  });
+  var originalSignature = espnSyncLastSignature;
+  var originalResult = latestEspnSyncResult;
+  var originalSavedPayload = null;
+  try { originalSavedPayload = localStorage.getItem(AUTOSAVE_KEY); } catch (error) {}
+  var settings = getEspnSyncSettings();
+  var mineSlot = settings.draftSlot;
+  var otherSlot = mineSlot === 1 ? 2 : 1;
+
+  try {
+    var first = applyEspnDraftSnapshot({
+      force: true,
+      picks: [
+        {overallPick: 1, playerName: "Ja'Marr Chase", position: 'WR', teamSlot: mineSlot},
+        {overallPick: 2, playerName: 'Jahmyr Gibbs', position: 'RB', teamSlot: otherSlot},
+        {overallPick: 3, playerName: 'Houston Texans D/ST', position: 'D/ST', teamSlot: otherSlot},
+        {overallPick: 4, playerName: 'Brian Robinson', position: 'RB', teamSlot: otherSlot}
+      ]
+    });
+
+    test.equal('ESPN sync applies every matched fixture', first.applied, 4);
+    test.equal('ESPN sync reports zero unmatched fixtures', first.unmatched.length, 0);
+
+    var chase = resolveEspnDraftRow("Ja'Marr Chase", 'WR');
+    var gibbs = resolveEspnDraftRow('Jahmyr Gibbs', 'RB');
+    var texans = resolveEspnDraftRow('Houston Texans D/ST', 'D/ST');
+    test.assert(
+      'ESPN sync distinguishes Mine from Taken by team slot',
+      chase.classList.contains('drafted-mine') &&
+        gibbs.classList.contains('drafted-other')
+    );
+    test.assert(
+      'ESPN sync stores overall pick and source metadata',
+      chase.getAttribute('data-pick') === '1' &&
+        chase.getAttribute('data-sync-source') === 'espn'
+    );
+    saveState();
+    var savedSyncPayload = null;
+    try { savedSyncPayload = JSON.parse(localStorage.getItem(AUTOSAVE_KEY)); } catch (error) {}
+    var chaseStateKey = chase.getAttribute('data-name');
+    test.assert(
+      'ESPN source metadata survives autosave serialization',
+      savedSyncPayload && savedSyncPayload.draftMeta &&
+        savedSyncPayload.draftMeta[chaseStateKey] &&
+        savedSyncPayload.draftMeta[chaseStateKey].source === 'espn'
+    );
+    test.assert('ESPN defense names resolve to team rows', Boolean(texans));
+
+    var corrected = applyEspnDraftSnapshot({
+      force: true,
+      picks: [
+        {overallPick: 1, playerName: "Ja'Marr Chase", position: 'WR', teamSlot: mineSlot}
+      ]
+    });
+    test.assert(
+      'ESPN full reconciliation removes obsolete synced picks',
+      corrected.applied === 1 && !gibbs.classList.contains('drafted-other')
+    );
+
+    var unmatched = applyEspnDraftSnapshot({
+      force: true,
+      picks: [
+        {overallPick: 1, playerName: 'Fixture Player Missing', position: 'WR', teamSlot: otherSlot}
+      ]
+    });
+    test.equal('ESPN sync surfaces unmatched names', unmatched.unmatched.length, 1);
+  } finally {
+    originalRows.forEach(function(snapshot) {
+      snapshot.row.className = snapshot.className;
+      ['data-pick', 'data-team-slot', 'data-sync-source', 'data-espn-player-id'].forEach(function(attribute) {
+        snapshot.row.removeAttribute(attribute);
+      });
+      if (snapshot.pick != null) snapshot.row.setAttribute('data-pick', snapshot.pick);
+      if (snapshot.teamSlot != null) snapshot.row.setAttribute('data-team-slot', snapshot.teamSlot);
+      if (snapshot.syncSource != null) snapshot.row.setAttribute('data-sync-source', snapshot.syncSource);
+      if (snapshot.espnPlayerId != null) snapshot.row.setAttribute('data-espn-player-id', snapshot.espnPlayerId);
+    });
+    espnSyncLastSignature = originalSignature;
+    latestEspnSyncResult = originalResult;
+    window.latestEspnSyncResult = originalResult;
+    try {
+      if (originalSavedPayload == null) localStorage.removeItem(AUTOSAVE_KEY);
+      else localStorage.setItem(AUTOSAVE_KEY, originalSavedPayload);
+    } catch (error) {}
+    triggerAllBoardUpdates({deferIntelligence: true});
+  }
+
+  var summary = test.summary();
+  console.group('ESPN SYNC CONTRACT TEST SUITE');
+  console.log('Result: ' + summary.passed + ' passed, ' + summary.failed + ' failed (' + summary.total + ' total)');
+  summary.results.forEach(function(result) {
+    console.log((result.passed ? '✓ ' : '✗ ') + result.name + (result.error ? ' — ' + result.error : ''));
+  });
+  console.groupEnd();
+  return summary;
+}
+
 function testDraftPlayer(playerName) {
 
   if (!playerName) {

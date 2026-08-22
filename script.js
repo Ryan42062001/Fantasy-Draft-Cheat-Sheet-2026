@@ -56,7 +56,7 @@ function loadDeveloperTools() {
   if (!developerToolsPromise) {
     developerToolsPromise = new Promise(function(resolve, reject) {
       var script = document.createElement('script');
-      script.src = 'developer-tools.js?v=20260822-2';
+      script.src = 'developer-tools.js?v=20260822-3';
       script.onload = resolve;
       script.onerror = function() {
         developerToolsPromise = null;
@@ -7869,6 +7869,232 @@ function triggerAllBoardUpdates(options) {
   }, 120);
 }
 
+/* =========================================================
+   ESPN COMPANION SYNC CONTRACT — VERSION 1
+
+   The browser extension posts validated draft snapshots into
+   this page. ESPN remains the draft-history authority while
+   FantasyPros remains the ranking/value authority.
+   ========================================================= */
+
+var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
+var espnSyncLastSignature = null;
+var latestEspnSyncResult = null;
+
+function normalizeEspnSyncPosition(position) {
+  var value = String(position || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (value === 'DEF' || value === 'D' || value === 'DST') return 'DST';
+  return ['QB', 'RB', 'WR', 'TE', 'K'].indexOf(value) >= 0 ? value : '';
+}
+
+function normalizeEspnSyncName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/\bd\s*\/\s*st\b|\bdst\b|\bdefense\b|\bdef\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(jr|sr|ii|iii|iv)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function resolveEspnDraftRow(playerName, position) {
+  var direct = findDraftRowByExpertName(playerName);
+  if (direct) return direct;
+
+  var normalizedName = normalizeEspnSyncName(playerName);
+  var normalizedPosition = normalizeEspnSyncPosition(position);
+  if (!normalizedName) return null;
+
+  var candidates = Array.prototype.slice.call(
+    document.querySelectorAll('tr.draftrow')
+  ).filter(function(row) {
+    return !normalizedPosition || row.getAttribute('data-pos') === normalizedPosition;
+  });
+
+  var exact = candidates.find(function(row) {
+    return normalizeEspnSyncName(row.getAttribute('data-name')) === normalizedName;
+  });
+  if (exact) return exact;
+
+  if (normalizedPosition !== 'DST') return null;
+
+  var inputTokens = normalizedName.split(' ').filter(function(token) {
+    return token.length >= 4;
+  });
+  var dstMatches = candidates.filter(function(row) {
+    var rowTokens = normalizeEspnSyncName(row.getAttribute('data-name')).split(' ');
+    return inputTokens.some(function(token) { return rowTokens.indexOf(token) >= 0; });
+  });
+
+  return dstMatches.length === 1 ? dstMatches[0] : null;
+}
+
+function sanitizeEspnDraftPick(rawPick, totalPicks) {
+  rawPick = rawPick || {};
+  var overallPick = Number(rawPick.overallPick || rawPick.pick);
+  var playerName = String(rawPick.playerName || rawPick.name || '').trim();
+  var teamSlot = Number(rawPick.teamSlot);
+
+  if (!Number.isInteger(overallPick) || overallPick < 1 || overallPick > totalPicks) return null;
+  if (!playerName || playerName.length > 100) return null;
+
+  return {
+    overallPick: overallPick,
+    playerName: playerName,
+    position: normalizeEspnSyncPosition(rawPick.position),
+    teamSlot: Number.isInteger(teamSlot) && teamSlot > 0 ? teamSlot : null,
+    espnPlayerId: rawPick.espnPlayerId == null
+      ? null
+      : String(rawPick.espnPlayerId).slice(0, 40)
+  };
+}
+
+function updateEspnSyncStatus(status, detail) {
+  var badge = document.getElementById('espn-sync-status');
+  if (!badge) return;
+
+  badge.hidden = false;
+  badge.className = 'espn-sync-status';
+  if (status === 'syncing') badge.classList.add('espn-sync-status-syncing');
+  if (status === 'error') badge.classList.add('espn-sync-status-error');
+  badge.textContent = detail || 'ESPN companion connected';
+}
+
+function getEspnSyncSettings() {
+  var state = getDraftAssistantState();
+  return {
+    teams: state.teams,
+    rounds: state.rounds,
+    draftSlot: state.draftSlot,
+    totalPicks: state.totalPicks
+  };
+}
+
+function publishEspnSyncAck(result) {
+  var targetOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
+  window.postMessage({
+    channel: ESPN_SYNC_CHANNEL,
+    type: 'SYNC_ACK',
+    result: result || latestEspnSyncResult,
+    settings: getEspnSyncSettings()
+  }, targetOrigin);
+}
+
+function applyEspnDraftSnapshot(snapshot) {
+  snapshot = snapshot || {};
+  var settings = getEspnSyncSettings();
+  var incoming = Array.isArray(snapshot.picks) ? snapshot.picks : [];
+  var picksByNumber = new Map();
+
+  incoming.forEach(function(rawPick) {
+    var pick = sanitizeEspnDraftPick(rawPick, settings.totalPicks);
+    if (pick && !picksByNumber.has(pick.overallPick)) {
+      picksByNumber.set(pick.overallPick, pick);
+    }
+  });
+
+  var picks = Array.from(picksByNumber.values()).sort(function(a, b) {
+    return a.overallPick - b.overallPick;
+  });
+  var signature = JSON.stringify({
+    draftSlot: settings.draftSlot,
+    teams: settings.teams,
+    picks: picks.map(function(pick) {
+      return [pick.overallPick, pick.playerName, pick.position, pick.teamSlot];
+    })
+  });
+
+  if (signature === espnSyncLastSignature && !snapshot.force) {
+    publishEspnSyncAck(latestEspnSyncResult);
+    return latestEspnSyncResult;
+  }
+
+  document.querySelectorAll('tr.draftrow[data-sync-source="espn"]').forEach(function(row) {
+    row.classList.remove('drafted-mine', 'drafted-other');
+    row.removeAttribute('data-pick');
+    row.removeAttribute('data-team-slot');
+    row.removeAttribute('data-sync-source');
+    row.removeAttribute('data-espn-player-id');
+  });
+
+  var applied = 0;
+  var mine = 0;
+  var unmatched = [];
+  var usedRows = new Set();
+
+  picks.forEach(function(pick) {
+    var row = resolveEspnDraftRow(pick.playerName, pick.position);
+    if (!row || usedRows.has(row)) {
+      unmatched.push({
+        overallPick: pick.overallPick,
+        playerName: pick.playerName,
+        position: pick.position
+      });
+      return;
+    }
+
+    usedRows.add(row);
+    row.classList.remove('drafted-mine', 'drafted-other');
+    var isMine = Number(pick.teamSlot) === Number(settings.draftSlot);
+    row.classList.add(isMine ? 'drafted-mine' : 'drafted-other');
+    row.setAttribute('data-pick', String(pick.overallPick));
+    if (pick.teamSlot) row.setAttribute('data-team-slot', String(pick.teamSlot));
+    row.setAttribute('data-sync-source', 'espn');
+    if (pick.espnPlayerId) row.setAttribute('data-espn-player-id', pick.espnPlayerId);
+    applied++;
+    if (isMine) mine++;
+  });
+
+  espnSyncLastSignature = signature;
+  latestEspnSyncResult = {
+    captured: picks.length,
+    applied: applied,
+    mine: mine,
+    unmatched: unmatched,
+    latestPick: picks.length ? picks[picks.length - 1].overallPick : 0,
+    syncedAt: new Date().toISOString()
+  };
+  window.latestEspnSyncResult = latestEspnSyncResult;
+
+  if (unmatched.length) {
+    updateEspnSyncStatus(
+      'error',
+      'ESPN Sync · ' + applied + ' applied · ' + unmatched.length + ' unmatched'
+    );
+  } else {
+    updateEspnSyncStatus('connected', 'ESPN Sync · ' + applied + ' picks');
+  }
+
+  triggerAllBoardUpdates({deferIntelligence: true});
+  scheduleSave();
+  publishEspnSyncAck(latestEspnSyncResult);
+  return latestEspnSyncResult;
+}
+
+window.addEventListener('message', function(event) {
+  if (event.source !== window || !event.data || event.data.channel !== ESPN_SYNC_CHANNEL) return;
+
+  if (event.data.type === 'EXTENSION_STATUS') {
+    updateEspnSyncStatus(
+      event.data.status === 'scanning' ? 'syncing' : 'connected',
+      event.data.detail || 'ESPN companion connected'
+    );
+    publishEspnSyncAck(latestEspnSyncResult);
+  }
+
+  if (event.data.type === 'PICKS_SNAPSHOT') {
+    applyEspnDraftSnapshot(event.data.snapshot);
+  }
+});
+
+window.WarRoomEspnSync = {
+  version: 1,
+  applySnapshot: applyEspnDraftSnapshot,
+  resolvePlayer: resolveEspnDraftRow,
+  settings: getEspnSyncSettings
+};
+
 function toggleDraft(row) {
 
   if (
@@ -7925,6 +8151,9 @@ function toggleDraft(row) {
       'data-team-slot'
     );
 
+    row.removeAttribute('data-sync-source');
+    row.removeAttribute('data-espn-player-id');
+
 
   /*
    * -------------------------------------------------------
@@ -7935,6 +8164,9 @@ function toggleDraft(row) {
    */
 
   } else {
+
+    row.removeAttribute('data-sync-source');
+    row.removeAttribute('data-espn-player-id');
 
     var draftState =
       getDraftAssistantState();
@@ -8013,6 +8245,8 @@ function resetBoard(){
     row.classList.remove('drafted-mine','drafted-other');
     row.removeAttribute('data-pick');
     row.removeAttribute('data-team-slot');
+    row.removeAttribute('data-sync-source');
+    row.removeAttribute('data-espn-player-id');
   });
   try { localStorage.removeItem(FINAL_SUMMARY_SHOWN_KEY); } catch(e) {}
   closeFinalDraftSummary();
@@ -8037,7 +8271,16 @@ function saveState(){
         if(state[name]) {
           var pick = Number(row.getAttribute('data-pick')) || null;
           var teamSlot = Number(row.getAttribute('data-team-slot')) || null;
-          if(pick || teamSlot) draftMeta[name] = {pick: pick, teamSlot: teamSlot};
+          var source = row.getAttribute('data-sync-source') || null;
+          var espnPlayerId = row.getAttribute('data-espn-player-id') || null;
+          if(pick || teamSlot || source || espnPlayerId) {
+            draftMeta[name] = {
+              pick: pick,
+              teamSlot: teamSlot,
+              source: source,
+              espnPlayerId: espnPlayerId
+            };
+          }
         }
       }
     });
@@ -8155,12 +8398,16 @@ if (
             row.classList.remove('drafted-mine','drafted-other');
             row.removeAttribute('data-pick');
             row.removeAttribute('data-team-slot');
+            row.removeAttribute('data-sync-source');
+            row.removeAttribute('data-espn-player-id');
             if(name && payload.state[name] === 'mine') row.classList.add('drafted-mine');
             else if(name && payload.state[name] === 'taken') row.classList.add('drafted-other');
 
             var metadata = name && payload.draftMeta ? payload.draftMeta[name] : null;
             if(metadata && Number(metadata.pick) > 0) row.setAttribute('data-pick', String(metadata.pick));
             if(metadata && Number(metadata.teamSlot) > 0) row.setAttribute('data-team-slot', String(metadata.teamSlot));
+            if(metadata && metadata.source === 'espn') row.setAttribute('data-sync-source', 'espn');
+            if(metadata && metadata.espnPlayerId) row.setAttribute('data-espn-player-id', String(metadata.espnPlayerId));
           });
         }
         if(diagEl) diagEl.innerHTML = 'Autosave: restored backup from '+(payload.savedAt||'previous session');

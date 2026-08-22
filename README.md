@@ -34,6 +34,7 @@ Fantasy-Draft-Cheat-Sheet-2026/
 ├── style.css                         - Styling and responsive behavior
 ├── data/                              - Source CSVs and generated master JSON
 ├── scripts/build-fantasypros-2026.mjs - Reproducible dataset generator
+├── extensions/espn-companion/          - Optional ESPN live-draft Chrome companion
 └── README.md                          - User and contributor guide
 ```
 
@@ -64,6 +65,12 @@ Fantasy-Draft-Cheat-Sheet-2026/
 - Smooth animations for buttons and hover states
 - Color-coded position pills (RB=green, WR=blue, etc.)
 - Sticky headers and panels for draft-day usability
+
+**extensions/espn-companion**
+- Optional Manifest V3 Chrome extension for ESPN live-draft synchronization
+- Reads only draft information rendered in the ESPN tab; no ESPN cookies or passwords
+- Reconciles complete snapshots into existing Mine/Taken status and autosave behavior
+- See `extensions/espn-companion/README.md` for local installation and mock-draft validation
 
 ---
 

@@ -1,0 +1,9 @@
+{
+  "name": "war-room-espn-companion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome companion that syncs ESPN fantasy draft picks into The War Room.",
+  "scripts": {
+    "test": "node --test test/*.test.cjs"
+  }
+}

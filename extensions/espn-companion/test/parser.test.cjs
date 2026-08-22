@@ -1,0 +1,58 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const parser = require('../espn-parser.js');
+
+test('parses a labeled overall ESPN pick', () => {
+  assert.deepEqual(
+    parser.parsePickText('Pick 1\nJa\'Marr Chase\nWR - CIN', {teams: 10}),
+    {
+      overallPick: 1,
+      playerName: "Ja'Marr Chase",
+      position: 'WR',
+      teamSlot: 1,
+      espnPlayerId: null
+    }
+  );
+});
+
+test('converts round.pick notation to overall pick', () => {
+  const result = parser.parsePickText('2.01\nJahmyr Gibbs\nRB DET', {teams: 10});
+  assert.equal(result.overallPick, 11);
+  assert.equal(result.teamSlot, 10);
+  assert.equal(result.playerName, 'Jahmyr Gibbs');
+});
+
+test('parses inline player and position text', () => {
+  const result = parser.parsePickText('#20 - Brock Bowers · TE · LV', {teams: 10});
+  assert.equal(result.overallPick, 20);
+  assert.equal(result.playerName, 'Brock Bowers');
+  assert.equal(result.position, 'TE');
+  assert.equal(result.teamSlot, 1);
+});
+
+test('normalizes ESPN defense notation', () => {
+  const result = parser.parsePickText('Pick 155\nHouston Texans D/ST\nD/ST - HOU', {teams: 10});
+  assert.equal(result.position, 'DST');
+  assert.equal(result.playerName, 'Houston Texans');
+});
+
+test('prefers data attributes and extracts ESPN player id', () => {
+  const result = parser.parsePickText(
+    'Pick 7\nSelected player\nRB - DET',
+    {teams: 10},
+    {'data-player-name': 'Jahmyr Gibbs', 'data-player-id': '4427366'}
+  );
+  assert.equal(result.playerName, 'Jahmyr Gibbs');
+  assert.equal(result.espnPlayerId, '4427366');
+});
+
+test('rejects available-player text without a completed pick number', () => {
+  assert.equal(parser.parsePickText('Ja\'Marr Chase\nWR - CIN\nAdd to queue', {teams: 10}), null);
+});
+
+test('snake slot mapping handles both turns', () => {
+  assert.equal(parser.snakeTeamSlot(10, 10), 10);
+  assert.equal(parser.snakeTeamSlot(11, 10), 10);
+  assert.equal(parser.snakeTeamSlot(20, 10), 1);
+  assert.equal(parser.snakeTeamSlot(21, 10), 1);
+});
