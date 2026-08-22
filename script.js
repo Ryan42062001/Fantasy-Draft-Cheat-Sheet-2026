@@ -7068,22 +7068,9 @@ function updateScarcityAlertsCustom(sharedLiveState) {
   }
 
 
-  /*
-   * -------------------------------------------------------
-   * NOTHING URGENT
-   * -------------------------------------------------------
-   */
-
-  if (
-    !scarcityState.alerts ||
-    !scarcityState.alerts.length
-  ) {
-
-    container.innerHTML =
-      '';
-
-    return;
-  }
+  var activeAlerts = Array.isArray(scarcityState.alerts)
+    ? scarcityState.alerts
+    : [];
 
 
   /*
@@ -7258,28 +7245,19 @@ function updateScarcityAlertsCustom(sharedLiveState) {
    */
 
 var html =
-  '<details class="scarcity-alerts-collapse">' +
-
-    '<summary class="scarcity-alerts-summary">' +
-      '<span>&#9888; Tier &amp; Scarcity Alerts</span>' +
-      '<span class="scarcity-alerts-arrow">&#9662;</span>' +
-    '</summary>' +
-
-    '<div class="scarcity-alerts-content">';
+  '<div class="board-alerts-header">' +
+    '<span>LIVE TIER ALERTS</span>' +
+    '<b>' + (activeAlerts.length ? activeAlerts.length + ' active' : 'Board stable') + '</b>' +
+  '</div>' +
+  '<div class="board-alerts-grid">';
 
 
-  scarcityState.alerts
+  activeAlerts
     .slice(0, 4)
     .forEach(function(alert) {
 
       html +=
-        '<div style="' +
-          'padding:8px 9px;' +
-          'margin-bottom:6px;' +
-          'border-radius:8px;' +
-          'background:rgba(255,255,255,0.025);' +
-          'border:1px solid rgba(255,255,255,0.05);' +
-        '">' +
+        '<div class="board-alert-card">' +
 
           '<div style="' +
             'font-size:0.71rem;' +
@@ -7319,6 +7297,14 @@ var html =
         '</div>';
 
     });
+
+  if (!activeAlerts.length) {
+    html +=
+      '<div class="board-alert-card board-alert-calm">' +
+        '<div><b>&#10003; No urgent tier cliffs right now</b></div>' +
+        '<small>The board still has workable depth across the main positions.</small>' +
+      '</div>';
+  }
 
   /*
  * -------------------------------------------------------
@@ -7380,13 +7366,7 @@ var healthiestPosition =
 if (healthiestPosition) {
 
   html +=
-    '<div style="' +
-      'padding:8px 9px;' +
-      'margin-top:8px;' +
-      'border-radius:8px;' +
-      'background:rgba(95,168,124,0.06);' +
-      'border:1px solid rgba(95,168,124,0.18);' +
-    '">' +
+    '<div class="board-alert-card board-alert-calm">' +
 
       '<div style="' +
         'font-size:0.71rem;' +
@@ -7419,9 +7399,7 @@ if (healthiestPosition) {
 
 }
 
-html +=
-    '</div>' +
-  '</details>';
+html += '</div>';
 
 container.innerHTML =
   html;
@@ -7553,16 +7531,17 @@ function updateDraftDayDashboard(){
     }
   });
   
-  var html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap:8px;">';
+  var html =
+    '<div class="board-pressure-section-label">POSITION AVAILABILITY</div>' +
+    '<div class="board-pressure-grid">';
   ['QB','RB','WR','TE','K','DST'].forEach(function(pos){
     var left = totalByPos[pos] - draftedCounts[pos];
     var pct = totalByPos[pos] > 0 ? Math.round((left / totalByPos[pos]) * 100) : 0;
     var urgency = pct > 50 ? 'plenty' : pct > 25 ? 'fair' : pct > 10 ? 'limited' : 'scarce';
-    var color = urgency === 'plenty' ? '#5fa87c' : urgency === 'fair' ? '#e0c98a' : urgency === 'limited' ? '#e0a83f' : '#c1554b';
-    html += '<div style="background:rgba(255,255,255,0.06); border: 1px solid '+color+'; border-radius:8px; padding:8px; text-align:center;">';
-    html += '<div style="font-weight:900; color:'+color+'; font-size:0.9rem;">'+pos+'</div>';
-    html += '<div style="font-size:0.75rem; color:#a9c2ab;">'+left+' left</div>';
-    html += '<div style="font-size:0.65rem; color:#7d947f;">('+pct+'%)</div>';
+    html += '<div class="board-pressure-card pressure-'+urgency+'">';
+    html += '<div><span class="pos-pill pos-'+pos+'">'+pos+'</span><b>'+left+' left</b></div>';
+    html += '<div class="board-pressure-meter"><span style="width:'+pct+'%"></span></div>';
+    html += '<small>'+urgency.toUpperCase()+' · '+pct+'% available</small>';
     html += '</div>';
   });
   html += '</div>';
@@ -7610,6 +7589,7 @@ function triggerAllBoardUpdates(options) {
     timedUpdate('liveDraftState', function() {
       sharedLiveState = buildLiveDraftDebugState();
     });
+
     timedUpdate('scarcityAlerts', function() {
       updateScarcityAlerts(sharedLiveState);
     });
@@ -10031,16 +10011,8 @@ reason =
   }
 
 
-var defaultOpen =
-  window.innerWidth >= 769
-    ? ' open'
-    : '';
-
-
 return (
-  '<details' +
-    defaultOpen +
-    ' style="' +
+  '<details class="recommendation-details" style="' +
       'margin-top:9px;' +
     '">' +
 
@@ -10057,8 +10029,8 @@ return (
         'color:#a9c2ab;' +
       '">' +
 
-        '<span class="details-label-more">More details &#9662;</span>' +
-'<span class="details-label-less">Less details &#9652;</span>' +
+        '<span class="details-label-more">Strategy, reasoning &amp; alternatives &#9662;</span>' +
+'<span class="details-label-less">Hide strategy details &#9652;</span>' +
 
       '</summary>' +
 
@@ -10695,8 +10667,10 @@ if (fallbackPath) {
      */
 
     turnHtml +=
-      buildReasonsHtml(
-        liveExplanation.reasons
+      buildRecommendationDetailsToggleHtml(
+        buildReasonsHtml(
+          liveExplanation.reasons
+        )
       );
 
 
@@ -10780,19 +10754,6 @@ if (fallbackPath) {
   state
 );
 
-  html +=
-  buildUrgencyIndicatorHtml(
-    recommendation,
-    primary,
-    state
-  );
-
-  html +=
-  buildDraftIntelligenceHtml(
-    primary,
-    state
-  );
-
   /*
    * PRIMARY PLAYER
    */
@@ -10844,6 +10805,21 @@ var detailsHtml =
 
 
 detailsHtml +=
+  buildUrgencyIndicatorHtml(
+    recommendation,
+    primary,
+    state
+  );
+
+
+detailsHtml +=
+  buildDraftIntelligenceHtml(
+    primary,
+    state
+  );
+
+
+detailsHtml +=
   buildDraftPlanHtml(
     primary,
     state
@@ -10859,12 +10835,6 @@ detailsHtml +=
 detailsHtml +=
   buildReasonsHtml(
     liveExplanation.reasons
-  );
-
-
-html +=
-  buildRecommendationDetailsToggleHtml(
-    detailsHtml
   );
 
 
@@ -10901,10 +10871,11 @@ html +=
   var alternatives =
     state.scored.slice(1, 3);
 
+  var alternativesHtml = '';
 
   if (alternatives.length) {
 
-    html +=
+    alternativesHtml +=
       '<div style="' +
         'margin-top:11px;' +
         'padding-top:8px;' +
@@ -10924,7 +10895,7 @@ html +=
 
     alternatives.forEach(function(player) {
 
-      html +=
+      alternativesHtml +=
         '<div style="' +
           'display:flex;' +
           'justify-content:space-between;' +
@@ -10956,10 +10927,19 @@ html +=
     });
 
 
-    html +=
+    alternativesHtml +=
       '</div>';
 
   }
+
+
+  detailsHtml += alternativesHtml;
+
+
+  html +=
+    buildRecommendationDetailsToggleHtml(
+      detailsHtml
+    );
 
 
   html +=
@@ -12189,6 +12169,11 @@ function initApp() {
   var draftSettingsDetails = document.getElementById('draft-settings-details');
   if (draftSettingsDetails) {
     draftSettingsDetails.open = !window.matchMedia('(max-width: 768px)').matches;
+  }
+
+  var boardPressureDetails = document.getElementById('board-pressure-details');
+  if (boardPressureDetails) {
+    boardPressureDetails.open = !window.matchMedia('(max-width: 768px)').matches;
   }
 
   ['pcTeams', 'pcSlot', 'pcRounds'].forEach(function(id) {
