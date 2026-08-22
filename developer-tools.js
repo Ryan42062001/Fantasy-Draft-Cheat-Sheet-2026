@@ -4669,6 +4669,7 @@ function runEspnSyncContractTests() {
   });
   var originalSignature = espnSyncLastSignature;
   var originalResult = latestEspnSyncResult;
+  var originalSettings = getEspnSyncSettings();
   var originalSavedPayload = null;
   try { originalSavedPayload = localStorage.getItem(AUTOSAVE_KEY); } catch (error) {}
   var settings = getEspnSyncSettings();
@@ -4732,7 +4733,20 @@ function runEspnSyncContractTests() {
       ]
     });
     test.equal('ESPN sync surfaces unmatched names', unmatched.unmatched.length, 1);
+
+    var alternateTeams = originalSettings.teams === 12 ? 10 : 12;
+    var alternateSlot = Math.min(alternateTeams, originalSettings.draftSlot === 1 ? 2 : 1);
+    var appliedSettings = applyEspnSyncSettings({
+      teams: alternateTeams,
+      draftSlot: alternateSlot,
+      rounds: originalSettings.rounds
+    });
+    test.assert(
+      'ESPN companion settings update the open War Room',
+      appliedSettings.teams === alternateTeams && appliedSettings.draftSlot === alternateSlot
+    );
   } finally {
+    applyEspnSyncSettings(originalSettings);
     originalRows.forEach(function(snapshot) {
       snapshot.row.className = snapshot.className;
       ['data-pick', 'data-team-slot', 'data-sync-source', 'data-espn-player-id'].forEach(function(attribute) {

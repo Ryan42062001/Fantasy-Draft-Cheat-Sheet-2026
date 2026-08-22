@@ -36,6 +36,16 @@
     var match = text.match(/\b(?:overall\s+)?pick\s*#?\s*(\d{1,3})\b/i);
     if (match) return Number(match[1]);
 
+    match = text.match(/\bR(?:ound)?\s*(\d{1,2})\s*[,./-]?\s*P(?:ick)?\s*(\d{1,2})\b/i);
+    if (match) {
+      var labeledRound = Number(match[1]);
+      var labeledPick = Number(match[2]);
+      var labeledTeams = Number(options.teams) || 10;
+      if (labeledRound > 0 && labeledPick > 0 && labeledPick <= labeledTeams) {
+        return ((labeledRound - 1) * labeledTeams) + labeledPick;
+      }
+    }
+
     match = text.match(/\b(\d{1,2})\.(\d{1,2})\b/);
     if (match) {
       var round = Number(match[1]);
@@ -78,6 +88,11 @@
     );
     if (classic && looksLikeName(classic[1])) return cleanText(classic[1]);
 
+    var slashFormat = cleanText(text).match(
+      /^(.+?)[ \t]*\/[ \t]*[A-Z]{2,4}[ \t]+(?:QB|RB|WR|TE|K|D[ \t]*\/[ \t]*ST|DST|DEF)\b/im
+    );
+    if (slashFormat && looksLikeName(slashFormat[1])) return cleanText(slashFormat[1]);
+
     var lines = cleanText(text).split('\n').map(cleanText).filter(Boolean);
     for (var index = 0; index < lines.length; index++) {
       var line = lines[index];
@@ -113,6 +128,7 @@
     text = cleanText(text);
     options = options || {};
     if (!text || text.length > 600) return null;
+    if (/\bon the clock\b|\b(?:your\s+)?autopick\s+would\s+be\b/i.test(text)) return null;
 
     var overallPick = parseOverallPick(text, options);
     var playerName = parsePlayerName(text, attrs);
@@ -161,7 +177,8 @@
       '[class*="draft" i] [role="row"]',
       '[class*="draft" i] [role="listitem"]',
       'main tr',
-      'main [role="row"]'
+      'main [role="row"]',
+      'body div'
     ];
     var nodes = [];
     try {
@@ -171,11 +188,16 @@
     }
 
     var byPick = new Map();
-    nodes.slice(0, 4000).forEach(function(node) {
+    var candidateCount = 0;
+    nodes.slice(0, 8000).forEach(function(node) {
       var candidate = node;
       for (var depth = 0; candidate && depth < 4; depth++) {
         var text = cleanText(candidate.innerText || candidate.textContent || candidate.getAttribute('aria-label'));
-        if (text.length <= 900) {
+        var likelyPick = /\b(?:overall\s+)?pick\s*#?\s*\d{1,3}\b/i.test(text) ||
+          /\bR(?:ound)?\s*\d{1,2}\s*[,./-]?\s*P(?:ick)?\s*\d{1,2}\b/i.test(text) ||
+          /^\s*#?\d{1,3}\s*(?:[.):-]|\n)/m.test(text);
+        if (likelyPick && text.length <= 900) {
+          candidateCount++;
           var link = candidate.matches && candidate.matches('a[href]')
             ? candidate
             : candidate.querySelector && candidate.querySelector('a[href*="/id/"]');
@@ -195,7 +217,7 @@
     });
 
     return {
-      candidateCount: nodes.length,
+      candidateCount: candidateCount,
       picks: Array.from(byPick.values()).sort(function(a, b) {
         return a.overallPick - b.overallPick;
       })

@@ -46,6 +46,34 @@ test('parses ESPN classic pick-history formatting without including the team', (
   assert.equal(result.position, 'WR');
 });
 
+test('parses the live ESPN recent-pick card format', () => {
+  const result = parser.parsePickText(
+    "CeeDee Lamb / DAL WR\nR1, P11 - Ryan's Rowdy Team",
+    {teams: 12}
+  );
+  assert.equal(result.overallPick, 11);
+  assert.equal(result.playerName, 'CeeDee Lamb');
+  assert.equal(result.position, 'WR');
+  assert.equal(result.teamSlot, 11);
+});
+
+test('parses the live ESPN central pick-history row format', () => {
+  const result = parser.parsePickText(
+    "11\nCeeDee Lamb\nDAL\nWR\nRyan's Rowdy Team\n293.5",
+    {teams: 12}
+  );
+  assert.equal(result.overallPick, 11);
+  assert.equal(result.playerName, 'CeeDee Lamb');
+  assert.equal(result.position, 'WR');
+});
+
+test('does not mistake the on-clock autopick suggestion for a completed pick', () => {
+  assert.equal(
+    parser.parsePickText('ON THE CLOCK: PICK 14\nYour autopick would be: James Cook II / BUF RB', {teams: 12}),
+    null
+  );
+});
+
 test('detailed scan returns diagnostics for an unavailable document', () => {
   assert.deepEqual(parser.scanDocumentDetailed(null, {teams: 10}), {
     candidateCount: 0,

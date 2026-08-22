@@ -56,7 +56,7 @@ function loadDeveloperTools() {
   if (!developerToolsPromise) {
     developerToolsPromise = new Promise(function(resolve, reject) {
       var script = document.createElement('script');
-      script.src = 'developer-tools.js?v=20260822-3';
+      script.src = 'developer-tools.js?v=20260822-4';
       script.onload = resolve;
       script.onerror = function() {
         developerToolsPromise = null;
@@ -7971,6 +7971,37 @@ function getEspnSyncSettings() {
   };
 }
 
+function applyEspnSyncSettings(config) {
+  config = config || {};
+  var teams = Math.max(2, Math.min(20, Number(config.teams) || LEAGUE_SIZE));
+  var rounds = Math.max(1, Math.min(30, Number(config.rounds) || TOTAL_ROUNDS));
+  var draftSlot = Math.max(1, Math.min(teams, Number(config.draftSlot) || MY_DRAFT_SLOT));
+  var pcTeams = document.getElementById('pcTeams');
+  var pcSlot = document.getElementById('pcSlot');
+  var pcRounds = document.getElementById('pcRounds');
+  var changed = Number(pcTeams && pcTeams.value) !== teams ||
+    Number(pcSlot && pcSlot.value) !== draftSlot ||
+    Number(pcRounds && pcRounds.value) !== rounds;
+
+  if (pcTeams) pcTeams.value = String(teams);
+  if (pcSlot) {
+    pcSlot.max = String(teams);
+    pcSlot.value = String(draftSlot);
+  }
+  if (pcRounds) pcRounds.value = String(rounds);
+
+  LEAGUE_SIZE = teams;
+  MY_DRAFT_SLOT = draftSlot;
+  TOTAL_ROUNDS = rounds;
+
+  if (changed) {
+    triggerAllBoardUpdates({deferIntelligence: true});
+    scheduleSave();
+  }
+
+  return getEspnSyncSettings();
+}
+
 function publishEspnSyncAck(result) {
   var targetOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
   window.postMessage({
@@ -7983,6 +8014,7 @@ function publishEspnSyncAck(result) {
 
 function applyEspnDraftSnapshot(snapshot) {
   snapshot = snapshot || {};
+  if (snapshot.config) applyEspnSyncSettings(snapshot.config);
   var settings = getEspnSyncSettings();
   var incoming = Array.isArray(snapshot.picks) ? snapshot.picks : [];
   var picksByNumber = new Map();
@@ -8091,6 +8123,7 @@ window.addEventListener('message', function(event) {
 window.WarRoomEspnSync = {
   version: 1,
   applySnapshot: applyEspnDraftSnapshot,
+  applySettings: applyEspnSyncSettings,
   resolvePlayer: resolveEspnDraftRow,
   settings: getEspnSyncSettings
 };
@@ -21467,8 +21500,10 @@ function generateDecisionExplanation(result, comparisonResult) {
 
     concerns.push(
       'Lower player tier'
-    );
-  }
+);
+}
+
+
 
 
   /*
