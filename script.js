@@ -402,6 +402,7 @@ function toggleMyTeam() {
 
   if (isOpen) {
     updateMyTeam();
+    updateDraftSummary();
   }
 
   if (button) {
@@ -462,6 +463,122 @@ function getDraftSummaryGrade(averageEcrValue) {
 function formatDraftSummaryDelta(value) {
   if (value == null || !Number.isFinite(value)) return '—';
   return (value > 0 ? '+' : '') + value.toFixed(1);
+}
+
+function getCompletedDraftPickCount() {
+  return document.querySelectorAll(
+    'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
+  ).length;
+}
+
+function isDraftComplete(state) {
+  state = state || getDraftAssistantState();
+  return Boolean(state.totalPicks > 0 && getCompletedDraftPickCount() >= state.totalPicks);
+}
+
+function buildTimedRosterGuidance(state, positionCounts, flexFilled, myRows) {
+  var round = Math.min(state.rounds, Math.max(1, Math.ceil(state.currentPick / state.teams)));
+  var phase = getDraftPhase(state.currentPick, state.teams).phase;
+  var remainingSelections = state.myPicks.filter(function(pick) {
+    return pick >= state.currentPick;
+  }).length;
+  var openCore = [];
+  if (positionCounts.QB < 1) openCore.push('QB');
+  if (positionCounts.RB < 2) openCore.push('RB' + (positionCounts.RB === 0 ? ' ×2' : ''));
+  if (positionCounts.WR < 2) openCore.push('WR' + (positionCounts.WR === 0 ? ' ×2' : ''));
+  if (positionCounts.TE < 1) openCore.push('TE');
+  if (!flexFilled) openCore.push('FLEX');
+
+  var primary = '';
+  var secondary = '';
+  var tone = 'steady';
+
+  if (isDraftComplete(state)) {
+    primary = 'Your draft is complete. Review the final report and save the best undrafted ECR values to your waiver watch.';
+    secondary = 'The live recommendation and pressure tools are now retired for this draft.';
+  } else if (round <= 3) {
+    primary = positionCounts.RB + positionCounts.WR < 2
+      ? 'Build the RB/WR foundation with your next selection unless an elite value falls.'
+      : 'Your foundation is taking shape; keep following the strongest ECR value.';
+    secondary = 'QB and TE can wait when their current tiers remain healthy. Save K and DST for the final two rounds.';
+  } else if (round <= 7) {
+    if (openCore.length) {
+      primary = 'Starter-build window: address ' + openCore.slice(0, 3).join(', ') + ' within your next two selections.';
+      tone = 'watch';
+    } else {
+      primary = 'Your offensive starters are covered; add RB/WR value and upside.';
+    }
+    secondary = 'Continue saving K and DST for the final two rounds.';
+  } else if (round <= 11) {
+    if (openCore.length) {
+      primary = 'Do not let the starter window close: prioritize ' + openCore.join(', ') + ' now.';
+      tone = 'urgent';
+    } else {
+      primary = 'Starter structure is secure. Build RB/WR depth and high-upside bench value.';
+    }
+    secondary = 'Reserve the endgame for K/DST unless a required starter is still open.';
+  } else {
+    var endgameNeeds = [];
+    if (positionCounts.K < 1) endgameNeeds.push('K');
+    if (positionCounts.DST < 1) endgameNeeds.push('DST');
+    if (openCore.length) {
+      primary = 'Immediate roster warning: fill ' + openCore.join(', ') + ' before the draft ends.';
+      tone = 'urgent';
+    } else if (endgameNeeds.length && remainingSelections <= endgameNeeds.length) {
+      primary = 'Use your remaining ' + remainingSelections + ' selection' + (remainingSelections === 1 ? '' : 's') + ' on ' + endgameNeeds.join(' and ') + '.';
+      tone = 'urgent';
+    } else if (endgameNeeds.length) {
+      primary = 'Endgame plan: reserve your final ' + endgameNeeds.length + ' pick' + (endgameNeeds.length === 1 ? '' : 's') + ' for ' + endgameNeeds.join(' and ') + '.';
+      tone = 'watch';
+    } else {
+      primary = 'Required starters are covered. Finish with upside and injury-away RB/WR depth.';
+    }
+    secondary = 'Avoid low-upside bench duplicates when a clearer path to opportunity is available.';
+  }
+
+  var byeCounts = {};
+  (myRows || []).forEach(function(row) {
+    var bye = String(row.getAttribute('data-bye') || '').trim();
+    if (bye && bye !== '--' && bye !== '0') byeCounts[bye] = (byeCounts[bye] || 0) + 1;
+  });
+  var crowdedBye = Object.keys(byeCounts).sort(function(a, b) {
+    return byeCounts[b] - byeCounts[a];
+  })[0];
+  if (crowdedBye && byeCounts[crowdedBye] >= 3) {
+    secondary = 'Bye-week watch: ' + byeCounts[crowdedBye] + ' players share Week ' + crowdedBye + '. ' + secondary;
+    tone = tone === 'urgent' ? tone : 'watch';
+  }
+
+  return (
+    '<div class="roster-guidance roster-guidance-' + tone + '">' +
+      '<div class="roster-guidance-heading"><span>ROSTER PLAN</span><b>Round ' + round + ' · ' + escapeSummaryHtml(phase) + '</b></div>' +
+      '<strong>' + escapeSummaryHtml(primary) + '</strong>' +
+      '<small>' + escapeSummaryHtml(secondary) + '</small>' +
+    '</div>'
+  );
+}
+
+function updateDataFreshnessIndicator() {
+  var element = document.getElementById('data-freshness');
+  if (!element) return;
+  var meta = typeof FANTASYPROS_2026_DATASET_META !== 'undefined'
+    ? FANTASYPROS_2026_DATASET_META
+    : null;
+  var snapshotDate = meta && meta.sourceSnapshotDate ? new Date(meta.sourceSnapshotDate + 'T00:00:00') : null;
+
+  if (!snapshotDate || Number.isNaN(snapshotDate.getTime())) {
+    element.className = 'data-freshness data-freshness-unknown';
+    element.textContent = 'FantasyPros snapshot date unavailable';
+    return;
+  }
+
+  var ageDays = Math.max(0, Math.floor((Date.now() - snapshotDate.getTime()) / 86400000));
+  var status = ageDays <= 7 ? 'Fresh' : ageDays <= 21 ? 'Review soon' : 'Update recommended';
+  var tone = ageDays <= 7 ? 'fresh' : ageDays <= 21 ? 'review' : 'stale';
+  element.className = 'data-freshness data-freshness-' + tone;
+  element.textContent = 'FantasyPros PPR · ' + snapshotDate.toLocaleDateString(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric'
+  }) + ' · ' + status;
 }
 
 function updateDraftSummary() {
@@ -558,6 +675,8 @@ function updateDraftSummary() {
         (averageEcrValue == null ? 'record pick numbers to grade' : formatDraftSummaryDelta(averageEcrValue) + ' picks vs ECR on average') +
       '</small></div>' +
     '</div>';
+
+  html += buildTimedRosterGuidance(state, positionCounts, flexFilled, myRows);
 
   if (!picks.length) {
     html +=
@@ -684,6 +803,35 @@ function getFinalDraftAlternative(player) {
     .sort(function(a, b) { return a.ecr - b.ecr; })[0] || null;
 }
 
+function getFinalWaiverWatch(limit) {
+  return getDraftAssistantPlayers()
+    .filter(function(player) {
+      return player && player.available && player.ecr != null &&
+        ['QB', 'RB', 'WR', 'TE'].indexOf(player.position) >= 0;
+    })
+    .sort(function(a, b) {
+      return Number(a.ecr) - Number(b.ecr);
+    })
+    .slice(0, limit || 6);
+}
+
+function buildWaiverWatchHtml(players, compact) {
+  if (!players || !players.length) {
+    return '<div class="waiver-watch-empty">No undrafted ECR-ranked skill players remain.</div>';
+  }
+
+  return '<div class="waiver-watch-list ' + (compact ? 'compact' : '') + '">' + players.map(function(player) {
+    var name = player.row ? getDraftRowDisplayName(player.row) : player.name;
+    return (
+      '<div class="waiver-watch-player">' +
+        '<span class="pos-pill pos-' + escapeSummaryHtml(player.position) + '">' + escapeSummaryHtml(player.position) + '</span>' +
+        '<strong>' + escapeSummaryHtml(name) + '</strong>' +
+        '<small>ECR ' + Number(player.ecr).toFixed(0) + (player.adp != null ? ' · ADP ' + Number(player.adp).toFixed(1) : '') + '</small>' +
+      '</div>'
+    );
+  }).join('') + '</div>';
+}
+
 function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, averageEcrValue, grade) {
   var knownValues = picks.filter(function(player) { return player.ecrValue != null; });
   var knownMarket = picks.filter(function(player) { return player.marketValue != null; });
@@ -695,6 +843,7 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
     .sort(function(a, b) { return a.ecrValue - b.ecrValue; });
   var strengths = [];
   var improvements = [];
+  var waiverWatch = getFinalWaiverWatch(6);
 
   if (bestValue && bestValue.ecrValue > 0) {
     strengths.push(
@@ -801,6 +950,8 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
       '<section><h3>&#10003; What went well</h3><ul>' + strengths.map(function(item) { return '<li>' + item + '</li>'; }).join('') + '</ul></section>' +
       '<section class="improve"><h3>&#8593; What to improve</h3><ul>' + improvements.map(function(item) { return '<li>' + item + '</li>'; }).join('') + '</ul></section>' +
     '</div>' +
+    '<section class="final-waiver-watch"><div><h3>Waiver watch</h3><p>Best undrafted skill-position players by FantasyPros PPR ECR.</p></div>' +
+      buildWaiverWatchHtml(waiverWatch, false) + '</section>' +
     '<div class="final-summary-note">This is a process review, not a season prediction. Injuries, roles, and waiver moves will change the final outcome.</div>' +
     '<button class="final-summary-done" onclick="closeFinalDraftSummary()">Back to my draft</button>'
   );
@@ -838,6 +989,27 @@ function showFinalDraftSummary() {
     data.averageEcrValue,
     data.grade
   );
+}
+
+function updateDraftCompletionMode(state) {
+  state = state || getDraftAssistantState();
+  var complete = isDraftComplete(state);
+  document.body.classList.toggle('draft-complete-mode', complete);
+  return complete;
+}
+
+function renderDraftCompleteRecommendation(element) {
+  var waiverWatch = getFinalWaiverWatch(5);
+  window.latestDraftRecommendation = null;
+  window.latestDraftExplanation = null;
+  element.innerHTML =
+    '<div class="draft-complete-card">' +
+      '<div class="draft-complete-kicker">DRAFT COMPLETE</div>' +
+      '<div class="draft-complete-heading"><div><strong>Your board is final.</strong><span>Live pick advice is closed so you can focus on the roster you built.</span></div>' +
+        '<button onclick="showFinalDraftSummary()">View final report</button></div>' +
+      '<div class="draft-complete-waivers"><b>Waiver watch</b><small>Best undrafted players by PPR ECR</small>' +
+        buildWaiverWatchHtml(waiverWatch, true) + '</div>' +
+    '</div>';
 }
 
 function maybeShowFinalDraftSummary(state, picks, positionCounts, startersFilled, averageEcrValue, grade) {
@@ -7068,6 +7240,8 @@ function updateScarcityAlertsCustom(sharedLiveState) {
   }
 
 
+  updateDraftDayDashboard(liveState, scarcityState);
+
   var activeAlerts = Array.isArray(scarcityState.alerts)
     ? scarcityState.alerts
     : [];
@@ -7516,32 +7690,52 @@ function setPosFilter(pos, btn){
   applyFilters();
 }
 
-function updateDraftDayDashboard(){
+function updateDraftDayDashboard(liveState, scarcityState){
   var container = document.getElementById('draft-day-dashboard');
   if(!container) return;
-  
-  var draftedCounts = {QB:0, RB:0, WR:0, TE:0, K:0, DST:0};
-  var totalByPos = {QB:0, RB:0, WR:0, TE:0, K:0, DST:0};
-  
-  document.querySelectorAll('tr.draftrow').forEach(function(row){
-    var pos = row.getAttribute('data-pos');
-    if(pos && totalByPos[pos] !== undefined) totalByPos[pos]++;
-    if(row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')){
-      if(pos && draftedCounts[pos] !== undefined) draftedCounts[pos]++;
-    }
-  });
+
+  if (!liveState || !Array.isArray(liveState.players) || !scarcityState) {
+    container.innerHTML = '<div class="board-pressure-loading">Measuring the live board…</div>';
+    return;
+  }
+
+  var state = liveState.draftState || getDraftAssistantState();
+  var context = liveState.context || {};
+  var positions = scarcityState.positions || {};
+  var draftableCutoff = state.totalPicks;
   
   var html =
-    '<div class="board-pressure-section-label">POSITION AVAILABILITY</div>' +
+    '<div class="board-pressure-section-label"><span>DECISION WINDOW</span><b>ECR top ' + draftableCutoff + ' remaining</b></div>' +
     '<div class="board-pressure-grid">';
   ['QB','RB','WR','TE','K','DST'].forEach(function(pos){
-    var left = totalByPos[pos] - draftedCounts[pos];
-    var pct = totalByPos[pos] > 0 ? Math.round((left / totalByPos[pos]) * 100) : 0;
-    var urgency = pct > 50 ? 'plenty' : pct > 25 ? 'fair' : pct > 10 ? 'limited' : 'scarce';
+    var available = liveState.players.filter(function(player) {
+      return player && player.available && player.position === pos;
+    }).sort(function(a, b) {
+      return (Number(a.ecr) || Number(a.rank) || 9999) - (Number(b.ecr) || Number(b.rank) || 9999);
+    });
+    var relevant = available.filter(function(player) {
+      return player.ecr != null && (
+        pos === 'K' || pos === 'DST' || Number(player.ecr) <= draftableCutoff
+      );
+    });
+    var positionState = positions[pos] || null;
+    var best = positionState && positionState.bestAvailable ? positionState.bestAvailable : available[0] || null;
+    var survival = best ? Math.round(calculateNextPickSurvival(best, context)) : 0;
+    var status = positionState ? positionState.status : 'ENDGAME';
+    var urgency = status === 'CRITICAL CLIFF' || survival < 25
+      ? 'scarce'
+      : status === 'TIER CLOSING' || status === 'HIGH SCARCITY' || survival < 50
+        ? 'limited'
+        : survival < 75 ? 'fair' : 'plenty';
+    var playerName = best && best.row ? getDraftRowDisplayName(best.row) : best && best.name ? best.name : 'None';
+    var cliffText = positionState && positionState.playersBeforeCliff > 0
+      ? positionState.playersBeforeCliff + ' before tier drop'
+      : pos === 'K' || pos === 'DST' ? 'Endgame position' : 'No immediate cliff';
     html += '<div class="board-pressure-card pressure-'+urgency+'">';
-    html += '<div><span class="pos-pill pos-'+pos+'">'+pos+'</span><b>'+left+' left</b></div>';
-    html += '<div class="board-pressure-meter"><span style="width:'+pct+'%"></span></div>';
-    html += '<small>'+urgency.toUpperCase()+' · '+pct+'% available</small>';
+    html += '<div><span class="pos-pill pos-'+pos+'">'+pos+'</span><b>'+relevant.length+(pos === 'K' || pos === 'DST' ? ' ranked' : ' relevant')+'</b></div>';
+    html += '<strong class="pressure-best">'+escapeSummaryHtml(playerName)+'</strong>';
+    html += '<div class="board-pressure-meter"><span style="width:'+survival+'%"></span></div>';
+    html += '<small>'+survival+'% next-pick survival · '+escapeSummaryHtml(cliffText)+'</small>';
     html += '</div>';
   });
   html += '</div>';
@@ -7576,8 +7770,11 @@ function triggerAllBoardUpdates(options) {
   timedUpdate('pickCounter', updatePickCounter);
   timedUpdate('nextPickDisplay', updateNextPickDisplay);
   timedUpdate('nextPickMarker', updateNextPickMarker);
-  timedUpdate('dashboard', updateDraftDayDashboard);
   timedUpdate('roundMarkers', addRoundMarkers);
+  var draftComplete = false;
+  timedUpdate('completionMode', function() {
+    draftComplete = updateDraftCompletionMode();
+  });
 
   timings.interactive = Number((performance.now() - totalStart).toFixed(1));
   publishBoardUpdateTimings(timings);
@@ -7585,6 +7782,17 @@ function triggerAllBoardUpdates(options) {
   function updateDraftIntelligence() {
     var intelligenceStart = performance.now();
     var sharedLiveState = null;
+
+    if (draftComplete) {
+      timedUpdate('recommendation', updateRecommendedPick);
+      timings.intelligence = Number((performance.now() - intelligenceStart).toFixed(1));
+      timings.total = Number((performance.now() - totalStart).toFixed(1));
+      publishBoardUpdateTimings(timings);
+      document.body.classList.remove('draft-intelligence-updating');
+      var completedRecommendationBox = document.getElementById('recommended-pick-box');
+      if (completedRecommendationBox) completedRecommendationBox.removeAttribute('aria-busy');
+      return;
+    }
 
     timedUpdate('liveDraftState', function() {
       sharedLiveState = buildLiveDraftDebugState();
@@ -9580,6 +9788,11 @@ function updateRecommendedPick(sharedLiveState) {
 
     return;
 
+  }
+
+  if (isDraftComplete()) {
+    renderDraftCompleteRecommendation(el);
+    return;
   }
 
 
@@ -12163,6 +12376,7 @@ function addMobileHandcuffLabels() {
 function initApp() {
 
   setupSearchUI();
+  updateDataFreshnessIndicator();
 
   addMobileHandcuffLabels();
 

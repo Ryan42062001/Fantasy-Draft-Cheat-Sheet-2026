@@ -9,6 +9,7 @@ const ecrPath = path.join(dataDir, 'FantasyPros_2026_Draft_ALL_Rankings.csv');
 const adpPath = path.join(dataDir, 'FantasyPros_2026_Overall_ADP_Rankings.csv');
 const jsonPath = path.join(dataDir, 'fantasypros-2026-master.json');
 const runtimePath = path.join(repoRoot, 'fantasypros-2026-data.js');
+const SOURCE_SNAPSHOT_DATE = '2026-08-21';
 
 const SUPPORTED_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DST']);
 const EXPECTED = {
@@ -249,6 +250,7 @@ assertEqual('board ranks', players.map((player) => player.rank), Array.from({ le
 
 const metadata = {
   generatedFrom: [path.basename(ecrPath), path.basename(adpPath)],
+  sourceSnapshotDate: SOURCE_SNAPSHOT_DATE,
   ecrPlayers: ecrPlayers.length,
   adpOnlyPlayers: adpOnlyPlayers.length,
   totalPlayers: players.length,
