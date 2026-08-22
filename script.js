@@ -8230,6 +8230,28 @@ function setDraftMarkMode(mode) {
   refreshDraftRowAccessibility();
 }
 
+function shouldIgnoreDraftMarkShortcut(event) {
+  var target = event && event.target;
+  if (!target) return false;
+  return Boolean(
+    event.ctrlKey || event.metaKey || event.altKey ||
+    target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]') ||
+    document.body.classList.contains('edit-mode')
+  );
+}
+
+function setupDraftMarkModeShortcut() {
+  if (document.body.getAttribute('data-mark-shortcut-ready') === 'true') return;
+  document.body.setAttribute('data-mark-shortcut-ready', 'true');
+  document.addEventListener('keydown', function(event) {
+    if (String(event.key || '').toLowerCase() !== 'm' || event.repeat || shouldIgnoreDraftMarkShortcut(event)) return;
+    event.preventDefault();
+    setDraftMarkMode(draftMarkMode === 'mine' ? 'taken' : 'mine');
+    var announcer = document.getElementById('draft-action-announcer');
+    if (announcer) announcer.textContent = 'Player marking mode changed to ' + draftMarkMode + '.';
+  });
+}
+
 function clearDraftRowMetadata(row) {
   ['data-pick', 'data-team-slot', 'data-sync-source', 'data-espn-player-id',
     'data-team-id', 'data-sync-method'].forEach(function(attribute) {
@@ -13044,6 +13066,7 @@ function initApp() {
 
   initializeTierSectionOrganization();
   setupDraftBoardInteractions();
+  setupDraftMarkModeShortcut();
   initializeDraftSessions();
 
 

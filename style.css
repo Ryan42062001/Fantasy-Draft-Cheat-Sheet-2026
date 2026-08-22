@@ -647,6 +647,8 @@ summary:focus {
   color: #d8ffe2;
 }
 
+.mark-mode-shortcut { margin-left:2px; padding:2px 5px; border:1px solid rgba(255,255,255,.16); border-bottom-width:2px; border-radius:4px; background:rgba(0,0,0,.18); color:#8fa494; font:700 .55rem/1 system-ui,sans-serif; }
+
 /* ==== TIER DIVIDERS ==== */
 
 tr.tier-divider-row td {
