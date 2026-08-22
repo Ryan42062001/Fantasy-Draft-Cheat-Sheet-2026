@@ -36,7 +36,23 @@ var appObserver = null;
 var searchMatches = [];
 var currentSearchIndex = -1;
 var developerToolsPromise = null;
+var _draftRowsCache = null;
+var _draftRowsByCanonicalNameCache = null;
 window.ORIGINAL_ORDER = [];
+
+function invalidateDraftRowCaches() {
+  _draftRowsCache = null;
+  _draftRowsByCanonicalNameCache = null;
+}
+
+function getCachedDraftRows() {
+  if (!_draftRowsCache) {
+    _draftRowsCache = Array.prototype.slice.call(
+      document.querySelectorAll('tr.draftrow')
+    );
+  }
+  return _draftRowsCache;
+}
 
 function isDraftEngineDebugEnabled() {
   return DEBUG_DRAFT_SCORING || Boolean(
@@ -440,6 +456,8 @@ function escapeSummaryHtml(value) {
 }
 
 function getDraftRowDisplayName(row) {
+  var cachedName = row && row.getAttribute('data-display-name');
+  if (cachedName) return cachedName;
   var playerCell = row && row.querySelector('.pname');
   if (!playerCell) return row ? row.getAttribute('data-name') || 'Unknown player' : 'Unknown player';
 
@@ -448,7 +466,9 @@ function getDraftRowDisplayName(row) {
     element.remove();
   });
 
-  return (clone.textContent || '').replace(/\s+/g, ' ').trim() || 'Unknown player';
+  var displayName = (clone.textContent || '').replace(/\s+/g, ' ').trim() || 'Unknown player';
+  if (row && displayName !== 'Unknown player') row.setAttribute('data-display-name', displayName);
+  return displayName;
 }
 
 function getDraftSummaryGrade(averageEcrValue) {
@@ -8348,7 +8368,7 @@ function saveState(){
   try{
     var state = {};
     var draftMeta = {};
-    document.querySelectorAll('tr.draftrow').forEach(function(row){
+    getCachedDraftRows().forEach(function(row){
       var name = row.getAttribute('data-name');
       if(name) {
         if(row.classList.contains('drafted-mine')) state[name] = 'mine';
@@ -8370,14 +8390,26 @@ function saveState(){
         }
       }
     });
+    var hasAuthoritativeBoard =
+      typeof EXPERT_RANKINGS_2026 !== 'undefined' &&
+      Array.isArray(EXPERT_RANKINGS_2026) &&
+      EXPERT_RANKINGS_2026.length > 0;
     var order = [];
-    document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
-      var tid = tbody.id.replace('tbody-','');
-      tbody.querySelectorAll('tr.draftrow').forEach(function(row){
-        var name = row.getAttribute('data-name');
-        if(name) order.push({n: name, t: tid});
+
+    /*
+     * The FantasyPros board is rebuilt from source data on every startup, so
+     * serializing all 717 row locations cannot affect restoration. Retain the
+     * legacy order payload only for installations without that dataset.
+     */
+    if (!hasAuthoritativeBoard) {
+      document.querySelectorAll('tbody.tier-group').forEach(function(tbody){
+        var tid = tbody.id.replace('tbody-','');
+        tbody.querySelectorAll('tr.draftrow').forEach(function(row){
+          var name = row.getAttribute('data-name');
+          if(name) order.push({n: name, t: tid});
+        });
       });
-    });
+    }
     var payload = { savedAt: new Date().toISOString(), teams: LEAGUE_SIZE, slot: MY_DRAFT_SLOT, rounds: TOTAL_ROUNDS, state: state, draftMeta: draftMeta, order: order };
     localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(payload));
     flashSaveIndicator('Saved', '#8fd4a0');
@@ -8687,22 +8719,11 @@ function findDraftRowByExpertName(name) {
   var canonical =
     canonicalExpertPlayerName(name);
 
-  var rows =
-    Array.from(
-      document.querySelectorAll(
-        'tr.draftrow'
-      )
-    );
+  if (!_draftRowsByCanonicalNameCache) {
+    _draftRowsByCanonicalNameCache = indexDraftRowsByExpertName();
+  }
 
-  return rows.find(function(row) {
-
-    return (
-      canonicalExpertPlayerName(
-        row.getAttribute('data-name')
-      ) === canonical
-    );
-
-  }) || null;
+  return _draftRowsByCanonicalNameCache.get(canonical) || null;
 
 }
 
@@ -8757,6 +8778,11 @@ function createExpertPlayerRow(player) {
     normalizeExpertPlayerName(
       player.name
     )
+  );
+
+  row.setAttribute(
+    'data-display-name',
+    String(player.name || '').trim()
   );
 
   updateFantasyProsRowDataAttributes(
@@ -8997,6 +9023,11 @@ function updateExpertPlayerRowMetadata(
     normalizeExpertPlayerName(
       player.name
     )
+  );
+
+  row.setAttribute(
+    'data-display-name',
+    String(player.name || '').trim()
   );
 
 
@@ -9319,6 +9350,8 @@ function build2026ExpertBoardStructure() {
   }
 
 
+  invalidateDraftRowCaches();
+
   var removedPlayers =
     removePlayersOutsideExpertDataset();
 
@@ -9427,6 +9460,10 @@ function build2026ExpertBoardStructure() {
     var tbody = getExpertTierBody(tierId);
     if (tbody) tbody.appendChild(tierFragments[tierId]);
   });
+
+  invalidateDraftRowCaches();
+  getCachedDraftRows();
+  _draftRowsByCanonicalNameCache = indexDraftRowsByExpertName();
 
 
   if (
@@ -13180,6 +13217,7 @@ function getMandatoryEndgamePositions(
 
 
   var state =
+    context.draftState ||
     getDraftAssistantState();
 
   var currentPick =
@@ -13219,33 +13257,7 @@ function getMandatoryEndgamePositions(
    * -------------------------------------------------------
    */
 
-  var counts = {
-    K: 0,
-    DST: 0
-  };
-
-
-  document
-    .querySelectorAll(
-      'tr.draftrow.drafted-mine'
-    )
-    .forEach(function(row) {
-
-      var position =
-        row.getAttribute(
-          'data-pos'
-        );
-
-      if (
-        position === 'K' ||
-        position === 'DST'
-      ) {
-
-        counts[position]++;
-
-      }
-
-    });
+  var counts = context.rosterCounts || getDraftAssistantRosterState().counts;
 
 
   var missing = [];
@@ -13311,6 +13323,7 @@ function getMandatoryEndgamePositions(
    */
 
   var players =
+    context.players ||
     getDraftAssistantPlayers();
 
 
@@ -13741,7 +13754,7 @@ function getDraftRowNumber(row, attributeName) {
 function getDraftAssistantPlayers() {
   var players = [];
 
-  document.querySelectorAll('tr.draftrow').forEach(function(row) {
+  getCachedDraftRows().forEach(function(row) {
 
     var status = 'available';
 
@@ -14741,59 +14754,39 @@ function calculateFantasyVorp(
  * This uses the existing tier information from
  * the player's row whenever available.
  */
-function calculateTierDrop(
-  player,
-  players
-) {
-
+function calculateTierDrop(player, players, sharedContext) {
   if (!player || !player.rank) {
-    return {
-      score: 0,
-      nextPlayer: null,
-      rankGap: 0
-    };
+    return {score: 0, nextPlayer: null, rankGap: 0};
   }
 
-  var samePosition =
-    players
-      .filter(function(p) {
+  var cacheKey = String(player.name || '').toLowerCase();
+  var nextPlayer;
 
-        return p.available &&
-          p.position === player.position &&
-          p.rank &&
-          hasAuthoritativeEcr(p) &&
-          p.rank > player.rank;
+  if (
+    sharedContext &&
+    sharedContext.tierDropNextByName &&
+    Object.prototype.hasOwnProperty.call(sharedContext.tierDropNextByName, cacheKey)
+  ) {
+    nextPlayer = sharedContext.tierDropNextByName[cacheKey];
+  } else {
+    nextPlayer = players
+      .filter(function(candidate) {
+        return candidate.available &&
+          candidate.position === player.position &&
+          candidate.rank &&
+          hasAuthoritativeEcr(candidate) &&
+          candidate.rank > player.rank;
       })
-      .sort(function(a, b) {
-
-        return a.rank - b.rank;
-      });
-
-  var nextPlayer =
-    samePosition[0] || null;
+      .sort(function(a, b) { return a.rank - b.rank; })[0] || null;
+  }
 
   if (!nextPlayer) {
-    return {
-      score: 100,
-      nextPlayer: null,
-      rankGap: 0
-    };
+    return {score: 100, nextPlayer: null, rankGap: 0};
   }
 
-  var rankGap =
-    nextPlayer.rank - player.rank;
-
-  /*
-   * A larger gap means a larger drop-off.
-   */
-  var score =
-    Math.min(
-      100,
-      rankGap * 10
-    );
-
+  var rankGap = nextPlayer.rank - player.rank;
   return {
-    score: score,
+    score: Math.min(100, rankGap * 10),
     nextPlayer: nextPlayer,
     rankGap: rankGap
   };
@@ -16073,6 +16066,14 @@ function calculateLateAvailability(
       context.currentPick
     ) || 0;
 
+  var cache = context && context.lateAvailabilityCache;
+  var cacheKey = String(player.name || '').toLowerCase() + '|' +
+    player.position + '|' + playerRank + '|' + currentPick + '|' + nextPick;
+
+  if (cache && Object.prototype.hasOwnProperty.call(cache, cacheKey)) {
+    return cache[cacheKey];
+  }
+
 
   /*
    * If we don't know the draft position,
@@ -16104,8 +16105,9 @@ function calculateLateAvailability(
    * -------------------------------------------------------
    */
 
-  var samePosition =
-    players.filter(function(p) {
+  var samePosition = context && context.marketPools && context.marketPools[player.position]
+    ? context.marketPools[player.position]
+    : players.filter(function(p) {
 
       return p &&
         p.available &&
@@ -16330,13 +16332,16 @@ function calculateLateAvailability(
     risk
   );
 
-  return Math.max(
+  var result = Math.max(
     0,
     Math.min(
       100,
       risk
     )
   );
+
+  if (cache) cache[cacheKey] = result;
+  return result;
 
 }
 
@@ -17079,7 +17084,8 @@ function calculateVorpProfile(
   var tierDrop =
     calculateTierDrop(
       player,
-      players
+      players,
+      draftAwareContext
     );
 
   var cachedScarcity = draftAwareContext &&
@@ -17111,21 +17117,17 @@ draftState =
    * -------------------------------------------------------
    */
 
-  var lateAvailability =
-    calculateLateAvailability(
-      player,
-      players,
-      {
-        currentPick:
-          draftState.currentPick,
-
-        nextPick:
-          calculateMyNextDraftPick(
-            Number(draftState.currentPick) || 0,
-            Number(draftState.teams) || 10
-          ).nextPick
-      }
-    );
+  var lateAvailability = calculateLateAvailability(
+    player,
+    players,
+    draftAwareContext || {
+      currentPick: draftState.currentPick,
+      nextPick: calculateMyNextDraftPick(
+        Number(draftState.currentPick) || 0,
+        Number(draftState.teams) || 10
+      ).nextPick
+    }
+  );
 
 
   /*
@@ -17195,7 +17197,7 @@ var draftAwareVorpOpportunity =
 /*
  * Calculate Stage 2 for all available players.
  */
-function calculateAllFantasyVorp(players) {
+function calculateAllFantasyVorp(players, suppliedDraftState) {
 
   var available =
     getAvailableVorpPlayers(
@@ -17217,6 +17219,7 @@ function calculateAllFantasyVorp(players) {
  */
 
 var draftState =
+  suppliedDraftState ||
   getDraftAssistantState();
 
 
@@ -17348,6 +17351,32 @@ var draftAwarePositionShares = {};
   }
 );
 
+var tierDropNextByName = {};
+var vorpMarketPools = {};
+
+['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
+  var positionPool = draftAwarePositionPools[position] || [];
+
+  positionPool.forEach(function(player, index) {
+    tierDropNextByName[String(player.name || '').toLowerCase()] =
+      positionPool[index + 1] || null;
+  });
+
+  vorpMarketPools[position] = positionPool.filter(function(player) {
+    return Number.isFinite(getFantasyProsMarketRank(player));
+  });
+});
+
+var decisionMarketPools = {};
+['QB', 'RB', 'WR', 'TE', 'K', 'DST'].forEach(function(position) {
+  decisionMarketPools[position] = players.filter(function(player) {
+    return player &&
+      player.available !== false &&
+      player.position === position &&
+      Number.isFinite(getFantasyProsMarketRank(player));
+  });
+});
+
 var positionScarcityScores = {};
 
 ['QB', 'RB', 'WR', 'TE'].forEach(function(position) {
@@ -17381,6 +17410,21 @@ var sharedDraftAwareContext = {
   positionShares:
     draftAwarePositionShares,
 
+  tierDropNextByName:
+    tierDropNextByName,
+
+  marketPools:
+    vorpMarketPools,
+
+  lateAvailabilityCache:
+    {},
+
+  currentPick:
+    Number(draftState.currentPick) || 0,
+
+  nextPick:
+    Number(draftWindow.nextPick) || 0,
+
   positionScarcityScores:
     positionScarcityScores
 
@@ -17409,7 +17453,13 @@ var profiles =
       replacements,
 
     profiles:
-      profiles
+      profiles,
+
+    marketPools:
+      decisionMarketPools,
+
+    lateAvailabilityCache:
+      sharedDraftAwareContext.lateAvailabilityCache
 
   };
 
@@ -18321,13 +18371,13 @@ function calculateDraftDecisionScore(player, context){
 
   context = context || {};
 
-  var draftPhase =
+  var draftPhase = context.draftPhase ||
   getDraftPhase(
     Number(context.currentPick) || 0,
     Number(context.teams) || 10
   );
 
-var phaseWeights =
+var phaseWeights = context.phaseWeights ||
   getDraftPhaseWeights(
     draftPhase.phase
   );
@@ -18493,22 +18543,19 @@ if(context.rosterNeeds &&
 
   /*
    * -------------------------------------------------------
-   * 6. DRAFT TIMING
+ * 6. DRAFT TIMING
    * -------------------------------------------------------
    */
 
 var draftState =
+  context.draftState ||
   getDraftAssistantState();
 
-var lateAvailability =
-  calculateLateAvailability(
-    player,
-    context.players || [],
-    {
-      currentPick: Number(context.currentPick) || draftState.currentPick,
-      nextPick: Number(context.calculatedNextPick || context.nextPick) || draftState.myNextPick
-    }
-  );
+var lateAvailability = calculateLateAvailability(
+  player,
+  context.players || [],
+  context
+);
 
 var timingScore =
   lateAvailability;
@@ -21818,9 +21865,9 @@ if (result.timingScore >= 70) {
 };
 }
 
-function calculateDecisionRosterNeeds(){
+function calculateDecisionRosterNeeds(suppliedCounts){
 
-  var counts = {
+  var counts = suppliedCounts || {
     QB: 0,
     RB: 0,
     WR: 0,
@@ -21829,7 +21876,7 @@ function calculateDecisionRosterNeeds(){
     DST: 0
   };
 
-  document
+  if (!suppliedCounts) document
     .querySelectorAll(
       'tr.draftrow.drafted-mine'
     )
@@ -22335,8 +22382,9 @@ function calculateEndgameRosterRequirement(
   var rounds =
     Number(context.rounds) ||
     Number(
-      getDraftAssistantState().rounds
+      context.draftState && context.draftState.rounds
     ) ||
+    Number(getDraftAssistantState().rounds) ||
     16;
 
 
@@ -22368,33 +22416,7 @@ function calculateEndgameRosterRequirement(
    * -------------------------------------------------------
    */
 
-  var counts = {
-    K: 0,
-    DST: 0
-  };
-
-
-  document
-    .querySelectorAll(
-      'tr.draftrow.drafted-mine'
-    )
-    .forEach(function(row) {
-
-      var pos =
-        row.getAttribute(
-          'data-pos'
-        );
-
-      if (
-        pos === 'K' ||
-        pos === 'DST'
-      ) {
-
-        counts[pos]++;
-
-      }
-
-    });
+  var counts = context.rosterCounts || getDraftAssistantRosterState().counts;
 
 
   var kNeeded =
@@ -22606,9 +22628,9 @@ function calculateEndgameRosterRequirement(
   return adjustment;
 }
 
-function calculateDraftStrategy() {
+function calculateDraftStrategy(suppliedCounts) {
 
-  var counts = {
+  var counts = suppliedCounts || {
     QB: 0,
     RB: 0,
     WR: 0,
@@ -22617,7 +22639,7 @@ function calculateDraftStrategy() {
     DST: 0
   };
 
-  document
+  if (!suppliedCounts) document
     .querySelectorAll(
       'tr.draftrow.drafted-mine'
     )
@@ -23191,11 +23213,11 @@ function buildLiveDraftDebugState() {
   var rosterCounts = rosterState.counts;
 
 
-  var vorpResult =
-    calculateAllFantasyVorp(players);
-
   var draftState =
     getDraftAssistantState();
+
+  var vorpResult =
+    calculateAllFantasyVorp(players, draftState);
 
   var teams =
     Number(draftState.teams) || 10;
@@ -23210,7 +23232,7 @@ function buildLiveDraftDebugState() {
     detectDraftRuns();
 
   var draftStrategy =
-    calculateDraftStrategy();
+    calculateDraftStrategy(rosterCounts);
 
   var tierCliffs = {};
 
@@ -23236,7 +23258,10 @@ function buildLiveDraftDebugState() {
     );
 
   var rosterNeeds =
-  calculateDecisionRosterNeeds();
+  calculateDecisionRosterNeeds(rosterCounts);
+
+  var draftPhase =
+    getDraftPhase(draftState.currentPick, teams);
 
   var context = {
 
@@ -23258,11 +23283,29 @@ function buildLiveDraftDebugState() {
     currentPick:
       draftState.currentPick,
 
+    draftSlot:
+      Number(draftState.draftSlot) || 1,
+
+    draftState:
+      draftState,
+
     skipMultiPickPlanning:
       true,
 
     skipFutureDepth:
       true,
+
+    draftPhase:
+      draftPhase,
+
+    phaseWeights:
+      getDraftPhaseWeights(draftPhase.phase),
+
+    marketPools:
+      vorpResult.marketPools || {},
+
+    lateAvailabilityCache:
+      vorpResult.lateAvailabilityCache || {},
 
     nextPickSurvivalCache:
   {},
@@ -23838,7 +23881,6 @@ if (original.pick !== null) {
   );
 
 }
-
 
 if (original.teamSlot !== null) {
 

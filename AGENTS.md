@@ -291,3 +291,17 @@ Completion evidence (2026-08-22):
 - Draft-complete UI: Board Pressure hidden, live recommendation replaced, final report opens with six waiver-watch players
 - Responsive audit: 390 × 844 viewport, no horizontal page overflow
 - Regression suites: 152/152 draft engine + 5/5 turn package + 8/8 recommendation explanations = 165/165
+
+## Performance optimization
+- [x] Profile startup, immediate player-state painting, and deferred recommendation refreshes on the 717-player board
+- [x] Cache the authoritative draft-row collection, canonical player lookup index, and stable display names
+- [x] Share draft state, roster counts, phase weights, tier-drop lookups, and market pools across each scoring pass
+- [x] Cache repeated late-availability calculations without changing ECR/ADP authority boundaries
+- [x] Avoid serializing authoritative board order during autosave while retaining the legacy no-dataset fallback
+- [x] Preserve deferred draft intelligence so Taken/Mine state paints before recommendation work
+- [x] Re-run board integrity, canonical regressions, calculation sanity, roadmap simulations, and ESPN sync tests
+
+Performance evidence (2026-08-22):
+- Before: live-state scoring was roughly 635–745 ms per refresh and the deferred full refresh was roughly 779–885 ms
+- After: repeated player clicks painted interactively in an 11.0 ms median; live-state scoring was 120.9 ms median; the full deferred refresh was 276.3 ms median
+- Integrity/regressions: 717/717 board rows with 0 missing / unexpected / duplicates; canonical 165/165; calculation sanity 12/12; roadmap scenarios 4/4; ESPN website contract 12/12; extension tests 33/33
