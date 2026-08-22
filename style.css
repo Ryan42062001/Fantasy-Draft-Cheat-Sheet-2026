@@ -646,6 +646,14 @@ body.edit-mode tr.draftrow:hover td {
   display: block;
 }
 
+#recommended-pick-box[aria-busy="true"] .widget-title::after {
+  content: " Updating…";
+  margin-left: 6px;
+  color: #8fa494;
+  font-size: 0.61rem;
+  font-weight: 700;
+}
+
 /* ==== LIVE DRAFT SUMMARY ==== */
 
 #summary-panel {
@@ -842,7 +850,7 @@ body.edit-mode tr.draftrow:hover td {
 
 .summary-position-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 7px;
 }
 
