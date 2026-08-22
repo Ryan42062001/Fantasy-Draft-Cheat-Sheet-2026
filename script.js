@@ -25,6 +25,8 @@ var TEAM_COLORS = {
 var currentPosFilter = 'ALL';
 var resetArmed = false;
 var resetArmTimer = null;
+var deleteDraftArmed = false;
+var deleteDraftArmTimer = null;
 var _saveTimer = null;
 var _finalSummaryTimer = null;
 var draftMarkMode = 'taken';
@@ -8479,6 +8481,7 @@ function clearDraftStateFromBoard() {
 
 function switchDraftSession(id) {
   if (!id || id === activeDraftSessionId) return;
+  resetDeleteDraftButton();
   saveState();
   activeDraftSessionId = id;
   localStorage.setItem(ACTIVE_DRAFT_SESSION_KEY, id);
@@ -8489,6 +8492,7 @@ function switchDraftSession(id) {
 
 function createNewDraftSession(options) {
   options = options || {};
+  resetDeleteDraftButton();
   saveState();
   var id = options.id || ('draft-' + Date.now().toString(36));
   var sessions = readDraftSessionRegistry();
@@ -8504,6 +8508,65 @@ function createNewDraftSession(options) {
   triggerAllBoardUpdates();
   saveState();
   return id;
+}
+
+function resetDeleteDraftButton() {
+  deleteDraftArmed = false;
+  if (deleteDraftArmTimer) clearTimeout(deleteDraftArmTimer);
+  deleteDraftArmTimer = null;
+  var button = document.getElementById('deleteDraftBtn');
+  if (button) {
+    button.textContent = 'Delete Draft';
+    button.classList.remove('armed');
+    button.setAttribute('aria-label', 'Delete selected draft');
+  }
+}
+
+function deleteActiveDraftSession() {
+  var sessions = readDraftSessionRegistry();
+  var activeSession = sessions.find(function(session) { return session.id === activeDraftSessionId; });
+  if (!activeSession) return;
+
+  var button = document.getElementById('deleteDraftBtn');
+  if (!deleteDraftArmed) {
+    deleteDraftArmed = true;
+    if (button) {
+      button.textContent = 'Confirm Delete';
+      button.classList.add('armed');
+      button.setAttribute('aria-label', 'Confirm deletion of ' + activeSession.name);
+    }
+    deleteDraftArmTimer = setTimeout(resetDeleteDraftButton, 3000);
+    return;
+  }
+
+  if (_saveTimer) {
+    clearTimeout(_saveTimer);
+    _saveTimer = null;
+  }
+  var deletedId = activeSession.id;
+  var remainingSessions = sessions.filter(function(session) { return session.id !== deletedId; });
+  localStorage.removeItem(getDraftSessionStateKey(deletedId));
+  localStorage.removeItem(getDraftSessionFinalKey(deletedId));
+
+  if (!remainingSessions.length) {
+    var replacementId = 'draft-' + Date.now().toString(36);
+    remainingSessions.push({id:replacementId, name:'Draft 1', createdAt:new Date().toISOString()});
+  }
+  writeDraftSessionRegistry(remainingSessions);
+  activeDraftSessionId = remainingSessions[0].id;
+  localStorage.setItem(ACTIVE_DRAFT_SESSION_KEY, activeDraftSessionId);
+
+  var replacementState = localStorage.getItem(getDraftSessionStateKey(activeDraftSessionId));
+  if (replacementState) localStorage.setItem(AUTOSAVE_KEY, replacementState);
+  else localStorage.removeItem(AUTOSAVE_KEY);
+
+  resetDeleteDraftButton();
+  closeFinalDraftSummary();
+  clearDraftStateFromBoard();
+  loadState();
+  renderDraftSessionSelector();
+  var announcer = document.getElementById('draft-action-announcer');
+  if (announcer) announcer.textContent = activeSession.name + ' deleted. ' + remainingSessions[0].name + ' is now active.';
 }
 
 function selectEspnDraftSession(draftKey) {

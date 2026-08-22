@@ -622,6 +622,7 @@ summary:focus {
 
 .draft-session-control { display:inline-flex; align-items:center; gap:5px; color:#a9c2ab; font-size:0.63rem; font-weight:800; }
 .draft-session-control select { max-width:155px; min-height:29px; border:1px solid var(--hash); border-radius:6px; background:#122619; color:var(--chalk); }
+.draft-session-control .delete-draft-btn { white-space:nowrap; }
 
 .mark-mode-btn {
   min-height: 25px;

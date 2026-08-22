@@ -75,6 +75,22 @@ const sessionBefore = await page.locator('#draftSessionSelect option').count();
 await page.getByRole('button', {name:'New Draft'}).click();
 assert.equal(await page.locator('#draftSessionSelect option').count(), sessionBefore + 1);
 assert.equal(await page.locator('tr.drafted-mine,tr.drafted-other').count(), 0);
+const draftToDelete = await page.locator('#draftSessionSelect').inputValue();
+await page.getByRole('button', {name:'Delete selected draft'}).click();
+assert.equal(await page.getByRole('button', {name:/Confirm deletion of/}).innerText(), 'Confirm Delete');
+await page.getByRole('button', {name:/Confirm deletion of/}).click();
+assert.equal(await page.locator('#draftSessionSelect option').count(), sessionBefore);
+assert.notEqual(await page.locator('#draftSessionSelect').inputValue(), draftToDelete);
+assert.equal(await page.evaluate(id => localStorage.getItem('draft-state-v1:' + id), draftToDelete), null);
+if (sessionBefore === 1) {
+  const lastDraftId = await page.locator('#draftSessionSelect').inputValue();
+  await page.getByRole('button', {name:'Delete selected draft'}).click();
+  await page.getByRole('button', {name:/Confirm deletion of/}).click();
+  assert.equal(await page.locator('#draftSessionSelect option').count(), 1);
+  assert.equal(await page.locator('#draftSessionSelect option').innerText(), 'Draft 1');
+  assert.notEqual(await page.locator('#draftSessionSelect').inputValue(), lastDraftId);
+  assert.equal(await page.locator('tr.drafted-mine,tr.drafted-other').count(), 0);
+}
 
 await page.getByRole('button', {name:/My Draft/}).click();
 assert.equal(await page.locator('#myteam-panel').getAttribute('aria-hidden'), 'false');
