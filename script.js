@@ -7685,6 +7685,24 @@ function findDraftRowByExpertName(name) {
 }
 
 
+/*
+ * =========================================================
+ * FANTASYPROS 2026 — PHASE 1 MIGRATION PATCH
+ * =========================================================
+ */
+
+var TIER_LABELS = {
+  Sp: 'ELITE',
+  S:  'PREMIUM',
+  A:  'CORE',
+  B:  'VALUE',
+  C:  'UPSIDE',
+  D:  'DEPTH',
+  E:  'LATE FLYERS',
+  F:  'DEEP'
+};
+
+
 function createExpertPlayerRow(player) {
 
   var row =
@@ -7700,14 +7718,9 @@ function createExpertPlayerRow(player) {
     )
   );
 
-  row.setAttribute(
-    'data-pos',
-    player.pos
-  );
-
-  row.setAttribute(
-    'data-bye',
-    player.bye || ''
+  updateFantasyProsRowDataAttributes(
+    row,
+    player
   );
 
   row.onclick =
@@ -7725,38 +7738,31 @@ function createExpertPlayerRow(player) {
     };
 
 
-var DISPLAY_NAME_OVERRIDES_2026 = {
-  'rj harvey': 'RJ Harvey',
-  'aj barner': 'AJ Barner',
-  'kc concepcion': 'KC Concepcion',
-  'jj mccarthy': 'J.J. McCarthy',
-  'cj stroud': 'C.J. Stroud',
-  'aj brown': 'A.J. Brown',
-  'dj moore': 'DJ Moore'
-};
+  var displayName =
+    String(
+      player.name || ''
+    ).trim();
 
 
-var normalizedDisplayName =
-  normalizeExpertPlayerName(
-    player.name
-  );
+  var adpText =
+    player.adp != null
+      ? Number(player.adp).toFixed(1)
+      : '--';
 
 
-var displayName =
-  DISPLAY_NAME_OVERRIDES_2026[
-    normalizedDisplayName
-  ] ||
-  player.name
-    .split(' ')
-    .map(function(word) {
-
-      return word
-        ? word.charAt(0).toUpperCase() +
-          word.slice(1)
-        : word;
-
-    })
-    .join(' ');
+  var noteText =
+    player.source === 'ADP_ONLY'
+      ? 'FantasyPros ADP depth player. No current ECR.'
+      : (
+          'FantasyPros 2026 PPR ECR #' +
+          String(player.ecr) +
+          (
+            player.adp != null
+              ? ' · ADP ' +
+                Number(player.adp).toFixed(1)
+              : ''
+          )
+        );
 
 
   row.innerHTML =
@@ -7766,7 +7772,11 @@ var displayName =
       displayName +
       ' <span class="posrk">' +
         player.pos +
-        '--' +
+        (
+          player.posRank != null
+            ? player.posRank
+            : '--'
+        ) +
       '</span>' +
     '</td>' +
 
@@ -7784,15 +7794,10 @@ var displayName =
     '</td>' +
 
     '<td>' +
-      (
-        player.adp !== undefined
-          ? player.adp
-          : '--'
-      ) +
+      adpText +
     '</td>' +
 
-    '<td class="valzero" ' +
-      'data-sortval="0">' +
+    '<td class="valzero" data-sortval="0">' +
       '+0' +
     '</td>' +
 
@@ -7805,14 +7810,86 @@ var displayName =
     '</td>' +
 
     '<td class="notecell">' +
-      (
-        player.note ||
-        'Added by 2026 expert consensus update.'
-      ) +
+      noteText +
     '</td>';
 
 
   return row;
+
+}
+
+
+function updateFantasyProsRowDataAttributes(
+  row,
+  player
+) {
+
+  if (!row || !player) {
+    return;
+  }
+
+
+  row.setAttribute(
+    'data-pos',
+    player.pos || ''
+  );
+
+  row.setAttribute(
+    'data-bye',
+    player.bye || ''
+  );
+
+  row.setAttribute(
+    'data-ecr',
+    player.ecr != null
+      ? String(player.ecr)
+      : ''
+  );
+
+  row.setAttribute(
+    'data-adp',
+    player.adp != null
+      ? String(player.adp)
+      : ''
+  );
+
+  row.setAttribute(
+    'data-adp-rank',
+    player.adpRank != null
+      ? String(player.adpRank)
+      : ''
+  );
+
+  row.setAttribute(
+    'data-realtime-adp',
+    player.realTimeAdp != null
+      ? String(player.realTimeAdp)
+      : ''
+  );
+
+  row.setAttribute(
+    'data-fantasypros-tier',
+    player.fantasyProsTier != null
+      ? String(player.fantasyProsTier)
+      : ''
+  );
+
+  row.setAttribute(
+    'data-consensus-tier',
+    player.consensusTier || 'DEEP'
+  );
+
+  row.setAttribute(
+    'data-player-source',
+    player.source || 'ECR'
+  );
+
+  row.setAttribute(
+    'data-pos-rank',
+    player.posRank != null
+      ? String(player.posRank)
+      : ''
+  );
 
 }
 
@@ -7827,21 +7904,68 @@ function updateExpertPlayerRowMetadata(
   }
 
 
-  row.setAttribute(
-    'data-pos',
-    player.pos
-  );
-
-  row.setAttribute(
-    'data-bye',
-    player.bye || ''
+  updateFantasyProsRowDataAttributes(
+    row,
+    player
   );
 
 
-  /*
-   * Update the team column while preserving
-   * the existing SOS badge.
-   */
+  var playerCell =
+    row.querySelector('.pname');
+
+  if (playerCell) {
+
+    var posRank =
+      playerCell.querySelector('.posrk');
+
+    var firstTextNode =
+      Array.from(
+        playerCell.childNodes
+      ).find(function(node) {
+
+        return node.nodeType ===
+          Node.TEXT_NODE;
+
+      });
+
+    if (firstTextNode) {
+
+      firstTextNode.textContent =
+        String(player.name || '').trim() +
+        ' ';
+
+    }
+
+    if (posRank) {
+
+      posRank.textContent =
+        player.pos +
+        (
+          player.posRank != null
+            ? player.posRank
+            : '--'
+        );
+
+    }
+
+  }
+
+
+  var posPill =
+    row.querySelector('.pos-pill');
+
+  if (posPill) {
+
+    posPill.className =
+      'pos-pill pos-' +
+      player.pos;
+
+    posPill.textContent =
+      player.pos;
+
+  }
+
+
   var teamCell =
     row.children[3];
 
@@ -7866,9 +7990,19 @@ function updateExpertPlayerRowMetadata(
   }
 
 
-  /*
-   * Update bye week.
-   */
+  var adpCell =
+    row.children[4];
+
+  if (adpCell) {
+
+    adpCell.textContent =
+      player.adp != null
+        ? Number(player.adp).toFixed(1)
+        : '--';
+
+  }
+
+
   var byeCell =
     row.children[6];
 
@@ -7879,8 +8013,29 @@ function updateExpertPlayerRowMetadata(
 
   }
 
-}
 
+  var noteCell =
+    row.querySelector('.notecell');
+
+  if (noteCell) {
+
+    noteCell.textContent =
+      player.source === 'ADP_ONLY'
+        ? 'FantasyPros ADP depth player. No current ECR.'
+        : (
+            'FantasyPros 2026 PPR ECR #' +
+            String(player.ecr) +
+            (
+              player.adp != null
+                ? ' · ADP ' +
+                  Number(player.adp).toFixed(1)
+                : ''
+            )
+          );
+
+  }
+
+}
 
 function ensureExpertPlayerExists(player) {
 
@@ -7933,21 +8088,19 @@ function getExpertTierBody(tier) {
 
 
 /*
- * ---------------------------------------------------------
- * REMOVE STALE SKILL PLAYERS
- * ---------------------------------------------------------
+ * =========================================================
+ * REMOVE ANY PLAYER OUTSIDE FANTASYPROS MASTER DATASET
+ * =========================================================
  *
- * Expert consensus is authoritative for:
+ * FantasyPros is now authoritative for:
  *
- * QB / RB / WR / TE
- *
- * K and DST remain controlled by the existing
- * draft-board/endgame system.
+ * QB / RB / WR / TE / K / DST
  */
 function removePlayersOutsideExpertDataset() {
 
-  var skillPositions =
-    ['QB', 'RB', 'WR', 'TE'];
+  var supportedPositions =
+    ['QB', 'RB', 'WR', 'TE', 'K', 'DST'];
+
 
   var expertNames =
     new Set(
@@ -7961,6 +8114,7 @@ function removePlayersOutsideExpertDataset() {
         }
       )
     );
+
 
   var removed = [];
 
@@ -7976,8 +8130,9 @@ function removePlayersOutsideExpertDataset() {
         'data-pos'
       );
 
+
     if (
-      !skillPositions.includes(
+      !supportedPositions.includes(
         position
       )
     ) {
@@ -7992,15 +8147,12 @@ function removePlayersOutsideExpertDataset() {
         'data-name'
       );
 
-    var canonical =
-      canonicalExpertPlayerName(
-        name
-      );
-
 
     if (
       !expertNames.has(
-        canonical
+        canonicalExpertPlayerName(
+          name
+        )
       )
     ) {
 
@@ -8019,76 +8171,9 @@ function removePlayersOutsideExpertDataset() {
 
 
 /*
- * ---------------------------------------------------------
- * PUT K / DST AT THE END
- * ---------------------------------------------------------
- *
- * They still exist on the board, but expert skill-player
- * rankings should not accidentally push them into the
- * middle rounds.
- */
-function moveKickerDefenseRowsToEnd() {
-
-  var fTier =
-    document.getElementById(
-      'tbody-F'
-    );
-
-  if (!fTier) {
-    return 0;
-  }
-
-
-  var specialTeams =
-    Array.from(
-      document.querySelectorAll(
-        'tr.draftrow'
-      )
-    ).filter(function(row) {
-
-      var pos =
-        row.getAttribute(
-          'data-pos'
-        );
-
-      return (
-        pos === 'K' ||
-        pos === 'DST'
-      );
-
-    });
-
-
-  specialTeams.forEach(
-    function(row) {
-
-      fTier.appendChild(row);
-
-    }
-  );
-
-
-  return specialTeams.length;
-
-}
-
-/*
  * =========================================================
- * BUILD AUTHORITATIVE 2026 EXPERT BOARD
+ * BUILD AUTHORITATIVE FANTASYPROS 2026 BOARD
  * =========================================================
- *
- * Runs during page initialization.
- *
- * This is intentionally different from
- * apply2026ExpertRankings().
- *
- * It:
- * - rebuilds the 205-player skill-position board
- * - preserves K / DST
- * - does NOT save
- * - does NOT trigger recommendation calculations
- * - allows loadState() to restore drafted/taken state after
- *   the correct board structure exists
  */
 function build2026ExpertBoardStructure() {
 
@@ -8098,17 +8183,14 @@ function build2026ExpertBoardStructure() {
   ) {
 
     console.warn(
-      '2026 expert dataset unavailable during initialization.'
+      'FantasyPros 2026 master dataset unavailable.'
     );
 
     return null;
+
   }
 
 
-  /*
-   * Remove QB/RB/WR/TE rows that are no longer
-   * part of the authoritative expert dataset.
-   */
   var removedPlayers =
     removePlayersOutsideExpertDataset();
 
@@ -8118,10 +8200,6 @@ function build2026ExpertBoardStructure() {
   var errors = [];
 
 
-  /*
-   * Rebuild every expert player in exact
-   * dataset ranking order.
-   */
   EXPERT_RANKINGS_2026.forEach(
     function(player) {
 
@@ -8143,6 +8221,7 @@ function build2026ExpertBoardStructure() {
           );
 
           return;
+
         }
 
 
@@ -8156,18 +8235,18 @@ function build2026ExpertBoardStructure() {
 
           errors.push(
             player.name +
-            ' — missing tier ' +
+            ' — missing legacy tier ' +
             player.tier
           );
 
           return;
+
         }
 
 
         /*
-         * appendChild moves existing rows and
-         * appends new rows, producing deterministic
-         * expert ranking order.
+         * Dataset is already rank ordered.
+         * appendChild() gives us deterministic order.
          */
         tbody.appendChild(
           result.row
@@ -8187,10 +8266,11 @@ function build2026ExpertBoardStructure() {
       } catch (err) {
 
         console.error(
-          'Expert board initialization failed:',
+          'FantasyPros board initialization failed:',
           player.name,
           err
         );
+
 
         errors.push(
           player.name
@@ -8202,18 +8282,6 @@ function build2026ExpertBoardStructure() {
   );
 
 
-  /*
-   * Preserve K and DST, but keep them after
-   * the expert-ranked skill players.
-   */
-  var specialTeams =
-    moveKickerDefenseRowsToEnd();
-
-
-  /*
-   * Recalculate visible ranks, but DON'T
-   * trigger the recommendation engine yet.
-   */
   if (
     typeof syncRankData ===
     'function'
@@ -8224,39 +8292,37 @@ function build2026ExpertBoardStructure() {
   }
 
 
-  console.log(
-    '2026 expert board initialized:',
-    {
-      expertPlayers:
-        EXPERT_RANKINGS_2026.length,
+  var ecrRows =
+    EXPERT_RANKINGS_2026.filter(
+      function(player) {
 
-      reused:
-        reused,
+        return player.ecr != null;
 
-      added:
-        added,
-
-      removed:
-        removedPlayers.length,
-
-      specialTeams:
-        specialTeams,
-
-      totalRows:
-        document.querySelectorAll(
-          'tr.draftrow'
-        ).length,
-
-      errors:
-        errors
-    }
-  );
+      }
+    ).length;
 
 
-  return {
+  var adpOnlyRows =
+    EXPERT_RANKINGS_2026.length -
+    ecrRows;
 
-    expertPlayers:
+
+  var totalRows =
+    document.querySelectorAll(
+      'tr.draftrow'
+    ).length;
+
+
+  var result = {
+
+    datasetPlayers:
       EXPERT_RANKINGS_2026.length,
+
+    ecrPlayers:
+      ecrRows,
+
+    adpOnlyPlayers:
+      adpOnlyRows,
 
     reused:
       reused,
@@ -8267,24 +8333,29 @@ function build2026ExpertBoardStructure() {
     removed:
       removedPlayers,
 
-    specialTeams:
-      specialTeams,
-
     totalRows:
-      document.querySelectorAll(
-        'tr.draftrow'
-      ).length,
+      totalRows,
 
     errors:
       errors
 
   };
 
+
+  console.log(
+    'FantasyPros 2026 board initialized:',
+    result
+  );
+
+
+  return result;
+
 }
+
 
 /*
  * =========================================================
- * APPLY 2026 EXPERT CONSENSUS RANKINGS
+ * MANUAL RE-APPLY
  * =========================================================
  */
 function apply2026ExpertRankings() {
@@ -8294,7 +8365,7 @@ function apply2026ExpertRankings() {
   );
 
   console.log(
-    'APPLYING 2026 EXPERT RANKINGS'
+    'APPLYING FANTASYPROS 2026 MASTER BOARD'
   );
 
   console.log(
@@ -8302,127 +8373,12 @@ function apply2026ExpertRankings() {
   );
 
 
-  var addedPlayers = [];
-  var movedPlayers = [];
-  var errors = [];
+  var result =
+    build2026ExpertBoardStructure();
 
 
-  /*
-   * First remove outdated QB/RB/WR/TE
-   * players that are not part of the
-   * authoritative expert dataset.
-   */
-  var removedPlayers =
-    removePlayersOutsideExpertDataset();
-
-
-  /*
-   * Now rebuild the skill-player board
-   * in exact expert ranking order.
-   */
-  EXPERT_RANKINGS_2026
-    .forEach(function(player) {
-
-      try {
-
-        var result =
-          ensureExpertPlayerExists(
-            player
-          );
-
-
-        var row =
-          result.row;
-
-
-        if (!row) {
-
-          errors.push(
-            player.name
-          );
-
-          return;
-
-        }
-
-
-        var tbody =
-          getExpertTierBody(
-            player.tier
-          );
-
-
-        if (!tbody) {
-
-          errors.push(
-            player.name +
-            ' — missing tier ' +
-            player.tier
-          );
-
-          return;
-
-        }
-
-
-        /*
-         * appendChild() also MOVES existing
-         * rows, giving us deterministic order.
-         */
-        tbody.appendChild(row);
-
-
-        if (result.added) {
-
-          addedPlayers.push(
-            player.name
-          );
-
-        } else {
-
-          movedPlayers.push(
-            player.name
-          );
-
-        }
-
-      } catch (err) {
-
-        console.error(
-          'Ranking update failed:',
-          player.name,
-          err
-        );
-
-
-        errors.push(
-          player.name
-        );
-
-      }
-
-    });
-
-
-  /*
-   * Keep kickers and defenses, but force
-   * them behind the expert-ranked skill
-   * players.
-   */
-  var specialTeamsPreserved =
-    moveKickerDefenseRowsToEnd();
-
-
-  /*
-   * Recalculate overall and positional ranks.
-   */
-  if (
-    typeof syncRankData ===
-    'function'
-  ) {
-
-    syncRankData();
-
+  if (!result) {
+    return null;
   }
 
 
@@ -8446,10 +8402,6 @@ function apply2026ExpertRankings() {
   }
 
 
-  /*
-   * Save through the project's existing
-   * autosave system.
-   */
   if (
     typeof saveState ===
     'function'
@@ -8462,7 +8414,7 @@ function apply2026ExpertRankings() {
     } catch (err) {
 
       console.warn(
-        'Ranking applied, but saveState failed:',
+        'FantasyPros board applied, but saveState failed:',
         err
       );
 
@@ -8471,110 +8423,206 @@ function apply2026ExpertRankings() {
   }
 
 
-  var totalPlayers =
-    document.querySelectorAll(
-      'tr.draftrow'
+  return result;
+
+}
+
+/*
+ * =========================================================
+ * FANTASYPROS 2026 MASTER BOARD AUDIT
+ * =========================================================
+ */
+function auditFantasyPros2026Board() {
+
+  var rows =
+    Array.from(
+      document.querySelectorAll(
+        'tr.draftrow'
+      )
+    );
+
+
+  var boardMap =
+    new Map();
+
+
+  rows.forEach(function(row) {
+
+    var key =
+      canonicalExpertPlayerName(
+        row.getAttribute(
+          'data-name'
+        )
+      );
+
+
+    if (!boardMap.has(key)) {
+
+      boardMap.set(
+        key,
+        []
+      );
+
+    }
+
+
+    boardMap.get(key).push(row);
+
+  });
+
+
+  var expected =
+    EXPERT_RANKINGS_2026.map(
+      function(player) {
+
+        return canonicalExpertPlayerName(
+          player.name
+        );
+
+      }
+    );
+
+
+  var expectedSet =
+    new Set(expected);
+
+
+  var missing =
+    expected.filter(
+      function(name) {
+
+        return !boardMap.has(name);
+
+      }
+    );
+
+
+  var unexpected =
+    Array.from(
+      boardMap.keys()
+    ).filter(
+      function(name) {
+
+        return !expectedSet.has(name);
+
+      }
+    );
+
+
+  var duplicates =
+    Array.from(
+      boardMap.entries()
+    ).filter(
+      function(entry) {
+
+        return entry[1].length > 1;
+
+      }
+    ).map(
+      function(entry) {
+
+        return entry[0];
+
+      }
+    );
+
+
+  var positionCounts = {};
+
+
+  rows.forEach(function(row) {
+
+    var pos =
+      row.getAttribute(
+        'data-pos'
+      ) || 'UNKNOWN';
+
+
+    positionCounts[pos] =
+      (
+        positionCounts[pos] || 0
+      ) + 1;
+
+  });
+
+
+  var ecrCount =
+    rows.filter(
+      function(row) {
+
+        return (
+          row.getAttribute(
+            'data-ecr'
+          ) || ''
+        ) !== '';
+
+      }
     ).length;
 
 
-  console.log(
-    'Expert rankings applied.'
-  );
+  var adpOnlyCount =
+    rows.filter(
+      function(row) {
 
-  console.log(
-    'Existing expert players reused:',
-    movedPlayers.length
-  );
+        return (
+          row.getAttribute(
+            'data-player-source'
+          ) === 'ADP_ONLY'
+        );
 
-  console.log(
-    'New expert players created:',
-    addedPlayers.length
-  );
-
-  console.log(
-    'Old skill players removed:',
-    removedPlayers.length
-  );
-
-  console.log(
-    'K/DST rows preserved:',
-    specialTeamsPreserved
-  );
-
-  console.log(
-    'Total board size:',
-    totalPlayers
-  );
+      }
+    ).length;
 
 
-  if (addedPlayers.length) {
+  var result = {
 
-    console.table(
-      addedPlayers.map(
-        function(name) {
-
-          return {
-            addedPlayer: name
-          };
-
-        }
-      )
-    );
-
-  }
-
-
-  if (removedPlayers.length) {
-
-    console.table(
-      removedPlayers.map(
-        function(name) {
-
-          return {
-            removedPlayer: name
-          };
-
-        }
-      )
-    );
-
-  }
-
-
-  if (errors.length) {
-
-    console.warn(
-      'Players with errors:',
-      errors
-    );
-
-  }
-
-
-  return {
-
-    rankings:
+    datasetPlayers:
       EXPERT_RANKINGS_2026.length,
 
-    reused:
-      movedPlayers.length,
+    boardPlayers:
+      rows.length,
 
-    added:
-      addedPlayers,
+    exactCount:
+      rows.length ===
+      EXPERT_RANKINGS_2026.length,
 
-    removed:
-      removedPlayers,
+    ecrRows:
+      ecrCount,
 
-    errors:
-      errors,
+    adpOnlyRows:
+      adpOnlyCount,
 
-    specialTeamsPreserved:
-      specialTeamsPreserved,
+    missingCount:
+      missing.length,
 
-    totalPlayers:
-      totalPlayers
+    unexpectedCount:
+      unexpected.length,
+
+    duplicateCount:
+      duplicates.length,
+
+    positionCounts:
+      positionCounts,
+
+    missing:
+      missing,
+
+    unexpected:
+      unexpected,
+
+    duplicates:
+      duplicates
 
   };
+
+
+  console.log(
+    '=== FANTASYPROS 2026 MASTER BOARD AUDIT ==='
+  );
+
+  console.log(result);
+
+  return result;
 
 }
 
