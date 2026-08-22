@@ -223,6 +223,14 @@ function updateMyTeam() {
       players.length;
   }
 
+  var lineupPanel = document.getElementById('lineup-panel');
+  var shouldRenderLineup = Boolean(
+    document.getElementById('myteam-panel')?.classList.contains('open') &&
+    lineupPanel?.classList.contains('active')
+  );
+
+  if (!shouldRenderLineup) return;
+
   /* ---- Roster needs ---- */
 
   if (needsContainer) {
@@ -465,6 +473,14 @@ function updateDraftSummary() {
   var allDraftedCount = document.querySelectorAll(
     'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
   ).length;
+  var summaryPanel = document.getElementById('summary-panel');
+  var shouldRenderSummary = Boolean(
+    document.getElementById('myteam-panel')?.classList.contains('open') &&
+    summaryPanel?.classList.contains('active')
+  );
+
+  if (!shouldRenderSummary && allDraftedCount < state.totalPicks) return;
+
   var myRows = Array.prototype.slice.call(
     document.querySelectorAll('tr.draftrow.drafted-mine')
   );
@@ -566,6 +582,11 @@ function updateDraftSummary() {
         '<strong>' + count + '</strong><small>starter target ' + target + '</small>' +
       '</div>';
   });
+  html +=
+    '<div class="summary-position ' + (flexFilled ? 'filled' : 'open') + '">' +
+      '<span class="pos-pill pos-FLEX">FLEX</span>' +
+      '<strong>' + flexFilled + '</strong><small>starter target 1</small>' +
+    '</div>';
   html += '</div></div>';
 
   var bestValue = knownEcrValues.filter(function(player) { return player.ecrValue > 0; })
@@ -6945,8 +6966,8 @@ function updateNextPickMarker() {
     var row = rows[i];
     if (row.classList.contains('drafted-mine') || row.classList.contains('drafted-other')) continue;
     
-    var rkCell = row.children[0];
-    var rk = parseInt(rkCell ? rkCell.innerText.replace(/Rd\d+/, '').trim() : '0', 10);
+    var rk = Number(row.getAttribute('data-rank')) ||
+      Number(row.getAttribute('data-board-rank')) || 0;
     
     if (rk >= nextUserPick) {
       targetRow = row;
@@ -6978,9 +6999,16 @@ function updateNextPickMarker() {
   targetRow.parentNode.insertBefore(marker, targetRow);
 }
 
-function updateScarcityAlerts() { safeCall('updateScarcityAlertsCustom'); }
+function updateScarcityAlerts(liveState) {
+  if (typeof updateScarcityAlertsCustom !== 'function') return;
+  try {
+    updateScarcityAlertsCustom(liveState);
+  } catch (error) {
+    console.warn('Scarcity alert update failed', error);
+  }
+}
 
-function updateScarcityAlertsCustom() {
+function updateScarcityAlertsCustom(sharedLiveState) {
 
   var container =
     document.getElementById(
@@ -7000,7 +7028,7 @@ function updateScarcityAlertsCustom() {
    */
 
   var liveState =
-    buildLiveDraftDebugState();
+    sharedLiveState || buildLiveDraftDebugState();
 
 
   if (
@@ -7418,7 +7446,7 @@ function updatePickSettings() {
   if (pcSlot && pcSlot.value) MY_DRAFT_SLOT = parseInt(pcSlot.value, 10) || 10;
   if (pcRounds && pcRounds.value) TOTAL_ROUNDS = parseInt(pcRounds.value, 10) || 16;
 
-  triggerAllBoardUpdates();
+  triggerAllBoardUpdates({deferIntelligence: true});
   scheduleSave();
 }
 
@@ -7541,18 +7569,81 @@ function updateDraftDayDashboard(){
   container.innerHTML = html;
 }
 
-function triggerAllBoardUpdates() {
-  updateMyTeam();
-  updateDraftSummary();
-  updateRemaining();
-  updateBestAvailable();
-  updatePickCounter();
-  updateNextPickDisplay();
-  updateNextPickMarker();
-  updateScarcityAlerts();
-  updateRecommendedPick();
-  updateDraftDayDashboard();
-  addRoundMarkers();
+var _draftIntelligenceTimer = null;
+
+function publishBoardUpdateTimings(timings) {
+  window.latestBoardUpdateTimings = timings;
+  document.documentElement.setAttribute(
+    'data-last-board-update-timings',
+    JSON.stringify(timings)
+  );
+}
+
+function triggerAllBoardUpdates(options) {
+  options = options || {};
+  var timings = {};
+  var totalStart = performance.now();
+
+  function timedUpdate(name, update) {
+    var startedAt = performance.now();
+    update();
+    timings[name] = Number((performance.now() - startedAt).toFixed(1));
+  }
+
+  timedUpdate('myTeam', updateMyTeam);
+  timedUpdate('draftSummary', updateDraftSummary);
+  timedUpdate('remaining', updateRemaining);
+  timedUpdate('bestAvailable', updateBestAvailable);
+  timedUpdate('pickCounter', updatePickCounter);
+  timedUpdate('nextPickDisplay', updateNextPickDisplay);
+  timedUpdate('nextPickMarker', updateNextPickMarker);
+  timedUpdate('dashboard', updateDraftDayDashboard);
+  timedUpdate('roundMarkers', addRoundMarkers);
+
+  timings.interactive = Number((performance.now() - totalStart).toFixed(1));
+  publishBoardUpdateTimings(timings);
+
+  function updateDraftIntelligence() {
+    var intelligenceStart = performance.now();
+    var sharedLiveState = null;
+
+    timedUpdate('liveDraftState', function() {
+      sharedLiveState = buildLiveDraftDebugState();
+    });
+    timedUpdate('scarcityAlerts', function() {
+      updateScarcityAlerts(sharedLiveState);
+    });
+    timedUpdate('recommendation', function() {
+      updateRecommendedPick(sharedLiveState);
+    });
+
+    timings.intelligence = Number((performance.now() - intelligenceStart).toFixed(1));
+    timings.total = Number((performance.now() - totalStart).toFixed(1));
+    publishBoardUpdateTimings(timings);
+    document.body.classList.remove('draft-intelligence-updating');
+    var recommendationBox = document.getElementById('recommended-pick-box');
+    if (recommendationBox) recommendationBox.removeAttribute('aria-busy');
+  }
+
+  if (!options.deferIntelligence) {
+    if (_draftIntelligenceTimer) {
+      clearTimeout(_draftIntelligenceTimer);
+      _draftIntelligenceTimer = null;
+    }
+    updateDraftIntelligence();
+    return;
+  }
+
+  if (_draftIntelligenceTimer) clearTimeout(_draftIntelligenceTimer);
+  document.body.classList.add('draft-intelligence-updating');
+  var recommendationBox = document.getElementById('recommended-pick-box');
+  if (recommendationBox) recommendationBox.setAttribute('aria-busy', 'true');
+
+  /* Let the row state paint immediately and coalesce rapid Taken/Mine clicks. */
+  _draftIntelligenceTimer = setTimeout(function() {
+    _draftIntelligenceTimer = null;
+    updateDraftIntelligence();
+  }, 120);
 }
 
 function toggleDraft(row) {
@@ -7672,7 +7763,7 @@ function toggleDraft(row) {
   }
 
 
-  triggerAllBoardUpdates();
+  triggerAllBoardUpdates({deferIntelligence: true});
 
   scheduleSave();
 }
@@ -9497,7 +9588,7 @@ function applyTeamColors(){
   });
 }
 
-function updateRecommendedPick() {
+function updateRecommendedPick(sharedLiveState) {
 
   var el =
     document.getElementById(
@@ -9519,7 +9610,7 @@ function updateRecommendedPick() {
    */
 
   var state =
-    buildLiveDraftDebugState();
+    sharedLiveState || buildLiveDraftDebugState();
 
 
   if (

@@ -219,5 +219,8 @@ Do not call the migration complete until all of these are true:
 - [x] Combine My Team and Draft Summary into one My Draft panel with Summary and Lineup views
 - [x] Track draft-pick metadata in autosave so value results survive refresh
 - [x] Show live roster construction, ECR value, ADP timing, insights, and pick history
+- [x] Show FLEX explicitly in both Summary and Lineup roster views
 - [x] Show a one-time final report after the draft with evidence-based strengths and improvements
 - [x] Preserve the final-pick Taken-to-Mine interaction before opening the report
+- [x] Share one live engine-state calculation across scarcity and recommendation widgets
+- [x] Let player status paint immediately while draft intelligence refreshes in the background
