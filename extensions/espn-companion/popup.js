@@ -30,6 +30,15 @@ function render(status) {
   document.getElementById('captured-count').textContent = picks.length;
   document.getElementById('applied-count').textContent = Number(warRoom.applied) || 0;
   document.getElementById('unmatched-count').textContent = Number(warRoom.unmatched) || 0;
+  var draftSlot = Number(config.draftSlot) || 1;
+  var minePicks = picks.filter(function(pick) {
+    return Number(pick.teamSlot) === draftSlot;
+  });
+  document.getElementById('mine-audit').textContent = minePicks.length
+    ? 'Marked Mine: ' + minePicks.slice(-4).map(function(pick) {
+      return '#' + pick.overallPick + ' ' + pick.playerName;
+    }).join(' · ')
+    : 'No captured picks belong to slot ' + draftSlot + ' yet.';
   if (!settingsDirty) {
     document.getElementById('teams').value = Number(config.teams) || 10;
     document.getElementById('draft-slot').value = Number(config.draftSlot) || 1;

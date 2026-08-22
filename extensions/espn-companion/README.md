@@ -21,7 +21,7 @@ The extension does **not** read or store ESPN passwords, cookies, or authenticat
 6. Open an ESPN fantasy-football mock or live draft in another Chrome tab.
 7. Open the extension popup. Confirm that both ESPN and The War Room show as connected.
 8. Press **Rescan ESPN** after the draft room finishes loading.
-9. After any extension code update, return to `chrome://extensions` and press **Reload** on the companion card. Version 0.2.0 can inject its reader into an ESPN tab that was already open.
+9. After any extension code update, return to `chrome://extensions` and press **Reload** on the companion card. Version 0.3.0 can inject its reader into an ESPN tab that was already open and automatically rebuilds picks when league size changes.
 
 Chrome displays an extension popup over the upper-right corner of the current page. It is not part of ESPN and closes as soon as you click the draft room. Use **Open controls in a tab** if you want status to stay visible without covering ESPN. The extension-icon badge shows the captured-pick count while the popup is closed.
 
@@ -40,6 +40,7 @@ ESPN draft DOM
 - Overall picks are deduplicated and stored by the extension.
 - Snake-draft team slots are derived from overall pick and league size.
 - The configured War Room draft slot determines `Mine` versus `Taken`.
+- The popup lists the exact captured pick numbers and players currently classified as `Mine`.
 - The website reconciles the complete ESPN snapshot instead of blindly replaying clicks.
 - FantasyPros canonical-name matching is used first, with suffix-tolerant and DST matching fallbacks.
 - ESPN-sourced rows carry `data-sync-source="espn"`, allowing a later full snapshot to repair missed or corrected picks.

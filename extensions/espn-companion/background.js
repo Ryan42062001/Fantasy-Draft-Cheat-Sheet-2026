@@ -14,6 +14,7 @@ var ESPN_URLS = [
 var state = {
   config: {teams: 10, draftSlot: 1, rounds: 16},
   picksByNumber: {},
+  ledgerTeams: null,
   espn: {connected: false, draftPage: false, captured: 0, lastSeenAt: null},
   warRoom: {connected: false, applied: 0, unmatched: 0, lastSeenAt: null}
 };
@@ -25,8 +26,19 @@ function storageGet() {
       state = Object.assign({}, state, stored);
       state.config = Object.assign({teams: 10, draftSlot: 1, rounds: 16}, stored.config || {});
       state.picksByNumber = Object.assign({}, stored.picksByNumber || {});
+      state.ledgerTeams = Number(stored.ledgerTeams) || null;
       state.espn = Object.assign({}, state.espn, stored.espn || {});
       state.warRoom = Object.assign({}, state.warRoom, stored.warRoom || {});
+
+      // Pick numbers parsed from R#/P# notation depend on league size. Older
+      // ledgers did not record which team count produced them, so discard them
+      // once rather than risk replaying incorrectly numbered selections.
+      if (state.ledgerTeams !== Number(state.config.teams)) {
+        state.picksByNumber = {};
+        state.ledgerTeams = Number(state.config.teams);
+        state.espn.captured = 0;
+        state.espn.visibleCaptured = 0;
+      }
     }
   });
 }
@@ -142,7 +154,43 @@ function mergePicks(picks) {
       espnPlayerId: pick.espnPlayerId == null ? null : String(pick.espnPlayerId).slice(0, 40)
     };
   });
+  state.ledgerTeams = Number(state.config.teams);
   state.espn.captured = getPicks().length;
+}
+
+function updateConfig(config) {
+  config = config || {};
+  var previousTeams = Number(state.config.teams);
+  var teams = Math.max(2, Math.min(20, Number(config.teams) || previousTeams || 10));
+  var next = {
+    teams: teams,
+    draftSlot: Math.max(1, Math.min(teams, Number(config.draftSlot) || state.config.draftSlot || 1)),
+    rounds: Math.max(1, Math.min(30, Number(config.rounds) || state.config.rounds || 16))
+  };
+  var teamsChanged = previousTeams !== next.teams;
+
+  state.config = next;
+  if (teamsChanged) {
+    state.picksByNumber = {};
+    state.ledgerTeams = next.teams;
+    state.espn.captured = 0;
+    state.espn.visibleCaptured = 0;
+  }
+
+  return {teamsChanged: teamsChanged};
+}
+
+function syncConfigAndReconcile(config, sendResponse) {
+  var change = updateConfig(config);
+  return storageSave()
+    .then(sendConfigToEspn)
+    .then(function() { return broadcastWarRoom(true, true); })
+    .then(function() {
+      return change.teamsChanged ? ensureReadersInOpenEspnTabs(true) : null;
+    })
+    .then(function() {
+      if (typeof sendResponse === 'function') sendResponse(statusSnapshot());
+    });
 }
 
 function statusSnapshot() {
@@ -216,9 +264,13 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.warRoom.unmatched = Array.isArray(result.unmatched) ? result.unmatched.length : 0;
       state.warRoom.lastSeenAt = new Date().toISOString();
       if (message.settings) {
-        state.config.teams = Number(message.settings.teams) || state.config.teams;
-        state.config.rounds = Number(message.settings.rounds) || state.config.rounds;
-        state.config.draftSlot = Number(message.settings.draftSlot) || state.config.draftSlot;
+        var settingsChange = updateConfig(message.settings);
+        if (settingsChange.teamsChanged) {
+          return storageSave()
+            .then(sendConfigToEspn)
+            .then(function() { return broadcastWarRoom(true, true); })
+            .then(function() { return ensureReadersInOpenEspnTabs(true); });
+        }
       }
       return storageSave().then(sendConfigToEspn);
     }
@@ -229,14 +281,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     }
 
     if (message.type === 'UPDATE_CONFIG') {
-      var config = message.config || {};
-      state.config.teams = Math.max(2, Math.min(20, Number(config.teams) || state.config.teams));
-      state.config.draftSlot = Math.max(1, Math.min(state.config.teams, Number(config.draftSlot) || state.config.draftSlot));
-      state.config.rounds = Math.max(1, Math.min(30, Number(config.rounds) || state.config.rounds));
-      return storageSave()
-        .then(sendConfigToEspn)
-        .then(function() { return broadcastWarRoom(true, true); })
-        .then(function() { sendResponse(statusSnapshot()); });
+      return syncConfigAndReconcile(message.config, sendResponse);
     }
 
     if (message.type === 'RESCAN') {
@@ -246,6 +291,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     if (message.type === 'RESET_PICKS') {
       state.picksByNumber = {};
+      state.ledgerTeams = Number(state.config.teams);
       state.espn.captured = 0;
       return storageSave()
         .then(function() { return broadcastWarRoom(true); })
