@@ -6932,7 +6932,85 @@ function updatePickSettings() {
 
 function jumpTo(id){
   var el = document.getElementById(id);
-  if(el){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
+  if(el){
+    var tierGroup = el.closest('tbody.tier-group');
+    if(tierGroup) setTierSectionCollapsed(tierGroup, false);
+    el.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+}
+
+function updateTierCollapseButton(tierGroup) {
+  if (!tierGroup) return;
+
+  var button = tierGroup.querySelector('.tier-collapse-btn');
+  if (!button) return;
+
+  var collapsed = tierGroup.classList.contains('is-collapsed');
+  var playerCount = tierGroup.querySelectorAll('tr.draftrow').length;
+  button.textContent = (collapsed ? 'Show ' : 'Hide ') + playerCount;
+  button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+}
+
+function setTierSectionCollapsed(tierGroup, collapsed) {
+  if (!tierGroup) return;
+  tierGroup.classList.toggle('is-collapsed', Boolean(collapsed));
+  if (!collapsed) tierGroup.classList.remove('is-temporarily-expanded');
+  updateTierCollapseButton(tierGroup);
+}
+
+function toggleTierSection(tierGroup) {
+  setTierSectionCollapsed(
+    tierGroup,
+    !tierGroup.classList.contains('is-collapsed')
+  );
+}
+
+function initializeTierSectionOrganization() {
+  document.querySelectorAll('tbody.tier-group').forEach(function(tierGroup) {
+    var dividerInner = tierGroup.querySelector('.tier-divider-row .divider-inner');
+
+    if (dividerInner && !dividerInner.querySelector('.tier-collapse-btn')) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'tier-collapse-btn';
+      button.setAttribute('aria-label', 'Toggle ' + (tierGroup.getAttribute('data-tier-name') || 'tier') + ' players');
+      button.onclick = function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleTierSection(tierGroup);
+      };
+      dividerInner.appendChild(button);
+    }
+
+    var tierId = tierGroup.id.replace('tbody-', '');
+    setTierSectionCollapsed(tierGroup, tierId === 'E' || tierId === 'F');
+  });
+}
+
+function updateTierFilterExpansion(query) {
+  var hasSearch = Boolean(query && query.length >= 2);
+  var activePositionButton = document.querySelector('.toolbar .filterbtn.active[data-pos]');
+  var activePosition = activePositionButton
+    ? activePositionButton.getAttribute('data-pos')
+    : 'ALL';
+  var hasPositionFilter = activePosition !== 'ALL';
+
+  document.querySelectorAll('tbody.tier-group.is-collapsed').forEach(function(tierGroup) {
+    var hasRelevantPlayer = Array.prototype.some.call(
+      tierGroup.querySelectorAll('tr.draftrow'),
+      function(row) {
+        if (row.classList.contains('hidden-row')) return false;
+        if (!hasSearch) return hasPositionFilter;
+        var name = (row.getAttribute('data-name') || row.innerText || '').toLowerCase();
+        return name.indexOf(query) !== -1;
+      }
+    );
+
+    tierGroup.classList.toggle(
+      'is-temporarily-expanded',
+      (hasSearch || hasPositionFilter) && hasRelevantPlayer
+    );
+  });
 }
 
 function setPosFilter(pos, btn){
@@ -7738,6 +7816,11 @@ function updateFantasyProsRowDataAttributes(
     player.posRank != null
       ? String(player.posRank)
       : ''
+  );
+
+  row.classList.toggle(
+    'special-teams-row',
+    player.pos === 'K' || player.pos === 'DST'
   );
 
 }
@@ -11327,6 +11410,7 @@ function applyFilters() {
     if (countEl) countEl.innerText = '0/0';
     if (prevBtn) prevBtn.disabled = true;
     if (nextBtn) nextBtn.disabled = true;
+    updateTierFilterExpansion('');
     updateNextPickMarker();
     return;
   }
@@ -11351,6 +11435,7 @@ function applyFilters() {
     if (nextBtn) nextBtn.disabled = true;
   }
 
+  updateTierFilterExpansion(q);
   updateNextPickMarker();
 }
 
@@ -11494,6 +11579,8 @@ function initApp() {
    * BEFORE restoring saved draft state.
    */
   build2026ExpertBoardStructure();
+
+  initializeTierSectionOrganization();
 
 
   /*
@@ -13702,17 +13789,7 @@ function calculatePositionTierCliff(
    * the Decision Engine.
    */
 
-  var tierRank = {
-
-    'Sp': 0,
-    'S': 1,
-    'A': 2,
-    'B': 3,
-    'C': 4,
-    'D': 5,
-    'F': 6
-
-  };
+  var tierRank = SEMANTIC_TIER_ORDER;
 
 
   function getTierId(player) {
@@ -13724,16 +13801,17 @@ function calculatePositionTierCliff(
           player
         );
 
-      if (tier && tier.id) {
+      if (tier && tier.semanticTier) {
 
-        return tier.id;
+        return tier.semanticTier;
 
       }
 
     } catch (e) {}
 
     return (
-      player.tier ||
+      LEGACY_TO_SEMANTIC_TIER[player.tier] ||
+      player.semanticTier ||
       null
     );
 
@@ -17005,41 +17083,95 @@ if (flexReplacement) {
    Does NOT change the recommendation widget yet.
    ========================================================= */
 
-function getPlayerTierValue(player){
-  var row = player.row || player;
-  var tierId = '';
+var LEGACY_TO_SEMANTIC_TIER = {
+  'Sp': 'ELITE',
+  'S': 'PREMIUM',
+  'A': 'CORE',
+  'B': 'VALUE',
+  'C': 'UPSIDE',
+  'D': 'DEPTH',
+  'E': 'LATE',
+  'F': 'DEEP'
+};
 
-  if(row){
+var SEMANTIC_TO_LEGACY_TIER = {
+  ELITE: 'Sp',
+  PREMIUM: 'S',
+  CORE: 'A',
+  VALUE: 'B',
+  UPSIDE: 'C',
+  DEPTH: 'D',
+  LATE: 'E',
+  DEEP: 'F'
+};
+
+/*
+ * Semantic scores are intentionally gradual across the 717-player
+ * distribution. Legacy IDs remain an implementation detail for DOM,
+ * edit-order, and persistence compatibility.
+ */
+var SEMANTIC_TIER_SCORES = {
+  ELITE: 100,
+  PREMIUM: 92,
+  CORE: 82,
+  VALUE: 70,
+  UPSIDE: 56,
+  DEPTH: 40,
+  LATE: 24,
+  DEEP: 8
+};
+
+var SEMANTIC_TIER_ORDER = {
+  ELITE: 0,
+  PREMIUM: 1,
+  CORE: 2,
+  VALUE: 3,
+  UPSIDE: 4,
+  DEPTH: 5,
+  LATE: 6,
+  DEEP: 7
+};
+
+function getPlayerTierValue(player){
+  var row = player && (player.row || player);
+  var tierId = '';
+  var semanticTier = '';
+
+  if (row && typeof row.getAttribute === 'function') {
+    semanticTier = row.getAttribute('data-semantic-tier') ||
+      row.getAttribute('data-consensus-tier') || '';
+  }
+
+  if (row && typeof row.closest === 'function') {
     var tbody = row.closest('tbody.tier-group');
 
-    if(tbody){
+    if (tbody) {
       tierId = tbody.id.replace('tbody-', '');
     }
   }
 
-  var tierValues = {
-  'Sp': 100,
-  'S': 92,
-  'A': 78,
-  'B': 62,
-  'C': 45,
-  'D': 30,
-  'E': 15,
-  'F': 5,
+  if (!tierId && player && player.tier) {
+    tierId = String(player.tier).replace('tier-', '');
+  }
 
-  'tier-Sp': 100,
-  'tier-S': 92,
-  'tier-A': 78,
-  'tier-B': 62,
-  'tier-C': 45,
-  'tier-D': 30,
-  'tier-E': 15,
-  'tier-F': 5
-};
+  if (!semanticTier && player) {
+    semanticTier = player.semanticTier || player.consensusTier || '';
+  }
+
+  semanticTier = String(
+    semanticTier || LEGACY_TO_SEMANTIC_TIER[tierId] || 'DEEP'
+  ).toUpperCase();
+
+  if (!SEMANTIC_TIER_SCORES.hasOwnProperty(semanticTier)) {
+    semanticTier = LEGACY_TO_SEMANTIC_TIER[tierId] || 'DEEP';
+  }
+
+  tierId = tierId || SEMANTIC_TO_LEGACY_TIER[semanticTier] || 'F';
 
   return {
     id: tierId,
-    score: tierValues[tierId] || 5
+    semanticTier: semanticTier,
+    score: SEMANTIC_TIER_SCORES[semanticTier]
   };
 }
 
@@ -17577,6 +17709,9 @@ if (DEBUG_DRAFT_SCORING) {
 
     tier:
       tier.id,
+
+    semanticTier:
+      tier.semanticTier,
 
     tierScore:
       tierScore,
@@ -25935,7 +26070,18 @@ function runLiveDraftRecommendationTests() {
             ? Number(
                 recommendation.scoreGap || 0
               ).toFixed(1)
-            : '0.0'
+            : '0.0',
+
+        backToBackTurn:
+          Boolean(
+            recommendation &&
+            recommendation.backToBackTurn
+          ),
+
+        summary:
+          recommendation
+            ? recommendation.summary || ''
+            : ''
       });
 
     });
@@ -26151,7 +26297,8 @@ function analyzeLiveDraftRecommendations(liveResult) {
 
     if (
       row.recommendation === 'DRAFT' &&
-      gap < 0
+      gap < 0 &&
+      !row.backToBackTurn
     ) {
 
       warnings.push({
@@ -26999,6 +27146,123 @@ function runLiveRosterScenario(
 
 
   return result;
+}
+
+function runFantasyProsRoadmapSimulations() {
+  var scenarios = [
+    {
+      label: 'EARLY',
+      pick: 1,
+      roster: []
+    },
+    {
+      label: 'MIDDLE',
+      pick: 55,
+      roster: ['RB', 'RB', 'WR', 'WR', 'TE']
+    },
+    {
+      label: 'TURN',
+      pick: 20,
+      roster: ['RB']
+    },
+    {
+      label: 'LATE',
+      pick: 145,
+      roster: [
+        'QB', 'RB', 'RB', 'RB',
+        'WR', 'WR', 'WR', 'WR',
+        'TE', 'TE', 'RB', 'WR',
+        'K', 'DST'
+      ]
+    }
+  ];
+
+  var inconsistencyTypes = {
+    'INVALID SCORE': true,
+    'INVALID CONFIDENCE': true,
+    'INVALID GAP': true,
+    'ELITE PLAYER WARNING': true,
+    'WAIT WITHOUT ALTERNATIVE': true,
+    'PASS/GAP CONFLICT': true,
+    'DRAFT/GAP CONFLICT': true
+  };
+
+  var results = scenarios.map(function(scenario) {
+    var result = runLiveRosterScenario(
+      scenario.pick,
+      scenario.roster
+    );
+    var primary = result && result.primary;
+    var recommendation = primary && primary.recommendation;
+    var warnings = result && Array.isArray(result.warnings)
+      ? result.warnings
+      : [];
+    var inconsistencies = warnings.filter(function(warning) {
+      return Boolean(inconsistencyTypes[warning.type]);
+    });
+
+    return {
+      label: scenario.label,
+      pick: scenario.pick,
+      roster: scenario.roster.slice(),
+      player: primary && primary.primary ? primary.primary.name : null,
+      position: primary && primary.primary ? primary.primary.position : null,
+      action: recommendation ? recommendation.recommendation : null,
+      scoreGap: recommendation ? Number(recommendation.scoreGap || 0) : null,
+      backToBackTurn: Boolean(recommendation && recommendation.backToBackTurn),
+      warnings: warnings,
+      inconsistencies: inconsistencies,
+      passed: Boolean(primary && recommendation) && inconsistencies.length === 0
+    };
+  });
+
+  var passed = results.filter(function(result) {
+    return result.passed;
+  }).length;
+  var summary = {
+    results: results,
+    passed: passed,
+    failed: results.length - passed,
+    total: results.length
+  };
+  var output = document.getElementById('developer-test-results');
+
+  if (output) {
+    output.textContent = [
+      'FANTASYPROS ROADMAP SIMULATIONS',
+      'Result: ' + passed + '/' + results.length + ' scenarios clean'
+    ].concat(results.map(function(result) {
+      return [
+        result.passed ? 'PASS' : 'FAIL',
+        result.label,
+        'pick ' + result.pick,
+        result.player || 'no recommendation',
+        result.position || 'N/A',
+        result.action || 'N/A',
+        result.scoreGap == null ? 'gap N/A' : 'gap ' + result.scoreGap.toFixed(1),
+        result.backToBackTurn ? 'turn package' : '',
+        result.inconsistencies.length
+          ? result.inconsistencies.map(function(warning) { return warning.type; }).join(', ')
+          : '0 inconsistencies'
+      ].filter(Boolean).join(' · ');
+    })).join('\n');
+  }
+
+  console.table(results.map(function(result) {
+    return {
+      scenario: result.label,
+      pick: result.pick,
+      player: result.player,
+      position: result.position,
+      action: result.action,
+      scoreGap: result.scoreGap,
+      turn: result.backToBackTurn,
+      inconsistencies: result.inconsistencies.length,
+      passed: result.passed
+    };
+  }));
+
+  return summary;
 }
 
 function testDraftPlayer(playerName) {

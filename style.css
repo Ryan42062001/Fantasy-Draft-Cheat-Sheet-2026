@@ -422,6 +422,14 @@ tr.hidden-row {
   display: none !important;
 }
 
+tbody.tier-group.is-collapsed:not(.is-temporarily-expanded) > tr.draftrow {
+  display: none !important;
+}
+
+tr.special-teams-row td:first-child {
+  box-shadow: inset 3px 0 0 rgba(151, 139, 221, 0.72);
+}
+
 .pname {
   font-weight: 700;
   line-height: 1.6;
@@ -475,6 +483,24 @@ tr.tier-divider-row .divider-inner {
   margin-top: 12px;
   border-top: 3px solid var(--tier-color, #5fa87c);
   background: rgba(255,255,255,0.035);
+}
+
+tr.tier-divider-row .tier-collapse-btn {
+  margin-left: auto;
+  min-width: 86px;
+  padding: 5px 9px;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 7px;
+  color: #dce9df;
+  background: rgba(0,0,0,0.24);
+  font-size: 0.63rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+tr.tier-divider-row .tier-collapse-btn:hover {
+  border-color: var(--tier-color, #5fa87c);
+  background: rgba(255,255,255,0.08);
 }
 
 tr.tier-divider-row .tier-badge-inline {

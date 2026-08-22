@@ -137,16 +137,23 @@ Treat this as the living roadmap. Update this file as phases are completed.
 - [x] Verify page refresh reconstructs all 717 players automatically
 - [x] Run board integrity audit: 717 board rows, 0 missing, 0 unexpected, 0 duplicates
 - [x] Update visible section labels to ELITE / PREMIUM / CORE / VALUE / UPSIDE / DEPTH / LATE / DEEP while preserving internal IDs initially
-- [ ] Improve organization for large board: collapse LATE and DEEP by default; keep search across all players
-- [ ] Organize K and DST cleanly instead of dumping them into generic DEEP/F logic
+- [x] Improve organization for large board: collapse LATE and DEEP by default; keep search across all players
+- [x] Organize K and DST cleanly instead of dumping them into generic DEEP/F logic
 - [x] Wire ADP into `calculateNextPickSurvival()` / timing calculations
 - [x] Keep ECR as the value signal for board rank, VORP, scarcity, and recommendation value
-- [ ] Replace legacy tier-score assumptions with semantic consensus-tier scoring after distribution review
-- [ ] Fix any recommendation-decision inconsistencies exposed by simulations (example previously observed: negative score gap but still `DRAFT`)
+- [x] Replace legacy tier-score assumptions with semantic consensus-tier scoring after distribution review
+- [x] Fix any recommendation-decision inconsistencies exposed by simulations (example previously observed: negative score gap but still `DRAFT`)
 - [x] Re-run all 165 regression tests; target 165/165
-- [ ] Run realistic draft recommendation simulations at early, middle, turn, and late picks
-- [ ] Perform mobile/UI audit after the 717-player board is stable
-- [ ] Mark ranking system complete
+- [x] Run realistic draft recommendation simulations at early, middle, turn, and late picks
+- [x] Perform mobile/UI audit after the 717-player board is stable
+- [x] Mark ranking system complete
+
+Completion evidence (2026-08-22):
+- CSV rebuild: 520 ECR + 197 ADP-only = 717 players; QB 102 / RB 170 / WR 242 / TE 115 / K 56 / DST 32; 0 duplicate canonical names
+- Board audit after refresh: 717/717 rows; 0 missing; 0 unexpected; 0 board duplicates; 0 dataset duplicates
+- Regression suites: 152/152 draft engine + 5/5 turn package + 8/8 recommendation explanations = 165/165
+- Recommendation scenarios: early / middle / turn / late = 4/4 clean, with 0 decision inconsistencies
+- Responsive audit: 390px / 768px / default viewport; no page overflow; collapsed-tier search and all-position filters verified
 
 ## Acceptance criteria for the FantasyPros migration
 Do not call the migration complete until all of these are true:
@@ -196,11 +203,7 @@ Do not call the migration complete until all of these are true:
 - Avoid broad refactors unrelated to the current roadmap.
 - Update the roadmap checkboxes in this file as work is completed.
 
-## Immediate next task for Codex
-1. Inspect the repo and identify the current state of `EXPERT_RANKINGS_2026` and the partially pasted FantasyPros migration code.
-2. Do not continue the manual chunk approach.
-3. Rebuild the 717-player master dataset programmatically from the two FantasyPros CSV exports if they are available in the workspace; otherwise add/import the generated master dataset file provided by the user.
-4. Replace the obsolete/custom ranking dataset with the verified FantasyPros-backed dataset.
-5. Adapt board construction so all six positions are authoritative.
-6. Add/retain a board audit function with exact-count/missing/unexpected/duplicate checks.
-7. Run the existing 165 tests and report any failures before making recommendation-engine tuning changes.
+## Next maintenance cycle
+- Refresh the two source CSVs and rerun `scripts/build-fantasypros-2026.mjs` when FantasyPros publishes material ranking changes.
+- Re-run migration verification, roadmap simulations, persistence checks, and responsive checks after each data refresh.
+- Treat recommendation tuning as a separate evidence-driven phase; preserve ECR as value and ADP as market timing.

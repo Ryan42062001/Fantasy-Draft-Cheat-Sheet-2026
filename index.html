@@ -22,6 +22,8 @@
   <button class="filterbtn" data-pos="RB" onclick="setPosFilter('RB',this)">RB</button>
   <button class="filterbtn" data-pos="WR" onclick="setPosFilter('WR',this)">WR</button>
   <button class="filterbtn" data-pos="TE" onclick="setPosFilter('TE',this)">TE</button>
+  <button class="filterbtn" data-pos="K" onclick="setPosFilter('K',this)">K</button>
+  <button class="filterbtn" data-pos="DST" onclick="setPosFilter('DST',this)">DST</button>
   <button class="myteam-toggle" onclick="toggleMyTeam()">My Team</button>
 </div>
 <div class="statusbar">
@@ -172,6 +174,7 @@
     <div class="developer-test-actions">
       <button type="button" onclick="runDraftEngineTests()">Run full suite</button>
       <button type="button" onclick="runFantasyProsMigrationVerification()">Run migration verification</button>
+      <button type="button" onclick="runFantasyProsRoadmapSimulations()">Run roadmap simulations</button>
       <button type="button" onclick="runDraftEngineScenario('empty-roster')">Empty roster</button>
       <button type="button" onclick="runDraftEngineScenario('rb-need')">RB need</button>
       <button type="button" onclick="runDraftEngineScenario('wr-run')">WR run</button>
