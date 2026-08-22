@@ -4663,6 +4663,8 @@ function runEspnSyncContractTests() {
       className: row.className,
       pick: row.getAttribute('data-pick'),
       teamSlot: row.getAttribute('data-team-slot'),
+      teamId: row.getAttribute('data-team-id'),
+      syncMethod: row.getAttribute('data-sync-method'),
       syncSource: row.getAttribute('data-sync-source'),
       espnPlayerId: row.getAttribute('data-espn-player-id')
     };
@@ -4697,6 +4699,21 @@ function runEspnSyncContractTests() {
       'ESPN sync distinguishes Mine from Taken by team slot',
       chase.classList.contains('drafted-mine') &&
         gibbs.classList.contains('drafted-other')
+    );
+    var structured = applyEspnDraftSnapshot({
+      force: true,
+      picks: [
+        {overallPick: 1, playerName: "Ja'Marr Chase", position: 'WR', teamSlot: mineSlot, teamId: '7', isMine: false, method: 'api'},
+        {overallPick: 2, playerName: 'Jahmyr Gibbs', position: 'RB', teamSlot: otherSlot, teamId: '14', isMine: true, method: 'api'}
+      ]
+    });
+    test.assert(
+      'Structured ESPN team identity overrides inferred snake slots',
+      structured.applied === 2 &&
+        chase.classList.contains('drafted-other') &&
+        gibbs.classList.contains('drafted-mine') &&
+        gibbs.getAttribute('data-team-id') === '14' &&
+        gibbs.getAttribute('data-sync-method') === 'api'
     );
     test.assert(
       'ESPN sync stores overall pick and source metadata',
@@ -4749,11 +4766,13 @@ function runEspnSyncContractTests() {
     applyEspnSyncSettings(originalSettings);
     originalRows.forEach(function(snapshot) {
       snapshot.row.className = snapshot.className;
-      ['data-pick', 'data-team-slot', 'data-sync-source', 'data-espn-player-id'].forEach(function(attribute) {
+      ['data-pick', 'data-team-slot', 'data-team-id', 'data-sync-method', 'data-sync-source', 'data-espn-player-id'].forEach(function(attribute) {
         snapshot.row.removeAttribute(attribute);
       });
       if (snapshot.pick != null) snapshot.row.setAttribute('data-pick', snapshot.pick);
       if (snapshot.teamSlot != null) snapshot.row.setAttribute('data-team-slot', snapshot.teamSlot);
+      if (snapshot.teamId != null) snapshot.row.setAttribute('data-team-id', snapshot.teamId);
+      if (snapshot.syncMethod != null) snapshot.row.setAttribute('data-sync-method', snapshot.syncMethod);
       if (snapshot.syncSource != null) snapshot.row.setAttribute('data-sync-source', snapshot.syncSource);
       if (snapshot.espnPlayerId != null) snapshot.row.setAttribute('data-espn-player-id', snapshot.espnPlayerId);
     });
