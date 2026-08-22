@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "The War Room — ESPN Draft Companion",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Syncs visible ESPN fantasy football draft picks into The War Room.",
   "permissions": [
     "storage",

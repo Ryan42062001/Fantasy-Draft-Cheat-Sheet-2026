@@ -16,6 +16,7 @@ section { margin-bottom: 12px; padding: 12px; border: 1px solid #315740; border-
 .dot.online { background: #8fd4a0; box-shadow: 0 0 8px rgba(143,212,160,.55); }
 .counts small { display: block; color: #9cb3a2; font-size: 10px; }
 .counts strong { font-size: 20px; }
+.mine-audit { grid-column: 1 / -1; margin: 3px 0 0; padding-top: 8px; border-top: 1px solid #315740; color: #c9d8cb; font-size: 10px; line-height: 1.4; text-align: left; }
 h2 { margin: 0 0 3px; font-size: 13px; }
 section p { margin: 0 0 10px; color: #9cb3a2; font-size: 10px; line-height: 1.4; }
 .settings { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }

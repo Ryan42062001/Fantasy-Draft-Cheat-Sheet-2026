@@ -270,8 +270,8 @@ Completion evidence (2026-08-22):
 Current verification (2026-08-22):
 - Existing War Room regressions: 165/165
 - ESPN website reconciliation contract: 9/9
-- Extension parser and manifest tests: 16/16
-- Companion 0.2.0 repairs first-run rescans for ESPN tabs opened before extension installation, scans embedded draft frames, and exposes parser diagnostics/icon counts without requiring the popup to remain open
+- Extension parser, manifest, and ledger tests: 19/19
+- Companion 0.3.0 repairs first-run rescans for ESPN tabs opened before installation, scans embedded draft frames, invalidates pick-number ledgers when league size changes, and exposes the exact picks classified as Mine
 - Live ESPN mock-draft validation remains required because ESPN does not publish a stable draft-room DOM contract
 
 Completion evidence (2026-08-22):
