@@ -1,5 +1,7 @@
 'use strict';
 
+var settingsDirty = false;
+
 function send(message) {
   return chrome.runtime.sendMessage(message).catch(function(error) {
     return {error: error && error.message ? error.message : String(error)};
@@ -28,9 +30,11 @@ function render(status) {
   document.getElementById('captured-count').textContent = picks.length;
   document.getElementById('applied-count').textContent = Number(warRoom.applied) || 0;
   document.getElementById('unmatched-count').textContent = Number(warRoom.unmatched) || 0;
-  document.getElementById('teams').value = Number(config.teams) || 10;
-  document.getElementById('draft-slot').value = Number(config.draftSlot) || 1;
-  document.getElementById('rounds').value = Number(config.rounds) || 16;
+  if (!settingsDirty) {
+    document.getElementById('teams').value = Number(config.teams) || 10;
+    document.getElementById('draft-slot').value = Number(config.draftSlot) || 1;
+    document.getElementById('rounds').value = Number(config.rounds) || 16;
+  }
 
   var message = document.getElementById('message');
   if (status.error) message.textContent = status.error;
@@ -51,6 +55,12 @@ function refresh() {
   send({type: 'GET_STATUS'}).then(render);
 }
 
+['teams', 'draft-slot', 'rounds'].forEach(function(id) {
+  document.getElementById(id).addEventListener('input', function() {
+    settingsDirty = true;
+  });
+});
+
 document.getElementById('save-settings').addEventListener('click', function() {
   send({
     type: 'UPDATE_CONFIG',
@@ -59,7 +69,10 @@ document.getElementById('save-settings').addEventListener('click', function() {
       draftSlot: Number(document.getElementById('draft-slot').value),
       rounds: Number(document.getElementById('rounds').value)
     }
-  }).then(render);
+  }).then(function(status) {
+    settingsDirty = false;
+    render(status);
+  });
 });
 
 document.getElementById('rescan').addEventListener('click', function() {

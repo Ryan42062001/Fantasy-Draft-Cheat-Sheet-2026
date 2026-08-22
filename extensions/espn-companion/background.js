@@ -104,14 +104,19 @@ function ensureReadersInOpenEspnTabs(force) {
   });
 }
 
-function broadcastWarRoom(force) {
+function broadcastWarRoom(force, applyConfig) {
   var picks = getPicks();
   return queryTabs(WAR_ROOM_URLS).then(function(tabs) {
     state.warRoom.connected = tabs.length > 0;
     return Promise.all(tabs.map(function(tab) {
       return sendTabQuiet(tab.id, {
         type: 'WAR_ROOM_SNAPSHOT',
-        snapshot: {version: 1, picks: picks, force: Boolean(force)}
+        snapshot: {
+          version: 1,
+          picks: picks,
+          force: Boolean(force),
+          config: applyConfig ? Object.assign({}, state.config) : null
+        }
       });
     }));
   });
@@ -230,7 +235,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.config.rounds = Math.max(1, Math.min(30, Number(config.rounds) || state.config.rounds));
       return storageSave()
         .then(sendConfigToEspn)
-        .then(function() { return broadcastWarRoom(true); })
+        .then(function() { return broadcastWarRoom(true, true); })
         .then(function() { sendResponse(statusSnapshot()); });
     }
 
