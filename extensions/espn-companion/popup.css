@@ -1,0 +1,30 @@
+:root { color-scheme: dark; font-family: "Segoe UI", system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { width: 340px; margin: 0; color: #f3efe3; background: #122619; }
+header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #3f6b4d; background: linear-gradient(145deg,#1b3a2b,#122619); }
+header > span { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid #8f7635; border-radius: 10px; background: rgba(224,168,63,.12); }
+header small { color: #e0c98a; font-size: 9px; font-weight: 900; letter-spacing: .15em; }
+h1 { margin: 1px 0 0; font-size: 18px; }
+main { padding: 14px; }
+section { margin-bottom: 12px; padding: 12px; border: 1px solid #315740; border-radius: 10px; background: #173028; }
+.status-grid, .counts { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; }
+.counts { grid-template-columns: repeat(3,1fr); text-align: center; }
+.status-grid div { display: grid; grid-template-columns: 10px 1fr; column-gap: 6px; align-items: center; }
+.status-grid small { color: #9cb3a2; }
+.status-grid strong { grid-column: 2; font-size: 12px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #6e7c72; }
+.dot.online { background: #8fd4a0; box-shadow: 0 0 8px rgba(143,212,160,.55); }
+.counts small { display: block; color: #9cb3a2; font-size: 10px; }
+.counts strong { font-size: 20px; }
+h2 { margin: 0 0 3px; font-size: 13px; }
+section p { margin: 0 0 10px; color: #9cb3a2; font-size: 10px; line-height: 1.4; }
+.settings { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+label { color: #a9c2ab; font-size: 10px; font-weight: 700; }
+input { width: 100%; margin-top: 4px; padding: 7px; border: 1px solid #3f6b4d; border-radius: 7px; color: #fff; background: #0f2419; }
+button { padding: 8px 10px; border: 1px solid #3f6b4d; border-radius: 8px; color: #f3efe3; background: rgba(255,255,255,.06); cursor: pointer; font-weight: 800; }
+button:hover { background: rgba(255,255,255,.12); }
+.primary { width: 100%; margin-top: 9px; color: #2a1f00; border-color: #e0a83f; background: #e0a83f; }
+.actions { display: flex; gap: 8px; }
+.actions button { flex: 1; }
+.danger { border-color: #9c544d; color: #e7aaa5; }
+.message { margin: 0; color: #a9c2ab; font-size: 10px; line-height: 1.45; }

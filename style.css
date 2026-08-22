@@ -120,6 +120,14 @@ header p {
   color: #c9d9c9;
 }
 
+.header-badges {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -197,6 +205,37 @@ header p {
   font-size: 0.59rem;
   font-weight: 800;
 }
+
+.espn-sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 3px 8px;
+  border: 1px solid rgba(95, 168, 217, 0.38);
+  border-radius: 999px;
+  color: #a9d7f1;
+  background: rgba(95, 168, 217, 0.1);
+  font-size: 0.59rem;
+  font-weight: 800;
+}
+
+.espn-sync-status::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5fa8d9;
+  content: "";
+}
+
+.espn-sync-status-syncing {
+  color: #e0c98a;
+  border-color: rgba(224, 168, 63, 0.38);
+}
+
+.espn-sync-status-syncing::before { background: #e0a83f; }
+.espn-sync-status-error { color: #e7aaa5; border-color: rgba(193, 85, 75, 0.45); }
+.espn-sync-status-error::before { background: #c1554b; }
 
 .data-freshness::before {
   width: 6px;
@@ -1869,6 +1908,14 @@ body.draft-complete-mode #board-pressure-widget { display: none; }
   }
 
   .data-freshness {
+    margin-top: 0;
+  }
+
+  .header-badges {
+    justify-content: flex-end;
+  }
+
+  .espn-sync-status {
     margin-top: 0;
   }
 

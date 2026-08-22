@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "The War Room — ESPN Draft Companion",
+  "version": "0.1.0",
+  "description": "Syncs visible ESPN fantasy football draft picks into The War Room.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://fantasy.espn.com/*",
+    "https://www.espn.com/fantasy/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "https://ryan42062001.github.io/Fantasy-Draft-Cheat-Sheet-2026/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "The War Room ESPN Companion",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://fantasy.espn.com/*",
+        "https://www.espn.com/fantasy/*"
+      ],
+      "js": [
+        "espn-parser.js",
+        "espn-content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://127.0.0.1/*",
+        "http://localhost/*",
+        "https://ryan42062001.github.io/Fantasy-Draft-Cheat-Sheet-2026/*"
+      ],
+      "js": [
+        "war-room-content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

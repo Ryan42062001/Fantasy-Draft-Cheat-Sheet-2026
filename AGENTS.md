@@ -256,6 +256,23 @@ Completion evidence (2026-08-22):
 - [x] Replace the stale hard-coded pick subtitle with draft-setting-safe command-center copy
 - [x] Keep the compact masthead responsive while preserving the mobile sticky-toolbar behavior
 
+## ESPN draft companion
+- [x] Define a versioned ESPN-to-War-Room snapshot contract
+- [x] Add full-snapshot reconciliation for Mine / Taken / corrected picks
+- [x] Preserve existing board updates and autosave after synchronized picks
+- [x] Add suffix-tolerant player matching and ESPN D/ST reconciliation
+- [x] Build a narrowly permissioned Manifest V3 companion package under `extensions/espn-companion`
+- [x] Add connection health, captured/applied/unmatched counts, rescan, and guarded reset controls
+- [x] Add parser, manifest, and website reconciliation regression suites
+- [ ] Validate ESPN DOM selectors in a live 2026 ESPN football mock draft
+- [ ] Add any display-name aliases or selector fixtures observed during the mock draft
+
+Current verification (2026-08-22):
+- Existing War Room regressions: 165/165
+- ESPN website reconciliation contract: 8/8
+- Extension parser and manifest tests: 10/10
+- Live ESPN mock-draft validation remains required because ESPN does not publish a stable draft-room DOM contract
+
 Completion evidence (2026-08-22):
 - Clean draft UI: 717 rows, visible 2026-08-21 FantasyPros freshness badge, decision-focused Board Pressure, no console errors
 - Mid-draft UI: roster plan renders in My Draft Summary and FLEX remains visible

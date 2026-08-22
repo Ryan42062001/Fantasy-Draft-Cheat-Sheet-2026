@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The War Room ESPN Companion</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <span aria-hidden="true">&#127944;</span>
+    <div><small>THE WAR ROOM</small><h1>ESPN Companion</h1></div>
+  </header>
+
+  <main>
+    <section class="status-grid" aria-live="polite">
+      <div><span id="espn-dot" class="dot"></span><small>ESPN draft</small><strong id="espn-status">Checking…</strong></div>
+      <div><span id="war-room-dot" class="dot"></span><small>War Room</small><strong id="war-room-status">Checking…</strong></div>
+    </section>
+
+    <section class="counts">
+      <div><small>Captured</small><strong id="captured-count">0</strong></div>
+      <div><small>Applied</small><strong id="applied-count">0</strong></div>
+      <div><small>Unmatched</small><strong id="unmatched-count">0</strong></div>
+    </section>
+
+    <section>
+      <h2>Snake draft settings</h2>
+      <p>The War Room supplies these automatically when its tab is open.</p>
+      <div class="settings">
+        <label>Teams<input id="teams" type="number" min="2" max="20"></label>
+        <label>Your slot<input id="draft-slot" type="number" min="1" max="20"></label>
+        <label>Rounds<input id="rounds" type="number" min="1" max="30"></label>
+      </div>
+      <button id="save-settings" class="primary">Save settings</button>
+    </section>
+
+    <section class="actions">
+      <button id="rescan">Rescan ESPN</button>
+      <button id="reset" class="danger">Clear captured picks</button>
+    </section>
+
+    <p id="message" class="message">Open both the ESPN draft room and The War Room in this browser.</p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
