@@ -50,7 +50,7 @@ ESPN authenticated page connection (primary) or Pick History/Board DOM (fallback
 
 - Keep manual marking available as a fallback.
 - Verify the Captured, Applied, and Unmatched counts after the first few mock-draft picks.
-- If Captured is greater than Applied, refresh the War Room tab and press **Rescan ESPN**. Version 0.7.1 automatically reinjects a stale War Room bridge and reports a bridge error when delivery still fails.
+- If Captured is greater than Applied, refresh the War Room tab and press **Rescan ESPN**. Version 0.7.2 automatically reinjects a stale War Room bridge, reports delivery failures, and prevents passive website settings from clearing captured picks.
 - Prefer a popup status of **Draft detected · Direct**. If it says **Screen**, open ESPN's Board tab once and press Rescan.
 - In Screen mode, the popup compares captured picks with ESPN's on-clock pick and warns when the fallback is behind.
 - The ESPN data connection panel reports the structured endpoint's HTTP status, ESPN role, resolved count, unresolved count, and exact request error. **Hybrid** means Direct owns numbering/team identity while Screen supplies unresolved player names.
