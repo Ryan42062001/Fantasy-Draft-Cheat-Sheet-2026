@@ -127,6 +127,7 @@ function updateMyTeam() {
     K: 0,
     DST: 0
   };
+  var byeCounts = {};
 
   var players = [];
 
@@ -136,6 +137,10 @@ function updateMyTeam() {
 
     if (counts[pos] !== undefined) {
       counts[pos]++;
+    }
+    var bye = String(row.getAttribute('data-bye') || '').trim();
+    if (bye && bye !== '--' && bye !== '-' && bye !== '0') {
+      byeCounts[bye] = (byeCounts[bye] || 0) + 1;
     }
 
     players.push({
@@ -495,13 +500,38 @@ function formatDraftSummaryDelta(value) {
 
 function getCompletedDraftPickCount() {
   return document.querySelectorAll(
-    'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
+    'tr.draftrow.drafted-mine[data-pick], tr.draftrow.drafted-other[data-pick]'
   ).length;
 }
 
-function isDraftComplete(state) {
+function getDraftCompletionStatus(state) {
   state = state || getDraftAssistantState();
-  return Boolean(state.totalPicks > 0 && getCompletedDraftPickCount() >= state.totalPicks);
+  var numberedPicks = getCompletedDraftPickCount();
+  var myRosterCount = document.querySelectorAll('tr.draftrow.drafted-mine').length;
+  var authoritative = state.totalPicks > 0 && numberedPicks >= state.totalPicks;
+  var externalComplete = Boolean(window.latestEspnSyncMeta && window.latestEspnSyncMeta.draftComplete);
+  var provisional = !authoritative && externalComplete && myRosterCount >= state.rounds;
+  return {
+    complete: authoritative || provisional,
+    authoritative: authoritative,
+    provisional: provisional,
+    externalComplete: externalComplete,
+    numberedPicks: numberedPicks,
+    myRosterCount: myRosterCount
+  };
+}
+
+function isDraftComplete(state) {
+  return getDraftCompletionStatus(state).complete;
+}
+
+function getRosterByeCounts(rows) {
+  var counts = {};
+  (rows || []).forEach(function(row) {
+    var bye = String(row && row.getAttribute ? row.getAttribute('data-bye') || '' : row && row.bye || '').trim();
+    if (bye && bye !== '--' && bye !== '-' && bye !== '0') counts[bye] = (counts[bye] || 0) + 1;
+  });
+  return counts;
 }
 
 function buildTimedRosterGuidance(state, positionCounts, flexFilled, myRows) {
@@ -530,7 +560,10 @@ function buildTimedRosterGuidance(state, positionCounts, flexFilled, myRows) {
       : 'Your foundation is taking shape; keep following the strongest ECR value.';
     secondary = 'QB and TE can wait when their current tiers remain healthy. Save K and DST for the final two rounds.';
   } else if (round <= 7) {
-    if (openCore.length) {
+    if (positionCounts.WR >= 3 && positionCounts.RB < 2) {
+      primary = 'Excellent WR advantage; RB workload stability is now the priority when values are close.';
+      tone = 'watch';
+    } else if (openCore.length) {
       primary = 'Starter-build window: address ' + openCore.slice(0, 3).join(', ') + ' within your next two selections.';
       tone = 'watch';
     } else {
@@ -564,17 +597,18 @@ function buildTimedRosterGuidance(state, positionCounts, flexFilled, myRows) {
     secondary = 'Avoid low-upside bench duplicates when a clearer path to opportunity is available.';
   }
 
-  var byeCounts = {};
-  (myRows || []).forEach(function(row) {
-    var bye = String(row.getAttribute('data-bye') || '').trim();
-    if (bye && bye !== '--' && bye !== '0') byeCounts[bye] = (byeCounts[bye] || 0) + 1;
-  });
-  var crowdedBye = Object.keys(byeCounts).sort(function(a, b) {
+  var byeCounts = getRosterByeCounts(myRows);
+  var crowdedByes = Object.keys(byeCounts).filter(function(bye) {
+    return byeCounts[bye] >= 3;
+  }).sort(function(a, b) {
     return byeCounts[b] - byeCounts[a];
-  })[0];
-  if (crowdedBye && byeCounts[crowdedBye] >= 3) {
-    secondary = 'Bye-week watch: ' + byeCounts[crowdedBye] + ' players share Week ' + crowdedBye + '. ' + secondary;
-    tone = tone === 'urgent' ? tone : 'watch';
+  });
+  if (crowdedByes.length) {
+    secondary = 'Bye-week watch: ' + crowdedByes.slice(0, 2).map(function(bye) {
+      return byeCounts[bye] + ' players in Week ' + bye;
+    }).join(' · ') + '. ' + secondary;
+    var maxByeCount = byeCounts[crowdedByes[0]];
+    tone = maxByeCount >= 5 ? 'urgent' : tone === 'urgent' ? tone : 'watch';
   }
 
   return (
@@ -615,9 +649,7 @@ function updateDraftSummary() {
   if (!content) return;
 
   var state = getDraftAssistantState();
-  var allDraftedCount = document.querySelectorAll(
-    'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
-  ).length;
+  var allDraftedCount = getCompletedDraftPickCount();
   var summaryPanel = document.getElementById('summary-panel');
   var shouldRenderSummary = Boolean(
     document.getElementById('myteam-panel')?.classList.contains('open') &&
@@ -642,6 +674,7 @@ function updateDraftSummary() {
     return {
       name: getDraftRowDisplayName(row),
       position: position,
+      bye: String(row.getAttribute('data-bye') || '').trim(),
       pick: pick,
       ecr: ecr,
       adp: adp,
@@ -690,10 +723,15 @@ function updateDraftSummary() {
 
   if (countBadge) countBadge.textContent = picks.length + (picks.length === 1 ? ' pick' : ' picks');
 
+  var completion = getDraftCompletionStatus(state);
+  var progressCopy = completion.externalComplete && !completion.authoritative
+    ? 'Draft appears complete · ' + completion.numberedPicks + ' of ' + state.totalPicks + ' numbered picks synced'
+    : allDraftedCount + ' of ' + state.totalPicks + ' overall picks complete';
+
   var html =
     '<div class="summary-progress-row">' +
       '<div><strong>Round ' + currentRound + ' of ' + state.rounds + '</strong>' +
-        '<span>' + allDraftedCount + ' of ' + state.totalPicks + ' overall picks complete</span></div>' +
+        '<span>' + progressCopy + '</span></div>' +
       '<span>' + progress + '%</span>' +
     '</div>' +
     '<div class="summary-progress-track"><span style="width:' + progress + '%"></span></div>' +
@@ -792,7 +830,7 @@ function updateDraftSummary() {
   };
   window.latestFinalDraftSummaryData = finalSummaryData;
 
-  if (allDraftedCount >= state.totalPicks) {
+  if (completion.complete) {
     html += '<button class="summary-final-report-btn" onclick="showFinalDraftSummary()">View final draft report</button>';
   }
 
@@ -873,6 +911,17 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
   var strengths = [];
   var improvements = [];
   var waiverWatch = getFinalWaiverWatch(6);
+  var completion = getDraftCompletionStatus();
+  var byeCounts = getRosterByeCounts(picks);
+  var crowdedByes = Object.keys(byeCounts).filter(function(bye) {
+    return byeCounts[bye] >= 3;
+  }).sort(function(a, b) { return byeCounts[b] - byeCounts[a]; });
+  var openingPicks = picks.slice().sort(function(a, b) {
+    return Number(a.pick || 9999) - Number(b.pick || 9999);
+  }).slice(0, 4);
+  var openingWrCount = openingPicks.filter(function(player) { return player.position === 'WR'; }).length;
+  var firstRb = picks.filter(function(player) { return player.position === 'RB' && player.pick != null; })
+    .sort(function(a, b) { return a.pick - b.pick; })[0] || null;
 
   if (bestValue && bestValue.ecrValue > 0) {
     strengths.push(
@@ -895,6 +944,25 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
 
   if (positionCounts.RB >= 3 && positionCounts.WR >= 3) {
     strengths.push('You built usable depth at both RB and WR.');
+  }
+
+  if (openingWrCount >= 3) {
+    strengths.push('Your opening created an elite <b>WR foundation</b> with three receivers in the first four selections.');
+  }
+
+  if (firstRb && Math.ceil(firstRb.pick / Math.max(1, LEAGUE_SIZE)) >= 5) {
+    improvements.push('The WR-heavy opening pushed your first RB to <b>Round ' +
+      Math.ceil(firstRb.pick / Math.max(1, LEAGUE_SIZE)) +
+      '</b>. The depth is useful, but the room depends more on uncertain workloads than an early anchor RB would.');
+  }
+
+  if (crowdedByes.length) {
+    var severeByes = crowdedByes.filter(function(bye) { return byeCounts[bye] >= 5; });
+    improvements.push('Bye-week concentration: <b>' + crowdedByes.slice(0, 3).map(function(bye) {
+      return byeCounts[bye] + ' players in Week ' + bye;
+    }).join(' and ') + '</b>.' + (severeByes.length
+      ? ' Five-player clusters can remove several starters at once.'
+      : ' Monitor lineup coverage before adding another player from those weeks.'));
   }
 
   materialReaches.slice(0, 3).forEach(function(player) {
@@ -964,7 +1032,7 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
           : 'A few reaches held this draft back';
 
   return (
-    '<div class="final-summary-kicker">DRAFT COMPLETE</div>' +
+    '<div class="final-summary-kicker">' + (completion.provisional ? 'PROVISIONAL FINAL REPORT' : 'DRAFT COMPLETE') + '</div>' +
     '<div class="final-summary-title-row">' +
       '<div><h2 id="final-summary-title">&#127942; ' + headline + '</h2>' +
         '<p>Measured against FantasyPros 2026 PPR ECR for value and PPR ADP for timing.</p></div>' +
@@ -982,7 +1050,9 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
     '</div>' +
     '<section class="final-waiver-watch"><div><h3>Waiver watch</h3><p>Best undrafted skill-position players by FantasyPros PPR ECR.</p></div>' +
       buildWaiverWatchHtml(waiverWatch, false) + '</section>' +
-    '<div class="final-summary-note">This is a process review, not a season prediction. Injuries, roles, and waiver moves will change the final outcome.</div>' +
+    '<div class="final-summary-note">' + (completion.provisional
+      ? 'ESPN reports the draft complete and your full roster is known, but some opponent pick numbers are still syncing. '
+      : '') + 'This is a process review, not a season prediction. Injuries, roles, and waiver moves will change the final outcome.</div>' +
     '<button class="final-summary-done" onclick="closeFinalDraftSummary()">Back to my draft</button>'
   );
 }
@@ -1054,10 +1124,8 @@ function renderDraftCompleteRecommendation(element) {
 }
 
 function maybeShowFinalDraftSummary(state, picks, positionCounts, startersFilled, averageEcrValue, grade) {
-  var completedPicks = document.querySelectorAll(
-    'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
-  ).length;
-  var isComplete = state.totalPicks > 0 && completedPicks >= state.totalPicks;
+  var completion = getDraftCompletionStatus(state);
+  var isComplete = completion.complete;
   var lastPickRow = document.querySelector(
     'tr.draftrow.drafted-other[data-pick="' + state.totalPicks + '"]'
   );
@@ -7216,9 +7284,16 @@ function updatePickCounter() {
   var totalPicks = teams * rounds;
 
   // Every player marked Taken or Mine counts as one completed pick.
-  var completedPicks = document.querySelectorAll(
-    'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
-  ).length;
+  var completedPicks = getCompletedDraftPickCount();
+  var completion = getDraftCompletionStatus({totalPicks: totalPicks, rounds: rounds});
+
+  if (completion.externalComplete && !completion.authoritative) {
+    counter.innerHTML =
+      'Draft appears complete &middot; <b>' + completedPicks + ' of ' + totalPicks +
+      ' numbered picks synced</b>' +
+      (completion.myRosterCount >= rounds ? ' &middot; provisional report ready' : '');
+    return;
+  }
 
   var currentPick = Math.min(completedPicks + 1, totalPicks);
 
@@ -8019,6 +8094,8 @@ function triggerAllBoardUpdates(options) {
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
+var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0};
+window.latestEspnSyncMeta = latestEspnSyncMeta;
 
 function normalizeEspnSyncPosition(position) {
   var value = String(position || '').toUpperCase().replace(/[^A-Z]/g, '');
@@ -8175,9 +8252,17 @@ function applyEspnDraftSnapshot(snapshot) {
   var picks = Array.from(picksByNumber.values()).sort(function(a, b) {
     return a.overallPick - b.overallPick;
   });
+  latestEspnSyncMeta = {
+    draftComplete: Boolean(snapshot.draftComplete),
+    expectedCompleted: Number(snapshot.expectedCompleted) || 0,
+    numberedPicks: picks.length
+  };
+  window.latestEspnSyncMeta = latestEspnSyncMeta;
   var signature = JSON.stringify({
     draftSlot: settings.draftSlot,
     teams: settings.teams,
+    draftComplete: latestEspnSyncMeta.draftComplete,
+    expectedCompleted: latestEspnSyncMeta.expectedCompleted,
     picks: picks.map(function(pick) {
       return [pick.overallPick, pick.playerName, pick.position, pick.teamSlot, pick.teamId, pick.isMine];
     }),
@@ -12035,9 +12120,7 @@ function getDraftAssistantState() {
    * Find the current overall pick from the existing draft counter.
    * If the existing function/state is available, use it.
    */
-  var completedPicks = document.querySelectorAll(
-  'tr.draftrow.drafted-mine, tr.draftrow.drafted-other'
-).length;
+  var completedPicks = getCompletedDraftPickCount();
 
 var currentPick = Math.min(
   completedPicks + 1,
@@ -12846,6 +12929,7 @@ function getDraftAssistantRosterState() {
     K: 0,
     DST: 0
   };
+  var byeCounts = {};
 
   document.querySelectorAll(
     'tr.draftrow.drafted-mine'
@@ -12855,6 +12939,10 @@ function getDraftAssistantRosterState() {
 
     if (counts[pos] !== undefined) {
       counts[pos]++;
+    }
+    var bye = String(row.getAttribute('data-bye') || '').trim();
+    if (bye && bye !== '--' && bye !== '-' && bye !== '0') {
+      byeCounts[bye] = (byeCounts[bye] || 0) + 1;
     }
   });
 
@@ -12891,7 +12979,8 @@ function getDraftAssistantRosterState() {
     required: required,
     needs: needs,
     flexEligiblePlayers: flexEligiblePlayers,
-    requiredFlexEligiblePlayers: requiredFlexEligiblePlayers
+    requiredFlexEligiblePlayers: requiredFlexEligiblePlayers,
+    byeCounts: byeCounts
   };
 }
 
@@ -12997,6 +13086,7 @@ var rank = ecr != null ? ecr : boardRank;
       adp: adp,
       adpRank: adpRank,
       realTimeAdp: realTimeAdp,
+      bye: String(row.getAttribute('data-bye') || '').trim(),
       fantasyProsTier: getDraftRowNumber(row, 'data-fantasypros-tier'),
       semanticTier: row.getAttribute('data-semantic-tier') ||
         row.getAttribute('data-consensus-tier') ||
@@ -17874,6 +17964,12 @@ console.log(
     context
   );
 
+var byeWeekCongestionAdjustment =
+  calculateByeWeekCongestionAdjustment(
+    player,
+    context
+  );
+
 var futureDepthOpportunityScore =
   context.skipFutureDepth
     ? 0
@@ -17945,7 +18041,8 @@ var rawStrategyAdjustment =
   strategyScore + dynamicStrategyAdjustment + phaseAdjustedTierCliffScore +
   phaseCoreAdjustment.total + runOpportunityScore + runUrgencyScore +
   phaseAdjustedDraftAwareVorpScore + phaseAdjustedRosterConstructionScore +
-  phaseAdjustedFutureDepthScore + phaseAdjustedMultiPickScore;
+  phaseAdjustedFutureDepthScore + phaseAdjustedMultiPickScore +
+  byeWeekCongestionAdjustment;
 var adjustmentBudget = WAR_ROOM_CONFIG.strategyAdjustmentBudget || {min:-15, max:15};
 var cappedStrategyAdjustment = Math.max(
   Number(adjustmentBudget.min) || -15,
@@ -18108,6 +18205,9 @@ draftAwareVorpOpportunityScore:
 
     rosterConstructionScore:
   rosterConstructionScore,
+
+    byeWeekCongestionAdjustment:
+  byeWeekCongestionAdjustment,
 
 finalScore:
   finalScore
@@ -21337,6 +21437,27 @@ function calculateRosterConstructionValue(
   return value;
 }
 
+function calculateByeWeekCongestionAdjustment(player, context) {
+  player = player || {};
+  context = context || {};
+  var bye = String(player.bye || (player.row && player.row.getAttribute('data-bye')) || '').trim();
+  if (!bye || bye === '--' || bye === '-' || bye === '0') return 0;
+
+  var byeCounts = context.rosterByeCounts ||
+    (getDraftAssistantRosterState().byeCounts || {});
+  var existing = Number(byeCounts[bye]) || 0;
+  if (existing < 3) return 0;
+
+  var adjustment = existing === 3 ? -2 : existing === 4 ? -6 : -10;
+  var round = Math.ceil((Number(context.currentPick) || 1) / Math.max(1, Number(context.teams) || 10));
+  if (round <= 4) adjustment *= 0.5;
+  else if (round <= 7) adjustment *= 0.75;
+
+  var position = player.position || player.pos;
+  if (existing >= 4 && (position === 'QB' || position === 'TE')) adjustment -= 1;
+  return Math.max(-10, Number(adjustment.toFixed(2)));
+}
+
 function calculateRosterSaturationPenalty(
   player,
   context
@@ -22534,6 +22655,9 @@ opponentThreatCache:
 
     rosterCounts:
       rosterCounts,
+
+    rosterByeCounts:
+      rosterState.byeCounts || {},
 
     strategy:
       draftStrategy,

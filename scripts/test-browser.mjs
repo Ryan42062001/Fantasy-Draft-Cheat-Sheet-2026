@@ -92,6 +92,63 @@ if (sessionBefore === 1) {
   assert.equal(await page.locator('tr.drafted-mine,tr.drafted-other').count(), 0);
 }
 
+const strategyPolish = await page.evaluate(() => {
+  const originalSettings = {teams:LEAGUE_SIZE, slot:MY_DRAFT_SLOT, rounds:TOTAL_ROUNDS};
+  document.getElementById('pcTeams').value = '12';
+  document.getElementById('pcSlot').value = '11';
+  document.getElementById('pcRounds').value = '16';
+  LEAGUE_SIZE = 12;
+  MY_DRAFT_SLOT = 11;
+  TOTAL_ROUNDS = 16;
+  const byeAdjustment = calculateByeWeekCongestionAdjustment(
+    {position:'WR', bye:'10'},
+    {currentPick:110, teams:12, rosterByeCounts:{'10':4}}
+  );
+  const rows = Array.from(document.querySelectorAll('tr.draftrow')).slice(0, 16);
+  rows.forEach((row, index) => {
+    row.classList.add('drafted-mine');
+    if (index < 11) row.setAttribute('data-pick', String(index + 1));
+  });
+  latestEspnSyncMeta = {draftComplete:true, expectedCompleted:192, numberedPicks:11};
+  window.latestEspnSyncMeta = latestEspnSyncMeta;
+  const state = getDraftAssistantState();
+  const completion = getDraftCompletionStatus(state);
+  updatePickCounter();
+  const counter = document.getElementById('pick-counter-text').textContent;
+  const report = buildFinalDraftSummaryHtml([
+    {name:'WR One',position:'WR',pick:11,ecr:6,adp:8,bye:'10',ecrValue:5,marketValue:3},
+    {name:'WR Two',position:'WR',pick:14,ecr:10,adp:17,bye:'11',ecrValue:4,marketValue:-3},
+    {name:'WR Three',position:'WR',pick:35,ecr:24,adp:35,bye:'10',ecrValue:11,marketValue:0},
+    {name:'QB One',position:'QB',pick:38,ecr:28,adp:53,bye:'11',ecrValue:10,marketValue:15},
+    {name:'RB One',position:'RB',pick:59,ecr:54,adp:55,bye:'10',ecrValue:5,marketValue:-4},
+    {name:'RB Two',position:'RB',pick:62,ecr:60,adp:50,bye:'11',ecrValue:2,marketValue:-12},
+    {name:'TE One',position:'TE',pick:83,ecr:72,adp:73,bye:'10',ecrValue:11,marketValue:-10},
+    {name:'RB Three',position:'RB',pick:86,ecr:70,adp:73,bye:'11',ecrValue:16,marketValue:-13},
+    {name:'WR Four',position:'WR',pick:110,ecr:73,adp:100,bye:'10',ecrValue:37,marketValue:-10}
+  ], {QB:1,RB:3,WR:4,TE:1,K:0,DST:0}, 7, 11.2, 'A+');
+  rows.forEach(row => {
+    row.classList.remove('drafted-mine');
+    row.removeAttribute('data-pick');
+  });
+  latestEspnSyncMeta = {draftComplete:false, expectedCompleted:0, numberedPicks:0};
+  window.latestEspnSyncMeta = latestEspnSyncMeta;
+  document.getElementById('pcTeams').value = String(originalSettings.teams);
+  document.getElementById('pcSlot').value = String(originalSettings.slot);
+  document.getElementById('pcRounds').value = String(originalSettings.rounds);
+  LEAGUE_SIZE = originalSettings.teams;
+  MY_DRAFT_SLOT = originalSettings.slot;
+  TOTAL_ROUNDS = originalSettings.rounds;
+  return {byeAdjustment, completion, counter, report};
+});
+assert.equal(strategyPolish.byeAdjustment, -6);
+assert.equal(strategyPolish.completion.provisional, true);
+assert.match(strategyPolish.counter, /Draft appears complete/);
+assert.match(strategyPolish.counter, /11 of 192 numbered picks synced/);
+assert.match(strategyPolish.report, /PROVISIONAL FINAL REPORT/);
+assert.match(strategyPolish.report, /WR foundation/);
+assert.match(strategyPolish.report, /Bye-week concentration/);
+assert.match(strategyPolish.report, /first RB to <b>Round 5/);
+
 await page.getByRole('button', {name:/My Draft/}).click();
 assert.equal(await page.locator('#myteam-panel').getAttribute('aria-hidden'), 'false');
 assert.match(await page.locator('#myteam-starter-count').innerText(), /\/ 9 starters/);
