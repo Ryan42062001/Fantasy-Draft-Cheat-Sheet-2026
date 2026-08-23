@@ -243,6 +243,15 @@ function draftKeyFromUrl(url) {
   }
 }
 
+function resetEspnDraftProgress() {
+  state.espn.captured = 0;
+  state.espn.visibleCaptured = 0;
+  state.espn.visibleCandidates = 0;
+  state.espn.currentPick = null;
+  state.espn.expectedCompleted = 0;
+  state.espn.draftComplete = false;
+}
+
 function activateDraft(url) {
   var nextKey = draftKeyFromUrl(url);
   if (!nextKey) return false;
@@ -252,8 +261,7 @@ function activateDraft(url) {
     state.picksByNumber = {};
     state.unavailablePlayersByKey = {};
     state.ledgerTeams = Number(state.config.teams);
-    state.espn.captured = 0;
-    state.espn.visibleCaptured = 0;
+    resetEspnDraftProgress();
     state.espn.structuredAt = null;
     state.espn.method = null;
     state.espn.apiAvailable = false;
@@ -344,9 +352,9 @@ function updateConfig(config) {
   state.config = next;
   if (teamsChanged) {
     state.picksByNumber = {};
+    state.unavailablePlayersByKey = {};
     state.ledgerTeams = next.teams;
-    state.espn.captured = 0;
-    state.espn.visibleCaptured = 0;
+    resetEspnDraftProgress();
   }
 
   return {teamsChanged: teamsChanged};
@@ -406,7 +414,12 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         state.espn.currentPick = Number(message.currentPick);
         state.espn.expectedCompleted = Math.max(0, Number(message.currentPick) - 1);
       }
-      state.espn.draftComplete = Boolean(message.draftComplete);
+      // Readers run in every ESPN frame. A child frame may positively detect
+      // completion, but it must not clear a completed state reported by the
+      // top frame or another frame that can see the terminal board slot.
+      if (message.topFrame || message.draftComplete) {
+        state.espn.draftComplete = Boolean(message.draftComplete);
+      }
       var detectedRounds = Number(message.detectedRounds);
       var shouldUpdateRounds = Number.isInteger(detectedRounds) && detectedRounds >= 1 &&
         detectedRounds !== Number(state.config.rounds);
@@ -544,7 +557,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.picksByNumber = {};
       state.unavailablePlayersByKey = {};
       state.ledgerTeams = Number(state.config.teams);
-      state.espn.captured = 0;
+      resetEspnDraftProgress();
       return storageSave()
         .then(function() { return broadcastWarRoom(true); })
         .then(function() { sendResponse(statusSnapshot()); });
