@@ -3882,6 +3882,52 @@ function enforceAuthoritativePositionOrder(scoredPlayers) {
   return scoredPlayers;
 }
 
+function applyMarketAwareRecommendationPriority(scoredPlayers, context) {
+  scoredPlayers = Array.isArray(scoredPlayers) ? scoredPlayers : [];
+  context = context || {};
+  var corePositions = ['QB', 'RB', 'WR', 'TE'];
+  var ecrPlayers = scoredPlayers.filter(function(player) {
+    return player && corePositions.includes(player.position) && hasAuthoritativeEcr(player);
+  }).slice().sort(function(a, b) {
+    return Number(a.ecr || a.rank) - Number(b.ecr || b.rank);
+  });
+  var bestEcrPlayer = ecrPlayers[0] || null;
+  var bestEcrRank = bestEcrPlayer ? Number(bestEcrPlayer.ecr || bestEcrPlayer.rank) : null;
+  var bestEcrSurvival = bestEcrPlayer
+    ? calculateNextPickSurvival(bestEcrPlayer, context)
+    : 50;
+
+  scoredPlayers.forEach(function(player) {
+    var survival = calculateNextPickSurvival(player, context);
+    var timingAdjustment = Math.max(-6, Math.min(6, (50 - survival) * 0.12));
+    player.recommendationSurvival = survival;
+    player.marketPriorityAdjustment = Number(timingAdjustment.toFixed(2));
+    player.recommendationPriorityScore = Number(player.finalScore || 0) + timingAdjustment;
+    player.marketEcrGuardrail = false;
+  });
+
+  if (bestEcrPlayer && bestEcrSurvival < 35) {
+    var bestPriority = Number(bestEcrPlayer.recommendationPriorityScore) || 0;
+    scoredPlayers.forEach(function(player) {
+      if (!player || player === bestEcrPlayer || !corePositions.includes(player.position)) return;
+      var ecrRank = Number(player.ecr || player.rank);
+      if (!Number.isFinite(ecrRank) || ecrRank - bestEcrRank < 8 || player.recommendationSurvival < 35) return;
+      // Positional value may break close ECR ties, but a clearly later ECR
+      // player who is likely to survive cannot jump an urgent top value.
+      if (player.recommendationPriorityScore >= bestPriority) {
+        player.recommendationPriorityScore = bestPriority - 0.01;
+        player.marketEcrGuardrail = true;
+      }
+    });
+  }
+
+  scoredPlayers.sort(function(a, b) {
+    return Number(b.recommendationPriorityScore || 0) - Number(a.recommendationPriorityScore || 0) ||
+      Number(b.finalScore || 0) - Number(a.finalScore || 0);
+  });
+  return scoredPlayers;
+}
+
 function calculateMultiPickPlanningScore(
   player,
   context
@@ -17894,6 +17940,27 @@ if (DEBUG_DRAFT_SCORING) {
     rank:
       rank,
 
+    ecr:
+      player.ecr == null ? null : Number(player.ecr),
+
+    adp:
+      player.adp == null ? null : Number(player.adp),
+
+    adpRank:
+      player.adpRank == null ? null : Number(player.adpRank),
+
+    realTimeAdp:
+      player.realTimeAdp == null ? null : Number(player.realTimeAdp),
+
+    team:
+      player.team || null,
+
+    source:
+      player.source || null,
+
+    row:
+      player.row || null,
+
     tier:
       tier.id,
 
@@ -19362,7 +19429,11 @@ function calculateRecommendationConfidence(
   var confidence = 0;
 
   var score =
-    Number(player.finalScore) || 0;
+    Number(player.recommendationPriorityScore);
+
+  if (!Number.isFinite(score)) {
+    score = Number(player.finalScore) || 0;
+  }
 
   var nextScore =
     nextPlayer
@@ -19767,7 +19838,9 @@ var nextPickFallback =
 
 var nextScore =
   nextPlayer
-    ? Number(nextPlayer.finalScore) || 0
+    ? Number.isFinite(Number(nextPlayer.recommendationPriorityScore))
+      ? Number(nextPlayer.recommendationPriorityScore)
+      : Number(nextPlayer.finalScore) || 0
     : 0;
 
 var rawScoreGap =
@@ -19886,6 +19959,21 @@ var decision =
     confidenceScore,
     context
   );
+
+var urgentEcrLeader =
+  Number(player.recommendationSurvival) < 35 &&
+  scoredPlayers.some(function(candidate) {
+    return candidate && candidate.marketEcrGuardrail;
+  });
+
+if (
+  urgentEcrLeader &&
+  decision &&
+  (decision.recommendation === 'WAIT' || decision.recommendation === 'PASS')
+) {
+  decision.recommendation = 'CONSIDER';
+  decision.summary = 'This stronger ECR value is unlikely to survive while the positional alternative can wait.';
+}
 
 
 /*
@@ -22754,6 +22842,10 @@ applyPackagePathAdjustments(
 /* A worse ECR option cannot dominate a better available player
  * at the same position solely because of derived strategy nudges. */
 enforceAuthoritativePositionOrder(scored);
+
+/* ECR remains the value authority while ADP determines whether that value
+ * is urgent now or is likely to remain available at the next selection. */
+applyMarketAwareRecommendationPriority(scored, context);
 
   return {
     players:

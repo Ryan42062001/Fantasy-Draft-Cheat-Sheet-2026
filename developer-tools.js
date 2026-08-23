@@ -4622,6 +4622,40 @@ function runCalculationSanityTests() {
       orderedPosition[0].finalScore > orderedPosition[1].finalScore
   );
 
+  var marketPriority = applyMarketAwareRecommendationPriority([
+    {name: 'Urgent WR', position: 'WR', rank: 6, ecr: 6, adp: 8.2, finalScore: 75},
+    {name: 'Deferable TE', position: 'TE', rank: 16, ecr: 16, adp: 22.4, finalScore: 93}
+  ], {
+    currentPick: 11,
+    calculatedNextPick: 14,
+    calculatedPicksUntilNext: 2,
+    skipOpponentThreat: true,
+    nextPickSurvivalCache: {}
+  });
+  test.assert(
+    'Market priority: urgent top ECR value stays ahead of a deferable positional edge',
+    marketPriority[0].name === 'Urgent WR' &&
+      marketPriority[1].marketEcrGuardrail === true &&
+      marketPriority[0].recommendationSurvival < marketPriority[1].recommendationSurvival
+  );
+  var priorityRecommendation = calculateDraftRecommendation(
+    marketPriority[0],
+    marketPriority,
+    {
+      currentPick: 11,
+      teams: 12,
+      calculatedNextPick: 14,
+      calculatedPicksUntilNext: 2,
+      skipOpponentThreat: true,
+      nextPickSurvivalCache: {}
+    }
+  );
+  test.assert(
+    'Market priority: recommendation action does not tell the urgent ECR leader to wait',
+    priorityRecommendation && priorityRecommendation.recommendation !== 'WAIT' &&
+      priorityRecommendation.recommendation !== 'PASS'
+  );
+
   var originalStateGetter = getDraftAssistantState;
   var replacementPlayers = [];
   for (var index = 1; index <= 25; index++) {

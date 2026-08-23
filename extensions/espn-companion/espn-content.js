@@ -161,6 +161,8 @@
           type: 'ESPN_STRUCTURED_PICKS',
           picks: snapshot.picks,
           rawCount: snapshot.rawCount,
+          scheduledCount: snapshot.scheduledCount,
+          openSlotCount: snapshot.openSlotCount,
           rawPickNumbers: snapshot.rawPickNumbers,
           unresolved: snapshot.unresolved,
           complete: snapshot.complete,
@@ -175,6 +177,8 @@
         role: resolved.telemetry.role,
         transport: resolved.telemetry.transport,
         rawCount: snapshot.rawCount,
+        scheduledCount: snapshot.scheduledCount,
+        openSlotCount: snapshot.openSlotCount,
         resolved: snapshot.picks.length,
         unresolved: snapshot.unresolved.length,
         error: !snapshot.feedPresent

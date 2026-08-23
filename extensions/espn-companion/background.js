@@ -416,6 +416,8 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.espn.apiAvailable = true;
       state.espn.apiComplete = Boolean(message.complete);
       state.espn.apiRawCount = Number(message.rawCount) || getPicks().length;
+      state.espn.apiScheduledCount = Number(message.scheduledCount) || state.espn.apiRawCount;
+      state.espn.apiOpenSlots = Number(message.openSlotCount) || 0;
       state.espn.lastSeenAt = new Date().toISOString();
       return storageSave().then(function() { return broadcastWarRoom(true); });
     }
@@ -427,6 +429,8 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.espn.apiRole = message.role ? String(message.role).slice(0, 40) : null;
       state.espn.apiTransport = message.transport ? String(message.transport).slice(0, 20) : null;
       state.espn.apiRawCount = Number(message.rawCount) || 0;
+      state.espn.apiScheduledCount = Number(message.scheduledCount) || state.espn.apiRawCount;
+      state.espn.apiOpenSlots = Number(message.openSlotCount) || 0;
       state.espn.apiResolved = Number(message.resolved) || 0;
       state.espn.apiUnresolved = Number(message.unresolved) || 0;
       state.espn.apiError = message.error ? String(message.error).slice(0, 160) : null;

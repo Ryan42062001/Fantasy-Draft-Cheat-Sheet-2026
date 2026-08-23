@@ -56,3 +56,26 @@ test('treats a valid empty ESPN draft feed as authoritative before pick one', ()
   assert.equal(snapshot.rawCount, 0);
   assert.deepEqual(snapshot.picks, []);
 });
+
+test('ignores preloaded future draft slots and resolves only completed picks', () => {
+  const scheduled = Array.from({length: 192}, (_, index) => ({
+    overallPickNumber: index + 1,
+    teamId: (index % 12) + 1,
+    playerId: index < 10 ? index + 101 : -1
+  }));
+  const players = Array.from({length: 10}, (_, index) => ({
+    player: {id: index + 101, fullName: `Player ${index + 1}`, defaultPositionId: index % 2 ? 2 : 3}
+  }));
+  const snapshot = api.extractDraftSnapshot(
+    {draftDetail: {picks: scheduled}, players},
+    {teamId: '11'},
+    {}
+  );
+  assert.equal(snapshot.scheduledCount, 192);
+  assert.equal(snapshot.openSlotCount, 182);
+  assert.equal(snapshot.rawCount, 10);
+  assert.equal(snapshot.picks.length, 10);
+  assert.equal(snapshot.unresolved.length, 0);
+  assert.equal(snapshot.complete, true);
+  assert.deepEqual(snapshot.rawPickNumbers, [1,2,3,4,5,6,7,8,9,10]);
+});

@@ -231,7 +231,7 @@ Do not call the migration complete until all of these are true:
 Verification (2026-08-22):
 - Board/runtime audit: 717 dataset players, 717 rows, 0 duplicate canonical names, and 0 normal-startup rank-control sets
 - Canonical regressions: 152/152 draft engine + 5/5 turn package + 8/8 recommendation explanations = 165/165
-- Calculation sanity: 12/12; ESPN website reconciliation: 12/12; extension API/parser/manifest/ledger/bridge: 36/36
+- Calculation sanity: 12/12; ESPN website reconciliation: 12/12; extension API/parser/manifest/ledger/bridge: 37/37
 - Manual Taken/Mine workflow, one-shot Mine reset, New Draft isolation, configured 9-starter rendering, and 390 × 844 no-overflow checks passed in headless Chrome
 - Player marking plus immediate UI assertion measured 203.3 ms end-to-end in the final browser automation run; the application continues to defer draft-intelligence scoring
 - Normal startup creates 0 `.rank-controls`; editing controls remain lazy for the 717-player board
@@ -257,6 +257,7 @@ Verification (2026-08-22):
 - [x] Treat a recommended player selected at the decision pick as censored instead of a survival failure
 - [x] Exclude audit outcomes with less than 80% intervening-pick coverage
 - [x] Deduplicate recommendation observations by pick and player when the displayed action changes
+- [x] Keep an urgent materially better ECR value ahead of a later-ECR positional edge that ADP says is likely to survive
 
 Completion evidence (2026-08-22):
 - Canonical regressions: 152/152 draft engine + 5/5 turn package + 8/8 recommendation explanations = 165/165
@@ -317,8 +318,9 @@ Recommended Pick verification (2026-08-22):
 Current verification (2026-08-22):
 - Existing War Room regressions: 165/165
 - ESPN website reconciliation contract: 12/12
-- Extension API, parser, manifest, ledger, and page-bridge tests: 36/36
+- Extension API, parser, manifest, ledger, and page-bridge tests: 37/37
 - Companion 0.7.0 requests structured draft/player data through ESPN's authenticated page context, uses exact structured pick/team IDs, retains partial authority in Hybrid mode, exposes connection transport diagnostics, keeps the user-set league size authoritative, and suppresses visible ESPN rows explicitly labeled DRAFTED when pick history lags
+- Live pick-11 fixture: 192 scheduled slots are reduced to 10 completed picks with 182 future slots ignored, preventing false Hybrid mode
 - Live ESPN mock-draft validation remains required because ESPN does not publish a stable draft-room DOM contract
 
 ## User roster recommendation preferences
@@ -352,6 +354,6 @@ Completion evidence (2026-08-22):
 Performance evidence (2026-08-22):
 - Before: live-state scoring was roughly 635–745 ms per refresh and the deferred full refresh was roughly 779–885 ms
 - After: repeated player clicks painted interactively in an 11.0 ms median; live-state scoring was 120.9 ms median; the full deferred refresh was 276.3 ms median
-- Integrity/regressions: 717/717 board rows with 0 missing / unexpected / duplicates; canonical 165/165; calculation sanity 12/12; roadmap scenarios 4/4; ESPN website contract 12/12; extension tests 36/36
+- Integrity/regressions: 717/717 board rows with 0 missing / unexpected / duplicates; canonical 165/165; calculation sanity 12/12; roadmap scenarios 4/4; ESPN website contract 12/12; extension tests 37/37
 - Latest cleanup: normalized `script.js` size reduced by 20,699 characters (4.5%); ten cached recommendation renders complete in 7.1 ms total while preserving the same DOM card and expanded state
-- Latest verification: marking workflow 63.1 ms end-to-end in automation; canonical 165/165; calculation sanity 14/14; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 36/36
+- Latest verification: marking workflow 63.1 ms end-to-end in automation; canonical 165/165; calculation sanity 16/16; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 37/37
