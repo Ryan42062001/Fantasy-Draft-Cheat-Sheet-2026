@@ -79,3 +79,14 @@ test('ignores preloaded future draft slots and resolves only completed picks', (
   assert.equal(snapshot.complete, true);
   assert.deepEqual(snapshot.rawPickNumbers, [1,2,3,4,5,6,7,8,9,10]);
 });
+
+test('treats an empty structured feed as lagging when ESPN is on pick 11', () => {
+  assert.deepEqual(
+    api.assessStructuredFeed({feedPresent: true, complete: true, rawCount: 0}, 11),
+    {expectedCompleted: 10, behind: true, effectiveComplete: false}
+  );
+  assert.deepEqual(
+    api.assessStructuredFeed({feedPresent: true, complete: true, rawCount: 10}, 11),
+    {expectedCompleted: 10, behind: false, effectiveComplete: true}
+  );
+});

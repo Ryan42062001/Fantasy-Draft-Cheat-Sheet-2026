@@ -150,12 +150,18 @@
       });
     }).then(function(resolved) {
       var snapshot = resolved.snapshot;
+      var shape = parser.detectDraftShape ? parser.detectDraftShape(document) : {};
+      var feedAssessment = api.assessStructuredFeed(snapshot, shape.currentPick);
+      var expectedCompleted = feedAssessment.expectedCompleted;
+      var structuredBehind = feedAssessment.behind;
+      var effectiveComplete = feedAssessment.effectiveComplete;
       var signature = JSON.stringify({
         picks: snapshot.picks,
         unresolved: snapshot.unresolved,
-        rawPickNumbers: snapshot.rawPickNumbers
+        rawPickNumbers: snapshot.rawPickNumbers,
+        expectedCompleted: expectedCompleted
       });
-      if (snapshot.feedPresent && (force || signature !== lastApiSignature)) {
+      if (snapshot.feedPresent && !structuredBehind && (force || signature !== lastApiSignature)) {
         lastApiSignature = signature;
         send({
           type: 'ESPN_STRUCTURED_PICKS',
@@ -165,14 +171,16 @@
           openSlotCount: snapshot.openSlotCount,
           rawPickNumbers: snapshot.rawPickNumbers,
           unresolved: snapshot.unresolved,
-          complete: snapshot.complete,
+          complete: effectiveComplete,
           url: location.href
         });
       }
       send({
         type: 'ESPN_API_STATUS',
         available: snapshot.feedPresent,
-        complete: snapshot.complete,
+        complete: effectiveComplete,
+        behind: structuredBehind,
+        expectedCompleted: expectedCompleted,
         httpStatus: resolved.telemetry.httpStatus,
         role: resolved.telemetry.role,
         transport: resolved.telemetry.transport,
@@ -183,13 +191,16 @@
         unresolved: snapshot.unresolved.length,
         error: !snapshot.feedPresent
           ? 'ESPN response did not contain draftDetail.picks'
-          : resolved.lookupError || null,
+          : structuredBehind
+            ? 'Structured feed is behind (' + snapshot.rawCount + ' of ' + expectedCompleted +
+              ' completed picks); using visible Pick History.'
+            : resolved.lookupError || null,
         url: location.href
       });
       // A partial structured feed remains useful, but the visible table must
       // still run so it can supply names for only the unresolved pick slots.
-      lastApiAvailable = snapshot.complete;
-      return snapshot.complete;
+      lastApiAvailable = effectiveComplete;
+      return effectiveComplete;
     }).catch(function(error) {
       send({
         type: 'ESPN_API_STATUS',

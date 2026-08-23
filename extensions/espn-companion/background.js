@@ -468,7 +468,13 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.espn.apiOpenSlots = Number(message.openSlotCount) || 0;
       state.espn.apiResolved = Number(message.resolved) || 0;
       state.espn.apiUnresolved = Number(message.unresolved) || 0;
+      state.espn.apiExpectedCompleted = Number(message.expectedCompleted) || 0;
+      state.espn.apiBehind = Boolean(message.behind);
       state.espn.apiError = message.error ? String(message.error).slice(0, 160) : null;
+      if (message.behind) {
+        state.espn.structuredAt = null;
+        state.espn.method = 'dom';
+      }
       if (!message.available && !structuredFeedIsFresh()) state.espn.method = 'dom';
       return storageSave();
     }

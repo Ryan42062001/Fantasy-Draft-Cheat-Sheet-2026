@@ -264,6 +264,8 @@
       '[class*="draft-results" i] tr',
       '[class*="draft" i] [role="row"]',
       '[class*="draft" i] [role="listitem"]',
+      '[role="tabpanel"] tr',
+      'table tr',
       'main tr',
       'main [role="row"]',
       'body div'
@@ -286,7 +288,14 @@
         var historyContainer = candidate.closest && candidate.closest(
           '[class*="history" i], [data-testid*="history" i], [class*="draft-board" i], [class*="draftBoard" i], [data-testid*="draft-board" i]'
         );
-        var historyNumber = Boolean(historyContainer) && /^\s*#?\d{1,3}\s*(?:[.):-]|\n)/m.test(text);
+        var table = candidate.closest && candidate.closest('table');
+        var tableHeader = table && table.querySelector
+          ? cleanText((table.querySelector('thead') || table).innerText || '')
+          : '';
+        var pickHistoryTable = /\bPICK\b/i.test(tableHeader) && /\bPLAYER\b/i.test(tableHeader) &&
+          /\bTEAM\b/i.test(tableHeader);
+        var historyNumber = (Boolean(historyContainer) || pickHistoryTable) &&
+          /^\s*#?\d{1,3}\s*(?:[.):-]|\n)/m.test(text);
         var likelyPick = labeledPick || roundPick || historyNumber;
         if (/\bavailable players?\b|\badd to queue\b|\bplayer rankings?\b/i.test(text)) likelyPick = false;
         if (likelyPick && text.length <= 900) {
