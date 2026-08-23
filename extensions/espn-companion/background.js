@@ -175,7 +175,7 @@ function ensureReadersInOpenEspnTabs(force) {
   });
 }
 
-function broadcastWarRoom(force, applyConfig) {
+function broadcastWarRoom(force) {
   var picks = getPicks();
   return queryTabs(WAR_ROOM_URLS).then(function(tabs) {
     var message = {
@@ -186,7 +186,7 @@ function broadcastWarRoom(force, applyConfig) {
           picks: picks,
           unavailablePlayers: getUnavailablePlayers(),
           force: Boolean(force),
-          config: applyConfig ? Object.assign({}, state.config) : null
+          config: Object.assign({}, state.config)
         }
       };
     return Promise.all(tabs.map(function(tab) {
@@ -354,7 +354,7 @@ function syncConfigAndReconcile(config, sendResponse) {
   var change = updateConfig(config);
   return storageSave()
     .then(sendConfigToEspn)
-    .then(function() { return broadcastWarRoom(true, true); })
+    .then(function() { return broadcastWarRoom(true); })
     .then(function() {
       return change.teamsChanged ? ensureReadersInOpenEspnTabs(true) : null;
     })
@@ -415,7 +415,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         });
         return storageSave()
           .then(sendConfigToEspn)
-          .then(function() { return broadcastWarRoom(true, true); });
+          .then(function() { return broadcastWarRoom(true); });
       }
       return storageSave();
     }
@@ -490,7 +490,8 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
             version: 1,
             draftKey: state.draftKey,
             picks: getPicks(),
-            unavailablePlayers: getUnavailablePlayers()
+            unavailablePlayers: getUnavailablePlayers(),
+            config: Object.assign({}, state.config)
           }
         });
       }
@@ -503,16 +504,14 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.warRoom.applied = Number(result.applied) || 0;
       state.warRoom.unmatched = Array.isArray(result.unmatched) ? result.unmatched.length : 0;
       state.warRoom.lastSeenAt = new Date().toISOString();
-      if (message.settings) {
-        var settingsChange = updateConfig(message.settings);
-        if (settingsChange.teamsChanged) {
-          return storageSave()
-            .then(sendConfigToEspn)
-            .then(function() { return broadcastWarRoom(true, true); })
-            .then(function() { return ensureReadersInOpenEspnTabs(true); });
-        }
-      }
-      return storageSave().then(sendConfigToEspn);
+      // The popup's saved settings are authoritative. A passive page ACK can
+      // arrive before its persisted draft settings finish loading; accepting
+      // those transient values here used to clear both Direct and Board picks.
+      // Keep the page-reported values only as diagnostics.
+      state.warRoom.reportedSettings = message.settings
+        ? Object.assign({}, message.settings)
+        : null;
+      return storageSave();
     }
 
     if (message.type === 'GET_STATUS') {

@@ -32,6 +32,7 @@ function loadBackground(storedState) {
   const context = vm.createContext({chrome, console, Date, Promise, Object, Number, String, Boolean, Math, URL});
   const source = fs.readFileSync(path.resolve(__dirname, '..', 'background.js'), 'utf8');
   vm.runInContext(source, context);
+  context.listeners = listeners;
   return context;
 }
 
@@ -191,4 +192,26 @@ test('does not report a matching War Room tab as connected when delivery fails',
   assert.deepEqual(Array.from(deliveries), [false]);
   assert.equal(context.state.warRoom.connected, false);
   assert.match(context.state.warRoom.deliveryError, /Refresh the War Room tab/);
+});
+
+test('a passive War Room acknowledgment cannot clear captured picks or overwrite popup settings', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.config = {teams: 12, draftSlot: 11, rounds: 16};
+  context.state.ledgerTeams = 12;
+  context.state.picksByNumber = {
+    '1': {overallPick: 1, playerName: 'Ja\'Marr Chase', position: 'WR', method: 'api'}
+  };
+
+  context.listeners.message[0]({
+    type: 'WAR_ROOM_ACK',
+    result: {captured: 1, applied: 1, unmatched: []},
+    settings: {teams: 10, draftSlot: 1, rounds: 16}
+  }, {tab: {id: 44}}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  assert.equal(context.state.config.teams, 12);
+  assert.equal(context.state.config.draftSlot, 11);
+  assert.equal(context.getPicks().length, 1);
+  assert.equal(context.state.warRoom.reportedSettings.teams, 10);
 });

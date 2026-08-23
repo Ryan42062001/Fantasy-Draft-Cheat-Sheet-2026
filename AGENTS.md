@@ -327,6 +327,7 @@ Current verification (2026-08-22):
 - Live pick-11 fixture: 192 scheduled slots are reduced to 10 completed picks with 182 future slots ignored, preventing false Hybrid mode
 - Live ESPN mock-draft validation remains required because ESPN does not publish a stable draft-room DOM contract
 - Companion 0.7.1 verifies snapshot delivery, reinjects a stale War Room bridge after extension reloads, includes the ESPN draft key in snapshots, and reports bridge failures; extension tests 39/39
+- Companion 0.7.2 makes the popup's saved draft settings authoritative during sync and prevents an early War Room acknowledgment from clearing Direct or Board-fallback picks
 
 ## User roster recommendation preferences
 - [x] Hard-cap the recommendation pool at one QB
