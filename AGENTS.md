@@ -316,6 +316,7 @@ Recommended Pick verification (2026-08-22):
 - [x] Retain Pick History and Board-table parsing as an automatic fallback
 - [x] Add the live ESPN display formats and Board selectors observed during mock-draft testing
 - [x] Route structured draft-detail and player lookups through ESPN's authenticated page context before using extension-request or Board fallbacks
+- [x] Reinject stale War Room content bridges and report delivery failures instead of treating a matching tab URL as connected
 - [ ] Validate structured Direct mode and the Board fallback in a live 2026 ESPN football mock draft
 
 Current verification (2026-08-22):
@@ -325,6 +326,7 @@ Current verification (2026-08-22):
 - Companion 0.7.0 requests structured draft/player data through ESPN's authenticated page context, uses exact structured pick/team IDs, retains partial authority in Hybrid mode, exposes connection transport diagnostics, keeps the user-set league size authoritative, and suppresses visible ESPN rows explicitly labeled DRAFTED when pick history lags
 - Live pick-11 fixture: 192 scheduled slots are reduced to 10 completed picks with 182 future slots ignored, preventing false Hybrid mode
 - Live ESPN mock-draft validation remains required because ESPN does not publish a stable draft-room DOM contract
+- Companion 0.7.1 verifies snapshot delivery, reinjects a stale War Room bridge after extension reloads, includes the ESPN draft key in snapshots, and reports bridge failures; extension tests 39/39
 
 ## User roster recommendation preferences
 - [x] Hard-cap the recommendation pool at one QB

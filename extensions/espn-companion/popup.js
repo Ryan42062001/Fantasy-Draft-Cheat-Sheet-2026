@@ -26,7 +26,7 @@ function render(status) {
     : espn.connected ? 'ESPN open' : 'Not connected';
   document.getElementById('war-room-status').textContent = warRoom.connected
     ? 'Connected'
-    : 'Not connected';
+    : warRoom.deliveryError ? 'Bridge error' : 'Not connected';
   document.getElementById('captured-count').textContent = picks.length;
   document.getElementById('applied-count').textContent = Number(warRoom.applied) || 0;
   document.getElementById('unmatched-count').textContent = Number(warRoom.unmatched) || 0;
@@ -63,6 +63,7 @@ function render(status) {
 
   var message = document.getElementById('message');
   if (status.error) message.textContent = status.error;
+  else if (warRoom.deliveryError) message.textContent = warRoom.deliveryError;
   else if (!espn.connected || !warRoom.connected) {
     message.textContent = 'Open both the ESPN draft room and The War Room, then press Rescan ESPN.';
   } else if (Number(warRoom.unmatched) > 0) {
@@ -78,6 +79,9 @@ function render(status) {
   ) {
     message.textContent = 'Screen fallback is behind (' + picks.length + ' of ' +
       Number(espn.expectedCompleted) + ' completed picks). Open ESPN’s Board tab and press Rescan.';
+  } else if (picks.length > 0 && Number(warRoom.applied) < picks.length) {
+    message.textContent = 'ESPN captured ' + picks.length + ' picks, but the War Room has acknowledged only ' +
+      (Number(warRoom.applied) || 0) + '. Refresh the War Room tab, then press Rescan ESPN.';
   } else {
     message.textContent = espn.method === 'api'
       ? 'Direct ESPN data connected. Team ownership and pick numbers come from ESPN.'
