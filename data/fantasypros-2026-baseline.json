@@ -1,5 +1,7 @@
 {
-  "sourceSnapshotDate": "2026-08-21",
+  "sourceSnapshotDate": "2026-08-23",
+  "top20EcrPlayers": 380,
+  "broadEcrFallbackPlayers": 140,
   "ecrPlayers": 520,
   "adpOnlyPlayers": 197,
   "totalPlayers": 717,
@@ -13,8 +15,9 @@
   },
   "duplicateCanonicalNames": 0,
   "files": {
+    "FantasyPros_2026_Draft_Top20_Rankings.csv": "2b8daa69810a4bb40a2a68212c17c75c1e888c943376909d725080e969fb9ab8",
     "FantasyPros_2026_Draft_ALL_Rankings.csv": "b0d1e08787dd6bc47cc41b5d0de640a6b899ee04c263d6056c82085fdbc40961",
     "FantasyPros_2026_Overall_ADP_Rankings.csv": "59bb849393ed6fc9c3aac7dadd67c2e13733f80158f1430740202b2c6b7c4823",
-    "fantasypros-2026-data.js": "7e2efd4aab2875ecfb8602610da012e6a64e4e963da541ee35296f8909764173"
+    "fantasypros-2026-data.js": "74d060eb9ef23ef905c459c51b30f0772b64defce97c74ee2972b6e99aa0bec3"
   }
 }
