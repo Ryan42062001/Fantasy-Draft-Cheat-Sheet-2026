@@ -150,3 +150,45 @@ test('accumulates explicitly drafted labels as a late-round availability safegua
     [{playerName: 'Jalen Coker', position: 'WR', espnPlayerId: '123'}]
   );
 });
+
+test('reinjects a stale War Room bridge before delivering a snapshot', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.draftKey = '2026:222';
+  context.state.picksByNumber = {
+    '1': {overallPick: 1, playerName: 'Ja\'Marr Chase', position: 'WR'}
+  };
+  let sends = 0;
+  let injections = 0;
+  context.chrome.tabs.query = async () => [{id: 44}];
+  context.chrome.tabs.sendMessage = async (tabId, message) => {
+    sends += 1;
+    if (sends === 1) throw new Error('Receiving end does not exist');
+    assert.equal(tabId, 44);
+    assert.equal(message.snapshot.draftKey, '2026:222');
+  };
+  context.chrome.scripting.executeScript = async details => {
+    injections += 1;
+    assert.equal(Array.from(details.files).join(','), 'war-room-content.js');
+  };
+
+  const deliveries = await context.broadcastWarRoom(true);
+  assert.deepEqual(Array.from(deliveries), [true]);
+  assert.equal(sends, 2);
+  assert.equal(injections, 1);
+  assert.equal(context.state.warRoom.connected, true);
+  assert.equal(context.state.warRoom.deliveryError, null);
+});
+
+test('does not report a matching War Room tab as connected when delivery fails', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.chrome.tabs.query = async () => [{id: 45}];
+  context.chrome.tabs.sendMessage = async () => { throw new Error('No receiver'); };
+  context.chrome.scripting.executeScript = async () => { throw new Error('Injection blocked'); };
+
+  const deliveries = await context.broadcastWarRoom(true);
+  assert.deepEqual(Array.from(deliveries), [false]);
+  assert.equal(context.state.warRoom.connected, false);
+  assert.match(context.state.warRoom.deliveryError, /Refresh the War Room tab/);
+});

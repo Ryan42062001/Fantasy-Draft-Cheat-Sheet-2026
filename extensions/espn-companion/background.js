@@ -126,6 +126,33 @@ function sendTabQuiet(tabId, message) {
   return sendTab(tabId, message).catch(function() {});
 }
 
+function injectWarRoomBridge(tab) {
+  if (!tab || !tab.id) return Promise.resolve(false);
+  return chrome.scripting.executeScript({
+    target: {tabId: tab.id},
+    files: ['war-room-content.js']
+  }).then(function() {
+    return true;
+  }).catch(function() {
+    return false;
+  });
+}
+
+function deliverWarRoomSnapshot(tab, message) {
+  if (!tab || !tab.id) return Promise.resolve(false);
+  return sendTab(tab.id, message)
+    .then(function() { return true; })
+    .catch(function() {
+      // Reloading or updating an unpacked extension invalidates the content
+      // script in an already-open tab. Reinject the bridge before retrying so
+      // a matching URL is not mistaken for a working connection.
+      return injectWarRoomBridge(tab).then(function(injected) {
+        if (!injected) return false;
+        return sendTab(tab.id, message).then(function() { return true; }).catch(function() { return false; });
+      });
+    });
+}
+
 function injectEspnReader(tab) {
   if (!tab || !tab.id) return Promise.resolve();
   return chrome.scripting.executeScript({
@@ -151,19 +178,27 @@ function ensureReadersInOpenEspnTabs(force) {
 function broadcastWarRoom(force, applyConfig) {
   var picks = getPicks();
   return queryTabs(WAR_ROOM_URLS).then(function(tabs) {
-    state.warRoom.connected = tabs.length > 0;
-    return Promise.all(tabs.map(function(tab) {
-      return sendTabQuiet(tab.id, {
+    var message = {
         type: 'WAR_ROOM_SNAPSHOT',
         snapshot: {
           version: 1,
+          draftKey: state.draftKey,
           picks: picks,
           unavailablePlayers: getUnavailablePlayers(),
           force: Boolean(force),
           config: applyConfig ? Object.assign({}, state.config) : null
         }
-      });
-    }));
+      };
+    return Promise.all(tabs.map(function(tab) {
+      return deliverWarRoomSnapshot(tab, message);
+    })).then(function(deliveries) {
+      state.warRoom.connected = deliveries.some(Boolean);
+      state.warRoom.deliveryError = tabs.length > 0 && !state.warRoom.connected
+        ? 'War Room tab found, but the sync bridge could not be reached. Refresh the War Room tab.'
+        : null;
+      if (state.warRoom.connected) state.warRoom.lastDeliveredAt = new Date().toISOString();
+      return deliveries;
+    });
   });
 }
 
@@ -453,6 +488,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
           type: 'WAR_ROOM_SNAPSHOT',
           snapshot: {
             version: 1,
+            draftKey: state.draftKey,
             picks: getPicks(),
             unavailablePlayers: getUnavailablePlayers()
           }
@@ -490,6 +526,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     if (message.type === 'RESCAN') {
       return ensureReadersInOpenEspnTabs(true)
+        .then(function() { return broadcastWarRoom(true); })
         .then(function() { sendResponse(statusSnapshot()); });
     }
 
@@ -512,11 +549,15 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 });
 
 chrome.runtime.onInstalled.addListener(function() {
-  ready.then(function() { return ensureReadersInOpenEspnTabs(true); }).catch(function() {});
+  ready.then(function() {
+    return Promise.all([ensureReadersInOpenEspnTabs(true), broadcastWarRoom(true)]);
+  }).catch(function() {});
 });
 
 chrome.runtime.onStartup.addListener(function() {
-  ready.then(function() { return ensureReadersInOpenEspnTabs(true); }).catch(function() {});
+  ready.then(function() {
+    return Promise.all([ensureReadersInOpenEspnTabs(true), broadcastWarRoom(true)]);
+  }).catch(function() {});
 });
 
 chrome.tabs.onRemoved.addListener(function() {
