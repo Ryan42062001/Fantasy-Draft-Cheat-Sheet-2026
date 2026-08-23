@@ -4655,6 +4655,46 @@ function runCalculationSanityTests() {
     priorityRecommendation && priorityRecommendation.recommendation !== 'WAIT' &&
       priorityRecommendation.recommendation !== 'PASS'
   );
+  var tightEndPriority = applyMarketAwareRecommendationPriority([
+    {name: 'Brock Bowers', position: 'TE', rank: 16, ecr: 16, adp: 22.4, finalScore: 80},
+    {name: 'Trey McBride', position: 'TE', rank: 20, ecr: 20, adp: 21.6, finalScore: 80.5}
+  ], {
+    currentPick: 14,
+    calculatedNextPick: 35,
+    calculatedPicksUntilNext: 20,
+    skipOpponentThreat: true,
+    nextPickSurvivalCache: {}
+  });
+  test.assert(
+    'Market priority: ADP timing cannot invert same-position ECR order',
+    tightEndPriority[0].name === 'Brock Bowers' &&
+      tightEndPriority[0].recommendationPriorityScore > tightEndPriority[1].recommendationPriorityScore
+  );
+  test.equal(
+    'Market action: low survival cannot recommend waiting',
+    alignRecommendationActionWithMarketTiming(
+      {recommendation:'WAIT'}, {recommendationSurvival:10}, false
+    ).recommendation,
+    'CONSIDER'
+  );
+  test.equal(
+    'Market action: high survival tempers a non-mandatory draft call',
+    alignRecommendationActionWithMarketTiming(
+      {recommendation:'DRAFT'},
+      {recommendationSurvival:85, endgameRosterRequirementScore:0, mandatoryEndgameAdjustment:0},
+      false
+    ).recommendation,
+    'CONSIDER'
+  );
+  test.equal(
+    'Market action: hard endgame requirement may override high survival',
+    alignRecommendationActionWithMarketTiming(
+      {recommendation:'DRAFT'},
+      {recommendationSurvival:85, endgameRosterRequirementScore:20, mandatoryEndgameAdjustment:0},
+      false
+    ).recommendation,
+    'DRAFT'
+  );
 
   var originalStateGetter = getDraftAssistantState;
   var replacementPlayers = [];

@@ -3921,11 +3921,51 @@ function applyMarketAwareRecommendationPriority(scoredPlayers, context) {
     });
   }
 
+  corePositions.forEach(function(position) {
+    var positionPlayers = scoredPlayers.filter(function(player) {
+      return player && player.position === position && hasAuthoritativeEcr(player);
+    }).slice().sort(function(a, b) {
+      return Number(a.ecr || a.rank) - Number(b.ecr || b.rank);
+    });
+    var previousPriority = null;
+    positionPlayers.forEach(function(player) {
+      player.marketAuthorityOrderAdjustment = 0;
+      if (previousPriority != null && player.recommendationPriorityScore >= previousPriority) {
+        var adjustedPriority = previousPriority - 0.01;
+        player.marketAuthorityOrderAdjustment = Number(
+          (adjustedPriority - player.recommendationPriorityScore).toFixed(2)
+        );
+        player.recommendationPriorityScore = adjustedPriority;
+      }
+      previousPriority = player.recommendationPriorityScore;
+    });
+  });
+
   scoredPlayers.sort(function(a, b) {
     return Number(b.recommendationPriorityScore || 0) - Number(a.recommendationPriorityScore || 0) ||
       Number(b.finalScore || 0) - Number(a.finalScore || 0);
   });
   return scoredPlayers;
+}
+
+function alignRecommendationActionWithMarketTiming(decision, player, backToBackTurn) {
+  if (!decision || !player) return decision;
+  var survival = Number(player.recommendationSurvival);
+  if (!Number.isFinite(survival)) return decision;
+  var hasMandatoryGuardrail = Number(player.endgameRosterRequirementScore) > 0 ||
+    Number(player.mandatoryEndgameAdjustment) > 0;
+
+  if (survival <= 25 &&
+      (decision.recommendation === 'WAIT' || decision.recommendation === 'PASS')) {
+    decision.recommendation = 'CONSIDER';
+    decision.summary = 'This player is unlikely to survive to your next selection.';
+  }
+  if (survival >= 70 && decision.recommendation === 'DRAFT' &&
+      !backToBackTurn && !hasMandatoryGuardrail) {
+    decision.recommendation = 'CONSIDER';
+    decision.summary = 'Strong option, but the ADP market suggests this player may survive.';
+  }
+  return decision;
 }
 
 function calculateMultiPickPlanningScore(
@@ -19974,6 +20014,8 @@ if (
   decision.recommendation = 'CONSIDER';
   decision.summary = 'This stronger ECR value is unlikely to survive while the positional alternative can wait.';
 }
+
+alignRecommendationActionWithMarketTiming(decision, player, backToBackTurn);
 
 
 /*
