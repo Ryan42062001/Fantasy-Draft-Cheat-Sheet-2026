@@ -134,6 +134,31 @@ test('screen fallback accepts the same numbered row inside Pick History', () => 
   assert.equal(picks[0].playerName, "Ja'Marr Chase");
 });
 
+test('screen fallback recognizes ESPN PICK PLAYER TEAM table rows', () => {
+  const table = {
+    innerText: 'PICK\nPLAYER\nTEAM\n2026 PROJECTED',
+    querySelector: selector => selector === 'thead'
+      ? {innerText: 'PICK\nPLAYER\nTEAM\n2026 PROJECTED'}
+      : null
+  };
+  const node = {
+    innerText: '1\nBijan Robinson\nATL\nRB\nThe Ex- Commissioner',
+    textContent: '',
+    parentElement: null,
+    attributes: [],
+    getAttribute: () => null,
+    closest: selector => selector === 'table' ? table : null,
+    matches: () => false,
+    querySelector: () => null
+  };
+  const document = {querySelectorAll: () => [node]};
+  const result = parser.scanDocumentDetailed(document, {teams: 12});
+  assert.equal(result.candidateCount, 1);
+  assert.deepEqual(result.picks.map(pick => [pick.overallPick, pick.playerName, pick.position]), [
+    [1, 'Bijan Robinson', 'RB']
+  ]);
+});
+
 test('detects rounds and current pick without guessing team count from ambiguous P labels', () => {
   const shape = parser.detectDraftShape({
     body: {innerText: 'RND 13 OF 16\nON THE CLOCK: PICK 150\nRecent: R13, P6'}

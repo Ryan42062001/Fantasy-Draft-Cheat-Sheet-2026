@@ -157,12 +157,27 @@
     };
   }
 
+  function assessStructuredFeed(snapshot, currentPick) {
+    snapshot = snapshot || {};
+    var expectedCompleted = Number(currentPick) > 0
+      ? Math.max(0, Number(currentPick) - 1)
+      : 0;
+    var rawCount = Number(snapshot.rawCount) || 0;
+    var behind = Boolean(snapshot.feedPresent) && expectedCompleted > rawCount;
+    return {
+      expectedCompleted: expectedCompleted,
+      behind: behind,
+      effectiveComplete: Boolean(snapshot.complete) && !behind
+    };
+  }
+
   return {
     normalizePosition: normalizePosition,
     parseLeagueContext: parseLeagueContext,
     buildDraftDetailUrl: buildDraftDetailUrl,
     buildPlayerLookupUrl: buildPlayerLookupUrl,
     buildPlayerDirectory: buildPlayerDirectory,
-    extractDraftSnapshot: extractDraftSnapshot
+    extractDraftSnapshot: extractDraftSnapshot,
+    assessStructuredFeed: assessStructuredFeed
   };
 });
