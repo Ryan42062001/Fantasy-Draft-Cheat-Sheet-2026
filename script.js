@@ -7287,6 +7287,12 @@ function updatePickCounter() {
   var completedPicks = getCompletedDraftPickCount();
   var completion = getDraftCompletionStatus({totalPicks: totalPicks, rounds: rounds});
 
+  if (completion.authoritative) {
+    counter.innerHTML =
+      'Draft complete &middot; <b>' + totalPicks + ' picks</b>';
+    return;
+  }
+
   if (completion.externalComplete && !completion.authoritative) {
     counter.innerHTML =
       'Draft appears complete &middot; <b>' + completedPicks + ' of ' + totalPicks +
@@ -7307,13 +7313,6 @@ function updatePickCounter() {
       nextMyPick = myPicks[i];
       break;
     }
-  }
-
-  if (currentPick > totalPicks) {
-    counter.innerHTML =
-      'Draft complete &middot; <b>' + totalPicks + ' picks</b>';
-
-    return;
   }
 
   if (nextMyPick === currentPick) {
@@ -7338,7 +7337,7 @@ function updatePickCounter() {
 }
 
 function updateNextPickDisplay() {
-  var totalDrafted = document.querySelectorAll('tr.draftrow.drafted-mine, tr.draftrow.drafted-other').length;
+  var totalDrafted = getCompletedDraftPickCount();
   var currentOverallPick = totalDrafted + 1;
   var myScheduledPicks = getMyPickNumbers();
 
@@ -7363,7 +7362,7 @@ function updateNextPickMarker() {
   var existingMarker = document.getElementById('next-pick-marker');
   if (existingMarker) existingMarker.remove();
 
-  var takenCount = document.querySelectorAll('tr.draftrow.drafted-mine, tr.draftrow.drafted-other').length;
+  var takenCount = getCompletedDraftPickCount();
   var currentOverallPick = takenCount + 1;
   var myPicks = getMyPickNumbers();
 

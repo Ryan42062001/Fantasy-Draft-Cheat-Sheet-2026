@@ -149,6 +149,23 @@ assert.match(strategyPolish.report, /WR foundation/);
 assert.match(strategyPolish.report, /Bye-week concentration/);
 assert.match(strategyPolish.report, /first RB to <b>Round 5/);
 
+const completedCounter = await page.evaluate(() => {
+  const rows = Array.from(document.querySelectorAll('tr.draftrow')).slice(0, 160);
+  rows.forEach((row, index) => {
+    row.classList.add(index % 16 === 9 ? 'drafted-mine' : 'drafted-other');
+    row.setAttribute('data-pick', String(index + 1));
+  });
+  updatePickCounter();
+  const counter = document.getElementById('pick-counter-text').textContent;
+  rows.forEach(row => {
+    row.classList.remove('drafted-mine', 'drafted-other');
+    row.removeAttribute('data-pick');
+  });
+  return counter;
+});
+assert.match(completedCounter, /Draft complete/);
+assert.match(completedCounter, /160 picks/);
+
 await page.getByRole('button', {name:/My Draft/}).click();
 assert.equal(await page.locator('#myteam-panel').getAttribute('aria-hidden'), 'false');
 assert.match(await page.locator('#myteam-starter-count').innerText(), /\/ 9 starters/);

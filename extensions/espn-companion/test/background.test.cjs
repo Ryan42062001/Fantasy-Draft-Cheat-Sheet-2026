@@ -76,12 +76,47 @@ test('opening a different ESPN draft clears the previous mock ledger', async () 
   await context.ready;
   context.state.draftKey = '2026:111';
   context.state.picksByNumber = {'1': {overallPick: 1, playerName: 'Ja\'Marr Chase', position: 'WR'}};
+  context.state.espn.draftComplete = true;
+  context.state.espn.currentPick = 161;
+  context.state.espn.expectedCompleted = 160;
   assert.equal(
     context.activateDraft('https://fantasy.espn.com/football/draft?leagueId=222&seasonId=2026&teamId=14'),
     true
   );
   assert.equal(context.state.draftKey, '2026:222');
   assert.equal(context.getPicks().length, 0);
+  assert.equal(context.state.espn.draftComplete, false);
+  assert.equal(context.state.espn.currentPick, null);
+  assert.equal(context.state.espn.expectedCompleted, 0);
+});
+
+test('an embedded ESPN frame cannot clear a completed-draft heartbeat', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const listener = context.listeners.message[0];
+
+  listener({type: 'ESPN_HEARTBEAT', topFrame: true, draftPage: true, draftComplete: true}, {}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(context.state.espn.draftComplete, true);
+
+  listener({type: 'ESPN_HEARTBEAT', topFrame: false, draftPage: true, draftComplete: false}, {}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(context.state.espn.draftComplete, true);
+});
+
+test('clearing captured picks also clears completion progress', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.espn.draftComplete = true;
+  context.state.espn.currentPick = 161;
+  context.state.espn.expectedCompleted = 160;
+
+  context.listeners.message[0]({type: 'RESET_PICKS'}, {}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  assert.equal(context.state.espn.draftComplete, false);
+  assert.equal(context.state.espn.currentPick, null);
+  assert.equal(context.state.espn.expectedCompleted, 0);
 });
 
 test('partial structured data preserves screen names only for unresolved pick slots', async () => {
