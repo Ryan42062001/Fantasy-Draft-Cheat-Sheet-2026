@@ -19960,6 +19960,21 @@ var decision =
     context
   );
 
+var urgentEcrLeader =
+  Number(player.recommendationSurvival) < 35 &&
+  scoredPlayers.some(function(candidate) {
+    return candidate && candidate.marketEcrGuardrail;
+  });
+
+if (
+  urgentEcrLeader &&
+  decision &&
+  (decision.recommendation === 'WAIT' || decision.recommendation === 'PASS')
+) {
+  decision.recommendation = 'CONSIDER';
+  decision.summary = 'This stronger ECR value is unlikely to survive while the positional alternative can wait.';
+}
+
 
 /*
  * -------------------------------------------------------
