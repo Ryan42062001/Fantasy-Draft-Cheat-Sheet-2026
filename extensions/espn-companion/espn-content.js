@@ -112,6 +112,8 @@
 
     lastApiScanAt = now;
     var directory = parser.scanPlayerDirectory ? parser.scanPlayerDirectory(document) : {};
+    var draftShape = parser.detectDraftShape ? parser.detectDraftShape(document, config) : {};
+    var draftOptions = {draftComplete: Boolean(draftShape.draftComplete)};
     apiScanInFlight = requestStructuredJson(api.buildDraftDetailUrl(context)).then(function(response) {
       var telemetry = {
         httpStatus: response.httpStatus,
@@ -122,7 +124,7 @@
       return {payload: response.payload, telemetry: telemetry};
     }).then(function(result) {
       var payload = result.payload;
-      var initial = api.extractDraftSnapshot(payload, context, directory);
+      var initial = api.extractDraftSnapshot(payload, context, directory, draftOptions);
       if (initial.complete || !initial.unresolved.length) {
         return {payload: payload, snapshot: initial, telemetry: result.telemetry};
       }
@@ -137,7 +139,7 @@
         if (lookup.transport === 'content') result.telemetry.transport = 'content';
         return {
           payload: payload,
-          snapshot: api.extractDraftSnapshot(payload, context, expandedDirectory),
+          snapshot: api.extractDraftSnapshot(payload, context, expandedDirectory, draftOptions),
           telemetry: result.telemetry
         };
       }).catch(function(error) {
@@ -150,8 +152,13 @@
       });
     }).then(function(resolved) {
       var snapshot = resolved.snapshot;
-      var shape = parser.detectDraftShape ? parser.detectDraftShape(document) : {};
-      var feedAssessment = api.assessStructuredFeed(snapshot, shape.currentPick);
+      var shape = parser.detectDraftShape ? parser.detectDraftShape(document, config) : {};
+      var feedAssessment = api.assessStructuredFeed(
+        snapshot,
+        shape.currentPick,
+        Number(config.teams) * Number(config.rounds),
+        shape.draftComplete
+      );
       var expectedCompleted = feedAssessment.expectedCompleted;
       var structuredBehind = feedAssessment.behind;
       var effectiveComplete = feedAssessment.effectiveComplete;
@@ -225,7 +232,7 @@
     var unavailablePlayers = parser.scanDraftedPlayerLabels
       ? parser.scanDraftedPlayerLabels(document)
       : [];
-    var shape = parser.detectDraftShape ? parser.detectDraftShape(document) : {};
+    var shape = parser.detectDraftShape ? parser.detectDraftShape(document, config) : {};
     var signature = JSON.stringify({picks: picks, unavailablePlayers: unavailablePlayers});
     if (force || signature !== lastSignature) {
       lastSignature = signature;
@@ -244,6 +251,7 @@
       detectedTeams: shape.teams,
       detectedRounds: shape.rounds,
       currentPick: shape.currentPick,
+      draftComplete: shape.draftComplete,
       topFrame: topFrame,
       url: location.href
     });
@@ -258,7 +266,7 @@
 
     scanStructuredDraft(force).then(function(directAvailable) {
       if (directAvailable) {
-        var shape = parser.detectDraftShape ? parser.detectDraftShape(document) : {};
+        var shape = parser.detectDraftShape ? parser.detectDraftShape(document, config) : {};
         send({
           type: 'ESPN_HEARTBEAT',
           draftPage: true,
@@ -267,6 +275,7 @@
           detectedTeams: shape.teams,
           detectedRounds: shape.rounds,
           currentPick: shape.currentPick,
+          draftComplete: shape.draftComplete,
           url: location.href
         });
         return;

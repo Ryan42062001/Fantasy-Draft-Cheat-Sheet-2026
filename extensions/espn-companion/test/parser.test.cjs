@@ -163,7 +163,15 @@ test('detects rounds and current pick without guessing team count from ambiguous
   const shape = parser.detectDraftShape({
     body: {innerText: 'RND 13 OF 16\nON THE CLOCK: PICK 150\nRecent: R13, P6'}
   });
-  assert.deepEqual(shape, {teams: null, rounds: 16, currentPick: 150});
+  assert.deepEqual(shape, {teams: null, rounds: 16, currentPick: 150, draftComplete: false});
+});
+
+test('detects a completed draft from the filled terminal Board slot', () => {
+  const shape = parser.detectDraftShape({
+    body: {innerText: '16.11\nDontayvion Wicks\nPHI WR\n16.12\nJordan Love\nGB QB'}
+  }, {teams: 12, rounds: 16});
+  assert.equal(shape.currentPick, null);
+  assert.equal(shape.draftComplete, true);
 });
 
 test('detects an explicitly drafted player row without inventing pick ownership', () => {

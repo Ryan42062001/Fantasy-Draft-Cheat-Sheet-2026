@@ -329,6 +329,7 @@ Current verification (2026-08-22):
 - Companion 0.7.1 verifies snapshot delivery, reinjects a stale War Room bridge after extension reloads, includes the ESPN draft key in snapshots, and reports bridge failures; extension tests 39/39
 - Companion 0.7.2 makes the popup's saved draft settings authoritative during sync and prevents an early War Room acknowledgment from clearing Direct or Board-fallback picks
 - Companion 0.7.3 detects a structured feed lagging behind ESPN's on-clock pick and automatically falls back to the visible PICK / PLAYER / TEAM history table
+- Companion 0.7.4 detects a filled terminal Board slot after the on-clock banner disappears and keeps all completed scheduled slots eligible for Hybrid reconciliation instead of replacing the Board with a partial API result
 
 ## User roster recommendation preferences
 - [x] Hard-cap the recommendation pool at one QB

@@ -404,6 +404,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         state.espn.currentPick = Number(message.currentPick);
         state.espn.expectedCompleted = Math.max(0, Number(message.currentPick) - 1);
       }
+      state.espn.draftComplete = Boolean(message.draftComplete);
       var detectedRounds = Number(message.detectedRounds);
       var shouldUpdateRounds = Number.isInteger(detectedRounds) && detectedRounds >= 1 &&
         detectedRounds !== Number(state.config.rounds);

@@ -86,7 +86,8 @@
     return {present: false, picks: []};
   }
 
-  function extractDraftSnapshot(payload, context, seedDirectory) {
+  function extractDraftSnapshot(payload, context, seedDirectory, options) {
+    options = options || {};
     var directory = buildPlayerDirectory(payload || {}, seedDirectory);
     var collection = draftPickCollection(payload || {});
     var scheduledPicks = collection.picks.filter(function(pick) {
@@ -96,6 +97,7 @@
     // future slots use a missing, zero, or negative player ID and are not
     // completed selections that need player-name resolution.
     var rawPicks = scheduledPicks.filter(function(pick) {
+      if (options.draftComplete) return true;
       var playerId = pick && (pick.playerId || pick.athleteId || (pick.player && pick.player.id));
       return Number(playerId) > 0 || Boolean(
         pick && (pick.playerName || pick.athleteName ||
@@ -157,11 +159,13 @@
     };
   }
 
-  function assessStructuredFeed(snapshot, currentPick) {
+  function assessStructuredFeed(snapshot, currentPick, totalPicks, draftComplete) {
     snapshot = snapshot || {};
-    var expectedCompleted = Number(currentPick) > 0
-      ? Math.max(0, Number(currentPick) - 1)
-      : 0;
+    var expectedCompleted = draftComplete && Number(totalPicks) > 0
+      ? Number(totalPicks)
+      : Number(currentPick) > 0
+        ? Math.max(0, Number(currentPick) - 1)
+        : 0;
     var rawCount = Number(snapshot.rawCount) || 0;
     var behind = Boolean(snapshot.feedPresent) && expectedCompleted > rawCount;
     return {

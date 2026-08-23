@@ -90,3 +90,31 @@ test('treats an empty structured feed as lagging when ESPN is on pick 11', () =>
     {expectedCompleted: 10, behind: false, effectiveComplete: true}
   );
 });
+
+test('retains unresolved scheduled slots when the draft is complete', () => {
+  const payload = {draftDetail: {picks: [
+    {overallPickNumber: 1, playerId: 101, teamId: 1},
+    {overallPickNumber: 2, playerId: 102, teamId: 2},
+    {overallPickNumber: 3, playerId: -1, teamId: 3}
+  ]}};
+  const directory = {
+    '101': {playerName: 'First Player', position: 'WR'},
+    '102': {playerName: 'Second Player', position: 'RB'}
+  };
+  const snapshot = api.extractDraftSnapshot(
+    payload,
+    {teamId: '3'},
+    directory,
+    {draftComplete: true}
+  );
+  assert.equal(snapshot.rawCount, 3);
+  assert.deepEqual(snapshot.rawPickNumbers, [1, 2, 3]);
+  assert.equal(snapshot.picks.length, 2);
+  assert.equal(snapshot.unresolved.length, 1);
+  assert.equal(snapshot.unresolved[0].overallPick, 3);
+  assert.equal(snapshot.unresolved[0].isMine, true);
+  assert.deepEqual(
+    api.assessStructuredFeed(snapshot, null, 3, true),
+    {expectedCompleted: 3, behind: false, effectiveComplete: false}
+  );
+});
