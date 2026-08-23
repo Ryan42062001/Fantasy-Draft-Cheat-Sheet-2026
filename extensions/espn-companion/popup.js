@@ -38,6 +38,7 @@ function render(status) {
   if (espn.apiAvailable) {
     directParts.push((Number(espn.apiResolved) || 0) + '/' + (Number(espn.apiRawCount) || 0) + ' picks resolved');
     if (Number(espn.apiUnresolved) > 0) directParts.push(espn.apiUnresolved + ' supplemented from screen');
+    if (Number(espn.apiOpenSlots) > 0) directParts.push(espn.apiOpenSlots + ' future slots ignored');
   }
   if (espn.apiError) directParts.push(espn.apiError);
   document.getElementById('direct-status').textContent = directParts.length

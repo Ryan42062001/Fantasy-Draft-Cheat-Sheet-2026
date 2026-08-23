@@ -89,8 +89,18 @@
   function extractDraftSnapshot(payload, context, seedDirectory) {
     var directory = buildPlayerDirectory(payload || {}, seedDirectory);
     var collection = draftPickCollection(payload || {});
-    var rawPicks = collection.picks.filter(function(pick) {
+    var scheduledPicks = collection.picks.filter(function(pick) {
       return Number(pick && (pick.overallPickNumber || pick.overallPick || pick.pickNumber)) > 0;
+    });
+    // ESPN can preload every scheduled pick slot during a live mock. Empty
+    // future slots use a missing, zero, or negative player ID and are not
+    // completed selections that need player-name resolution.
+    var rawPicks = scheduledPicks.filter(function(pick) {
+      var playerId = pick && (pick.playerId || pick.athleteId || (pick.player && pick.player.id));
+      return Number(playerId) > 0 || Boolean(
+        pick && (pick.playerName || pick.athleteName ||
+          (pick.player && (pick.player.fullName || pick.player.displayName)))
+      );
     });
     var unresolved = [];
     var picks = [];
@@ -134,6 +144,8 @@
     picks.sort(function(a, b) { return a.overallPick - b.overallPick; });
     return {
       rawCount: rawPicks.length,
+      scheduledCount: scheduledPicks.length,
+      openSlotCount: Math.max(0, scheduledPicks.length - rawPicks.length),
       rawPickNumbers: rawPicks.map(function(pick) {
         return Number(pick.overallPickNumber || pick.overallPick || pick.pickNumber);
       }),
