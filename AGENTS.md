@@ -14,12 +14,14 @@ Primary league assumptions currently used in the project:
 The old custom 2026 expert ranking dataset is NOT authoritative and should be discarded/replaced.
 
 Use FantasyPros 2026 PPR data as the ranking authority:
-- FantasyPros PPR ECR = player value / board rank / VORP / scarcity / tier logic
+- FantasyPros Top-20 Draft Experts PPR ECR = primary player value / board rank / VORP / scarcity / tier logic
+- FantasyPros broader PPR ECR = fallback for deeper players absent from the Top-20 export
 - FantasyPros PPR ADP = market cost / survival-to-next-pick / reach-value / timing logic
 
 Never invent player rankings, ADP, teams, bye weeks, or tier assignments when source data is absent.
 
 The source exports used for the new master dataset are:
+- `FantasyPros_2026_Draft_Top20_Rankings.csv`
 - `FantasyPros_2026_Draft_ALL_Rankings.csv`
 - `FantasyPros_2026_Overall_ADP_Rankings.csv`
 
@@ -211,7 +213,7 @@ Do not call the migration complete until all of these are true:
 - Update the roadmap checkboxes in this file as work is completed.
 
 ## Next maintenance cycle
-- Refresh the two source CSVs and rerun `scripts/build-fantasypros-2026.mjs` when FantasyPros publishes material ranking changes.
+- Refresh the Top-20 ECR, broad ECR, and ADP source CSVs and rerun `scripts/build-fantasypros-2026.mjs` when FantasyPros publishes material ranking changes.
 - Re-run migration verification, roadmap simulations, persistence checks, and responsive checks after each data refresh.
 - Treat recommendation tuning as a separate evidence-driven phase; preserve ECR as value and ADP as market timing.
 
@@ -358,3 +360,14 @@ Performance evidence (2026-08-22):
 - Integrity/regressions: 717/717 board rows with 0 missing / unexpected / duplicates; canonical 165/165; calculation sanity 12/12; roadmap scenarios 4/4; ESPN website contract 12/12; extension tests 37/37
 - Latest cleanup: normalized `script.js` size reduced by 20,699 characters (4.5%); ten cached recommendation renders complete in 7.1 ms total while preserving the same DOM card and expanded state
 - Latest verification: marking workflow 63.1 ms end-to-end in automation; canonical 165/165; calculation sanity 20/20; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 37/37
+
+## Top-20 expert ECR overlay
+- [x] Use the 380-player FantasyPros Top-20 Draft Experts PPR export as the primary ECR ordering
+- [x] Append the 140 players absent from that export in broader FantasyPros PPR ECR order
+- [x] Preserve 197 ADP-only players as searchable depth without fabricated ECR
+- [x] Preserve FantasyPros ADP as the independent market-timing and survival authority
+
+Verification (2026-08-23):
+- Hybrid ECR: 380 Top-20 + 140 broad fallback = 520 ECR-ranked players; 197 ADP-only; 717 total; 0 duplicate canonical names
+- Canonical regressions: 152/152 draft engine + 5/5 turn package + 8/8 recommendation explanations = 165/165
+- Calculation sanity 20/20; thresholds 8/8; roadmap scenarios 4/4; ESPN website 12/12; extension 37/37

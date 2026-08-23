@@ -5,14 +5,17 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
 const dataDir = path.join(repoRoot, 'data');
-const ecrPath = path.join(dataDir, 'FantasyPros_2026_Draft_ALL_Rankings.csv');
+const broadEcrPath = path.join(dataDir, 'FantasyPros_2026_Draft_ALL_Rankings.csv');
+const top20EcrPath = path.join(dataDir, 'FantasyPros_2026_Draft_Top20_Rankings.csv');
 const adpPath = path.join(dataDir, 'FantasyPros_2026_Overall_ADP_Rankings.csv');
 const jsonPath = path.join(dataDir, 'fantasypros-2026-master.json');
 const runtimePath = path.join(repoRoot, 'fantasypros-2026-data.js');
-const SOURCE_SNAPSHOT_DATE = '2026-08-21';
+const SOURCE_SNAPSHOT_DATE = '2026-08-23';
 
 const SUPPORTED_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DST']);
 const EXPECTED = {
+  top20EcrPlayers: 380,
+  broadEcrFallbackPlayers: 140,
   ecrPlayers: 520,
   adpOnlyPlayers: 197,
   totalPlayers: 717,
@@ -162,8 +165,17 @@ function assertEqual(label, actual, expected) {
   }
 }
 
-const rawEcrRows = readCsv(ecrPath);
-const rankedEcrRows = rawEcrRows.filter((row) => /^\d+$/.test(row.RK) && row['PLAYER NAME']);
+const rawBroadEcrRows = readCsv(broadEcrPath);
+const rankedBroadEcrRows = rawBroadEcrRows.filter((row) => /^\d+$/.test(row.RK) && row['PLAYER NAME']);
+const rawTop20EcrRows = readCsv(top20EcrPath);
+const rankedTop20EcrRows = rawTop20EcrRows.filter((row) => /^\d+$/.test(row.RK) && row['PLAYER NAME']);
+const top20Names = new Set(rankedTop20EcrRows.map((row) => canonicalName(row['PLAYER NAME'])));
+const rankedEcrRows = [
+  ...rankedTop20EcrRows.map((row) => ({ ...row, ecrSource: 'TOP20_EXPERTS' })),
+  ...rankedBroadEcrRows
+    .filter((row) => !top20Names.has(canonicalName(row['PLAYER NAME'])))
+    .map((row) => ({ ...row, ecrSource: 'BROAD_ECR_FALLBACK' }))
+];
 const rawAdpRows = readCsv(adpPath);
 
 const adpPlayers = rawAdpRows.map((row) => {
@@ -184,16 +196,16 @@ const adpPlayers = rawAdpRows.map((row) => {
 const supportedAdpPlayers = adpPlayers.filter((player) => SUPPORTED_POSITIONS.has(player.pos));
 const adpByName = new Map(supportedAdpPlayers.map((player) => [canonicalName(player.name), player]));
 
-const ecrPlayers = rankedEcrRows.map((row) => {
+const ecrPlayers = rankedEcrRows.map((row, index) => {
   const position = parsePosition(row.POS);
   const fantasyProsTier = Number(row.TIERS);
   const tier = tierForFantasyProsTier(fantasyProsTier);
   const adp = adpByName.get(canonicalName(row['PLAYER NAME'])) || null;
 
   return {
-    rank: Number(row.RK),
-    boardRank: Number(row.RK),
-    ecr: Number(row.RK),
+    rank: index + 1,
+    boardRank: index + 1,
+    ecr: index + 1,
     adp: adp ? adp.adp : null,
     adpRank: adp ? adp.adpRank : null,
     realTimeAdp: adp ? adp.realTimeAdp : null,
@@ -202,12 +214,14 @@ const ecrPlayers = rankedEcrRows.map((row) => {
     pos: position.pos,
     posRank: position.posRank,
     team: row.TEAM || 'FA',
-    bye: row.BYE || '-',
+    bye: row.BYE || row['BYE WEEK'] || '-',
     fantasyProsTier,
     consensusTier: tier.semantic,
     semanticTier: tier.semantic,
     tier: tier.legacy,
-    source: adp ? 'ECR_AND_ADP' : 'ECR_ONLY'
+    source: adp ? 'ECR_AND_ADP' : 'ECR_ONLY',
+    ecrSource: row.ecrSource,
+    sourceEcrRank: Number(row.RK)
   };
 });
 
@@ -240,6 +254,8 @@ const duplicates = findDuplicateCanonicalNames(players);
 const positionCounts = countByPosition(players);
 
 assertEqual('ranked ECR player count', ecrPlayers.length, EXPECTED.ecrPlayers);
+assertEqual('Top-20 ECR player count', rankedTop20EcrRows.length, EXPECTED.top20EcrPlayers);
+assertEqual('broad ECR fallback player count', ecrPlayers.length - rankedTop20EcrRows.length, EXPECTED.broadEcrFallbackPlayers);
 assertEqual('ADP-only player count', adpOnlyPlayers.length, EXPECTED.adpOnlyPlayers);
 assertEqual('master player count', players.length, EXPECTED.totalPlayers);
 assertEqual('canonical duplicate names', duplicates, []);
@@ -249,8 +265,10 @@ Object.entries(EXPECTED.positionCounts).forEach(([position, expectedCount]) => {
 assertEqual('board ranks', players.map((player) => player.rank), Array.from({ length: players.length }, (_, index) => index + 1));
 
 const metadata = {
-  generatedFrom: [path.basename(ecrPath), path.basename(adpPath)],
+  generatedFrom: [path.basename(top20EcrPath), path.basename(broadEcrPath), path.basename(adpPath)],
   sourceSnapshotDate: SOURCE_SNAPSHOT_DATE,
+  top20EcrPlayers: rankedTop20EcrRows.length,
+  broadEcrFallbackPlayers: ecrPlayers.length - rankedTop20EcrRows.length,
   ecrPlayers: ecrPlayers.length,
   adpOnlyPlayers: adpOnlyPlayers.length,
   totalPlayers: players.length,
