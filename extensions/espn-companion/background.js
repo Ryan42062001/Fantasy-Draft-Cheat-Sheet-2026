@@ -183,6 +183,8 @@ function broadcastWarRoom(force) {
         snapshot: {
           version: 1,
           draftKey: state.draftKey,
+          draftComplete: Boolean(state.espn.draftComplete),
+          expectedCompleted: Number(state.espn.expectedCompleted) || 0,
           picks: picks,
           unavailablePlayers: getUnavailablePlayers(),
           force: Boolean(force),
@@ -496,6 +498,8 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
           snapshot: {
             version: 1,
             draftKey: state.draftKey,
+            draftComplete: Boolean(state.espn.draftComplete),
+            expectedCompleted: Number(state.espn.expectedCompleted) || 0,
             picks: getPicks(),
             unavailablePlayers: getUnavailablePlayers(),
             config: Object.assign({}, state.config)

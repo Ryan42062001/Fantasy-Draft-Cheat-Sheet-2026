@@ -330,6 +330,18 @@ Current verification (2026-08-22):
 - Companion 0.7.2 makes the popup's saved draft settings authoritative during sync and prevents an early War Room acknowledgment from clearing Direct or Board-fallback picks
 - Companion 0.7.3 detects a structured feed lagging behind ESPN's on-clock pick and automatically falls back to the visible PICK / PLAYER / TEAM history table
 - Companion 0.7.4 detects a filled terminal Board slot after the on-clock banner disappears and keeps all completed scheduled slots eligible for Hybrid reconciliation instead of replacing the Board with a partial API result
+- Companion 0.8.0 sends completion metadata to the War Room so partial sync is labeled honestly and a known 16-player roster can receive a provisional final report
+
+## Post-mock strategy polish
+- [x] Warn at three players sharing a bye, modestly penalize a fourth, and strongly caution against a fifth within the existing strategy budget
+- [x] Surface WR-heavy starts and prioritize RB workload stability when values are close
+- [x] Distinguish a completed ESPN draft from fully synchronized numbered-pick coverage
+- [x] Allow a clearly labeled provisional final report when ESPN is complete and the user's full roster is known
+- [x] Add final-report insights for WR foundation, RB workload risk, and bye-week concentration
+
+Verification (2026-08-23):
+- Provisional completion, 11-of-192 partial-sync messaging, WR-heavy construction, fifth-player bye penalty, and final-report insight fixtures pass in browser automation
+- Canonical regressions 165/165; calculation sanity 20/20; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 44/44
 
 ## User roster recommendation preferences
 - [x] Hard-cap the recommendation pool at one QB
