@@ -258,6 +258,7 @@ Verification (2026-08-22):
 - [x] Exclude audit outcomes with less than 80% intervening-pick coverage
 - [x] Deduplicate recommendation observations by pick and player when the displayed action changes
 - [x] Keep an urgent materially better ECR value ahead of a later-ECR positional edge that ADP says is likely to survive
+- [x] Preserve same-position ECR order after market prioritization and reconcile WAIT/DRAFT actions with survival unless a hard guardrail applies
 
 Completion evidence (2026-08-22):
 - Canonical regressions: 152/152 draft engine + 5/5 turn package + 8/8 recommendation explanations = 165/165
@@ -356,4 +357,4 @@ Performance evidence (2026-08-22):
 - After: repeated player clicks painted interactively in an 11.0 ms median; live-state scoring was 120.9 ms median; the full deferred refresh was 276.3 ms median
 - Integrity/regressions: 717/717 board rows with 0 missing / unexpected / duplicates; canonical 165/165; calculation sanity 12/12; roadmap scenarios 4/4; ESPN website contract 12/12; extension tests 37/37
 - Latest cleanup: normalized `script.js` size reduced by 20,699 characters (4.5%); ten cached recommendation renders complete in 7.1 ms total while preserving the same DOM card and expanded state
-- Latest verification: marking workflow 63.1 ms end-to-end in automation; canonical 165/165; calculation sanity 16/16; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 37/37
+- Latest verification: marking workflow 63.1 ms end-to-end in automation; canonical 165/165; calculation sanity 20/20; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 37/37
