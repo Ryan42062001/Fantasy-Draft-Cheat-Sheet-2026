@@ -2,6 +2,9 @@ window.ESPN_2026_PPR_BOARD = {
   "meta": {
     "title": "2026 ESPN Fantasy Football Draft Kit - PPR Top 300 Cheat Sheet",
     "sourceFile": "ESPN ADP Rankings.pdf",
+    "season": 2026,
+    "format": "PPR Top 300 default board",
+    "sourceSha256": "02f57e102141f68b438c0733b3d4f04bbdc4ae07f76eff5c235c782f96f6fee9",
     "playerCount": 300
   },
   "players": [

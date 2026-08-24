@@ -1,4 +1,5 @@
 import json
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -31,13 +32,27 @@ if missing:
     raise RuntimeError(f"Missing ESPN board ranks: {missing}")
 
 players = [by_rank[rank] for rank in range(1, 301)]
+previous = None
+if output.exists():
+    try:
+        previous = json.loads(output.read_text(encoding="utf-8").split("=", 1)[1].rsplit(";", 1)[0])
+    except (ValueError, IndexError):
+        previous = None
 payload = {
     "meta": {
         "title": "2026 ESPN Fantasy Football Draft Kit - PPR Top 300 Cheat Sheet",
         "sourceFile": source.name,
+        "season": 2026,
+        "format": "PPR Top 300 default board",
+        "sourceSha256": hashlib.sha256(source.read_bytes()).hexdigest(),
         "playerCount": len(players),
     },
     "players": players,
 }
 output.write_text("window.ESPN_2026_PPR_BOARD = " + json.dumps(payload, indent=2) + ";\n", encoding="utf-8")
 print(f"Wrote {len(players)} ESPN board ranks to {output}")
+if previous:
+    old = {player["name"]: player["rank"] for player in previous.get("players", [])}
+    movers = sorted(((abs(old[player["name"]] - player["rank"]), player["name"], old[player["name"]], player["rank"])
+                     for player in players if player["name"] in old and old[player["name"]] != player["rank"]), reverse=True)
+    print("Largest rank changes: " + (", ".join(f"{name} {before}->{after}" for _, name, before, after in movers[:10]) or "none"))

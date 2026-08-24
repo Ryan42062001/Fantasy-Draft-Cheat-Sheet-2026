@@ -97,12 +97,18 @@ const espnMarketTiming = await page.evaluate(() => {
   const row = findDraftRowByExpertName('Justin Jefferson');
   applyEspnDraftSnapshot({force:true, marketAdp:[{playerName:'Justin Jefferson', position:'WR', adp:10.7}], picks:[]});
   const player = getDraftAssistantPlayers().find(item => item.name === 'Justin Jefferson');
+  toggleAutoDraftTeam(2);
+  const autoWeighted = getMarketTimingDetails(player, {currentPick:1, nextPick:20, teams:10});
+  const autoPressed = document.querySelector('.auto-draft-team-toggle[data-team-slot="2"]').getAttribute('aria-pressed');
+  toggleAutoDraftTeam(2);
   const result = {
     attribute:row.getAttribute('data-espn-adp'), boardRank:player.espnRank,
     early:getFantasyProsMarketRank(player, {currentPick:14}),
     middle:getFantasyProsMarketRank(player, {currentPick:60}),
     late:getFantasyProsMarketRank(player, {currentPick:120}),
-    fantasyPros:player.adp
+    fantasyPros:player.adp,
+    status:document.getElementById('espn-sync-status').textContent,
+    autoWeighted:autoWeighted.boardWeight, autoPressed
   };
   row.removeAttribute('data-espn-adp');
   return result;
@@ -113,9 +119,26 @@ assert.ok(Math.abs(espnMarketTiming.early - 10.925) < 0.001);
 assert.ok(Math.abs(espnMarketTiming.middle - 10.895) < 0.001);
 assert.ok(Math.abs(espnMarketTiming.late - 10.85) < 0.001);
 assert.notEqual(espnMarketTiming.early, espnMarketTiming.fantasyPros);
+assert.match(espnMarketTiming.status, /Market 300\/1/);
+assert.equal(espnMarketTiming.autoPressed, 'true');
+assert.ok(espnMarketTiming.autoWeighted > 0.75);
+const opponentRosterOwnership = await page.evaluate(() => {
+  const row = findDraftRowByExpertName('Justin Jefferson');
+  row.classList.add('drafted-other');
+  row.setAttribute('data-pick', '1');
+  row.setAttribute('data-team-slot', '3');
+  const rosters = getDraftedRosterByTeam(12);
+  row.classList.remove('drafted-other');
+  row.removeAttribute('data-pick');
+  row.removeAttribute('data-team-slot');
+  return {team1:rosters[1].WR, team3:rosters[3].WR};
+});
+assert.deepEqual(opponentRosterOwnership, {team1:0, team3:1});
 await page.locator('.recommendation-card-summary').click();
 assert.equal(await recommendationCard.getAttribute('open'), '');
 assert.equal(await page.locator('.recommendation-factor').count(), 4);
+assert.equal(await page.locator('.recommendation-market-details summary').textContent(), 'Why this survival?');
+assert.match(await page.locator('.recommendation-market-details').textContent(), /estimated market pick/);
 assert.equal(await page.getByRole('progressbar').count(), 4);
 const recommendationRender = await page.evaluate(() => {
   const element = document.getElementById('recommended-pick-text');
