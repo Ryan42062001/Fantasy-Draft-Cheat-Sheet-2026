@@ -1,332 +1,106 @@
-# 🏈 Fantasy Draft Cheat Sheet 2026
+# The War Room
 
-A real-time draft companion web app for 10-team fantasy football leagues. Track your picks, get recommendations, monitor position scarcity, and never lose progress with autosave.
+The War Room is the fantasy draft tool I wanted beside me during an ESPN draft: one screen for the board, my roster, the next turn, and the decisions that actually matter.
 
-**Live & Ready for Draft Day** ✅
+It is built for redraft PPR leagues. FantasyPros expert consensus rankings establish player value, while ESPN board rank and ADP help estimate whether a player is likely to make it back. The recommendation engine keeps those jobs separate—market behavior can change the timing of a pick, but it does not rewrite the player rankings.
 
----
+[Open The War Room](https://ryan42062001.github.io/Fantasy-Draft-Cheat-Sheet-2026/)
 
-## 🎯 Quick Start
+## What it does
 
-1. **Open the app**: Double-click `index.html` (no server needed)
-2. **Configure your league** (optional):
-   - Use the controls in the "Draft Position" widget
-   - On mobile, tap "Edit draft settings" first
-3. **Start drafting**:
-   - Click a player row once (green) = you drafted them
-   - Click again (gray) = someone else took them
-   - Click again = clear the status
-4. **Check your needs**: Click "My Team" button to see what you still need
+- Tracks every player as available, taken, or mine
+- Builds a live roster and highlights remaining starter needs
+- Recommends a pick using ECR value, roster construction, scarcity, and market timing
+- Estimates next-turn survival using ESPN board rank and ESPN ADP when available
+- Handles snake-draft settings from 2–20 teams and 5–30 rounds
+- Saves separate draft sessions in the browser
+- Produces a post-draft report with value, lineup, and waiver-watch notes
+- Syncs ESPN mock and live drafts through the optional Chrome companion
 
-That's it! Your draft is automatically saved to browser storage.
+## Ranking approach
 
----
+The board is intentionally opinionated about which source answers which question.
 
-## 📁 File Structure
+| Question | Source |
+| --- | --- |
+| How good is the player? | FantasyPros Top-20 Draft Experts PPR ECR |
+| What if a deeper player is missing? | Broader FantasyPros PPR ECR |
+| When will ESPN rooms take him? | ESPN default PPR board rank, then ESPN PPR ADP |
+| What if ESPN market data is unavailable? | FantasyPros PPR ADP |
 
-```
-Fantasy-Draft-Cheat-Sheet-2026/
-├── AGENTS.md                         - Project source of truth and roadmap
-├── index.html                        - UI shell and semantic tier sections
-├── script.js                         - Production board and recommendation engine
-├── developer-tools.js                - On-demand tests and draft simulations
-├── fantasypros-2026-data.js          - Browser-ready generated dataset
-├── style.css                         - Styling and responsive behavior
-├── data/                              - Source CSVs and generated master JSON
-├── scripts/build-fantasypros-2026.mjs - Reproducible dataset generator
-├── extensions/espn-companion/          - Optional ESPN live-draft Chrome companion
-└── README.md                          - User and contributor guide
-```
+The generated dataset currently contains 717 searchable players. ADP-only players remain searchable depth; the app does not invent an ECR for them.
 
-### Key Components
+## Using the board
 
-**index.html**
-- 8 semantic tier containers (ELITE through DEEP)
-- Player rows are constructed from the generated FantasyPros dataset at startup
-- Side panels for My Team and Draft Summary
-- Toolbar with search, position filters, and controls
-- Tier navigation links
-- Widgets: Draft Position, compact Recommended Pick, and combined Board Pressure
+1. Set the league size, draft slot, and number of rounds in **Draft Position**.
+2. Leave **Taken** selected for normal picks. Choose **Mine**—or press `M`—before selecting your own player.
+3. Open **My Draft** to check lineup construction, pick history, value, and bye-week concentration.
+4. Expand **Recommended Pick** or **Board Pressure** when you want the supporting detail.
 
-**script.js**
-- **State Management**: Track drafted players via CSS classes
-- **Draft Cycle**: `toggleDraft(row)` is the main entry point
-- **UI Updates**: Called after every draft action
-- **Persistence**: localStorage autosave with 400ms debounce
-- **Calculations**: ECR-backed value/VORP and ADP-backed timing/survival
+Everything is stored locally in the browser. **New Draft** creates an isolated session, and **Delete Draft** removes only the selected session after confirmation.
 
-**developer-tools.js**
-- Loaded only when requested from the browser console
-- Contains the 165 regression assertions and realistic draft simulations
+## ESPN Companion
 
-**style.css**
-- Dark green football field theme
-- Responsive design (mobile-first, breakpoints at 768px/600px)
-- Smooth animations for buttons and hover states
-- Color-coded position pills (RB=green, WR=blue, etc.)
-- Sticky headers and panels for draft-day usability
+The Chrome companion can read the open ESPN draft room and send a complete pick snapshot to The War Room. Draft settings can be changed from either the website or extension; the two stay synchronized.
 
-**extensions/espn-companion**
-- Optional Manifest V3 Chrome extension for ESPN live-draft synchronization
-- Reads only draft information rendered in the ESPN tab; no ESPN cookies or passwords
-- Reconciles complete snapshots into existing Mine/Taken status and autosave behavior
-- See `extensions/espn-companion/README.md` for local installation and mock-draft validation
+To install it locally:
 
----
+1. Open `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Choose **Load unpacked**.
+4. Select `extensions/espn-companion` from this repository.
+5. Refresh both ESPN and The War Room after installing a new version.
 
-## ✨ Current Features
+The popup reports whether it is using ESPN's structured feed or the visible draft board fallback. **Copy diagnostics** creates a credential-free troubleshooting report. More detail is in [the companion guide](extensions/espn-companion/README.md).
 
-### Core Functionality
-- ✅ **3-State Draft Tracking**: Available → Your Pick (green) → Other's Pick (gray)
-- ✅ **Auto-Draft Recommendations**: Top 3 picks tailored to your roster needs
-- ✅ **Roster Needs Display**: Shows starters filled, bench slots filled per position
-- ✅ **Board Pressure**: Position availability and live tier/scarcity alerts in one responsive widget
-- ✅ **Tier-Cliff Visualization**: Visual breaks between tiers with colored bars and spacing
-- ✅ **Scarcity Warnings**: Alerts when a tier is running out
+## Running locally
 
-### Quality-of-Life
-- ✅ **Autosave**: Browser localStorage, optional toggle (on/off)
-- ✅ **Search & Filters**: Find players by name, position, or team
-- ✅ **Sorting**: Click column headers to sort within a tier
-- ✅ **Best Available Now**: Top 5 available players at a glance
-- ✅ **My Team Panel**: Full roster view with bye week warnings and value tracking
-- ✅ **Draft Summary**: Final grade, position breakdown, value analysis
-- ✅ **Rank Editing**: Reorder players within a tier or move across tiers
-- ✅ **Rank Reset**: Restore original rankings anytime
+The project is a static site, so any basic local server works:
 
-### Customization
-- **Bench Slots**: Configurable per position (defaults: QB:0, RB:2, WR:5, TE:0, K:0, DST:0)
-- **League Settings**: Adjust team count, your pick #, and draft rounds
-- **Search & Sort**: Instant filtering and sorting on the fly
-
----
-
-## 🔧 Technical Architecture
-
-### State Management
-```javascript
-// Draft state tracked via DOM classes on player rows
-row.classList.add('drafted-mine');   // You took this player
-row.classList.add('drafted-other');  // Someone else took them
-
-// State calculations happen on every draft
-function toggleDraft(row) {
-  // 1. Update class
-  // 2. Call updateXXX() functions
-  // 3. Trigger autosave
-}
+```powershell
+python -m http.server 8000
 ```
 
-### Update Flow
-Every draft action triggers this sequence:
-1. `toggleDraft(row)` — toggle class, trigger updates
-2. `updateMyTeam()` — roster display & need highlighting
-3. `updateRemaining()` — count drafted players
-4. `updateBestAvailable()` — refresh top 5
-5. `updatePickCounter()` — show next pick #
-6. `updateScarcityAlerts()` — flag running-out positions
-7. `updateRecommendedPick()` — suggest best pick for needs
-8. `updateDraftDayDashboard()` — update position scarcity widget
-9. `addRoundMarkers()` — show pick count
-10. `scheduleSave()` — debounce localStorage write (400ms)
+Then open `http://localhost:8000`.
 
-### Persistence (localStorage)
-```javascript
-// Auto-saves every 400ms while drafting
-localStorage['draft-state-v1'] = JSON.stringify({
-  tier: [...],        // Tier order (if manually reordered)
-  drafted: [...],     // Drafted player rankings
-  settings: {...}     // League size, pick #, rounds
-});
+Install the development dependency and run the full verification suite with:
 
-// Restored on page load
-function loadState() { ... }
+```powershell
+npm install
+npm test
 ```
 
-### Responsive Design
-- **Desktop (>768px)**: Full layout with side panels
-- **Tablet (600-768px)**: Buttons wrap, panels stack
-- **Mobile (<600px)**: Single column, touch-friendly spacing
+The test suite checks JavaScript syntax, the protected FantasyPros dataset baseline, the Chrome companion, board integrity, recommendation scenarios, persistence, ESPN reconciliation, and responsive behavior.
 
----
+## Project map
 
-## ⚙️ Configuration
-
-### Bench Slots (Per Position)
-Edit `script.js` line 31:
-```javascript
-var BENCH_SLOTS = {QB:0, RB:2, WR:5, TE:0, K:0, DST:0};
+```text
+index.html                         Page structure and draft-day controls
+style.css                         Responsive interface and visual system
+script.js                         Board, state, scoring, and recommendation logic
+war-room-config.js                League and recommendation configuration
+fantasypros-2026-data.js          Generated browser dataset
+developer-tools.js                Simulations and regression diagnostics
+data/                              Ranking sources and generated master data
+scripts/                           Dataset builder and automated browser tests
+extensions/espn-companion/        Chrome extension for live ESPN sync
+AGENTS.md                          Ranking policy, architecture notes, and roadmap
 ```
 
-### League Settings (At Runtime)
-Click "Draft Position" widget to set:
-- Teams in league
-- Your pick number
-- Total rounds
+## Updating rankings
 
-### Customize Tier Names
-Edit `TIER_IDS` / `TIER_LABELS` near the top of `script.js`:
-```javascript
-var TIER_IDS = ['Sp','S','A','B','C','D','E','F'];
-var TIER_LABELS = {Sp:'ELITE', S:'PREMIUM', A:'CORE', ...};
+Source CSVs live in `data/`. After replacing the FantasyPros exports, rebuild and validate the board:
+
+```powershell
+node scripts/build-fantasypros-2026.mjs
+npm run test:dataset
+npm run test:browser
 ```
 
----
+The baseline is hash-protected so an accidental ranking change fails loudly instead of quietly changing draft behavior.
 
-## 🚀 Known Limitations
+## A note on recommendations
 
-### Current Issues
-- ❌ **Keyboard shortcuts** attempted but caused click conflicts (needs refactor)
-- ❌ **No keeper tracking** for dynasty/keeper leagues
+This is a draft assistant, not a projection of the season. Injuries, depth-chart changes, league scoring, and personal risk tolerance still matter. The app explains why it prefers a player and keeps recommendation-audit evidence from completed mocks, but it never tunes its own weights automatically.
 
-### Browser Support
-- ✅ Chrome, Firefox, Safari, Edge (all modern versions)
-- ⚠️ localStorage required (will gracefully degrade without it)
-- ✅ No runtime network dependency; the generated FantasyPros dataset is local
-
----
-
-## 🎯 Future Enhancements
-
-### High Priority (Easy wins)
-- [ ] **Draft Timer** - Countdown for pick deadline (Visual timer + alert)
-- [ ] **Turn Indicator** - Show whose turn it is (based on snake draft math)
-- [ ] **Autopick Queue** - Mark favorites, auto-track when drafted
-- [ ] **Keyboard Shortcuts** - Safely re-implement Ctrl+M/S/E
-
-### Medium Priority (Nice to have)
-- [ ] **Position Depth Chart** - Visual ranking 1-12 at each position
-- [ ] **Mock Draft Mode** - Practice without saving
-- [ ] **Trade Value Calculator** - Quick "who wins this trade" lookup
-- [ ] **Injury Tracker** - Auto-update from web API
-
-### Low Priority (Advanced)
-- [ ] **Keeper Tracking** - Mark keeper-eligible players
-- [ ] **Stack View** - Show QB + pass catchers combos
-- [ ] **Browser Notifications** - Alert when teammate drafts
-- [ ] **Dark Mode Toggle** - Alternative color scheme
-
----
-
-## 🤖 For AI Assistants
-
-### Code Organization
-- Read `AGENTS.md` first; it defines ranking authority and compatibility constraints.
-- `script.js` contains production state, board construction, persistence, and scoring.
-- `developer-tools.js` contains regression, scenario, and full-draft diagnostic tooling.
-- `scripts/build-fantasypros-2026.mjs` regenerates both runtime data artifacts from the checked-in CSVs.
-
-### Key Functions to Know
-```javascript
-toggleDraft(row)              // Main entry point for all draft actions
-updateMyTeam()                // Refresh roster display
-updateDraftDayDashboard()     // Refresh scarcity widget
-updateRecommendedPick()       // Calculate top-3 recommendations
-updateScarcityAlerts()        // Flag running-out positions
-scheduleSave()                // Debounced localStorage write
-loadState()                   // Restore from localStorage
-```
-
-### How to Help
-1. **Understand the flow**: Read through `toggleDraft()` to see update sequence
-2. **Test locally**: Serve the repository with a local static web server
-3. **Run verification**: In the browser console, run `await loadDeveloperTools(); runFantasyProsMigrationVerification();`
-4. **Before making changes**: Check whether updates belong in `triggerAllBoardUpdates()`
-
-### Common Pitfalls
-- ❌ Forgot to add new function to `toggleDraft()` update chain → UI doesn't refresh
-- ❌ Forgot to add to both `toggleDraft()` AND `resetBoard()` → Partial updates
-- ❌ Added event listeners too early → functions not yet defined
-- ❌ Modified DOM during event (e.g., inside forEach) → inconsistent state
-
----
-
-## 📊 Data Model
-
-### Player Row Structure
-```html
-<tr class="draftrow" data-pos="RB" data-name="jahmyr gibbs" data-bye="6" 
-    onclick="toggleDraft(this)">
-  <td>1</td>                    <!-- Rank -->
-  <td class="pname">...</td>    <!-- Player name + posrk badge -->
-  <td><span class="pos-pill">RB</span></td>
-  <td>DET ...</td>              <!-- Team + schedule strength -->
-  <td>1</td>                    <!-- ADP -->
-  <td class="valpos">+1</td>    <!-- Value vs ADP -->
-  <td>6</td>                    <!-- Bye week -->
-  <td class="hc">...</td>       <!-- Handcuff -->
-  <td class="notecell">...</td> <!-- Notes -->
-</tr>
-```
-
-### CSS Classes (State Tracking)
-- `drafted-mine` — Green highlight, strikethrough, ✓ MINE badge
-- `drafted-other` — Gray, 28% opacity
-- `need-highlight` — Blue left border (position you still need)
-- `hidden-row` — Display: none (filtered out)
-
----
-
-## 🧪 Testing Checklist
-
-Before publishing changes:
-
-- [ ] Migration verification reports 717/717 and 165/165
-- [ ] Roadmap simulations report 4/4 clean
-- [ ] Click player rows → toggle between 3 states
-- [ ] Mark 5 players as "yours" → My Team panel updates
-- [ ] Board Pressure shows position availability and tier alerts
-- [ ] Autosave toggle button changes color (green/red)
-- [ ] Refresh page → roster state restored
-- [ ] Search and position filters work
-- [ ] Reset button → clears all drafted status
-- [ ] Mobile view (resize to <600px) → buttons wrap, readable
-
----
-
-## 📝 Contributing
-
-### To Request Features
-1. **Describe the goal** - What problem does it solve?
-2. **Provide context** - Is this for draft day speed? Accuracy? Learning?
-3. **Link to code** - Point to relevant function or section
-
-### To Report Bugs
-1. **Steps to reproduce** - Exact sequence to trigger bug
-2. **Expected behavior** - What should happen
-3. **Actual behavior** - What actually happens
-4. **Browser/device** - Chrome? Safari? Mobile?
-5. **Console errors** - Open F12 and paste any red errors
-
----
-
-## 📜 Version History
-
-**v1.0** (Current)
-- ✅ Core draft tracking with 3-state cycle
-- ✅ Auto-draft recommendations
-- ✅ Combined Board Pressure dashboard
-- ✅ Autosave to localStorage
-- ✅ My Team panel with needs
-- ✅ Export/Import backup
-- ✅ Tier visualizations
-
-**Planned Additions**
-- Draft timer & turn indicator
-- Keyboard shortcuts (safe implementation)
-- Mock draft mode
-- Trade calculator
-
----
-
-## ⚖️ License
-
-Free to use and modify for personal fantasy draft use.
-
----
-
-## 🙋 Questions?
-
-This cheat sheet is designed for self-service drafting. For questions about specific features, check the **For AI Assistants** section above or review the relevant function in `script.js`.
-
-Good luck with your draft! 🏈
+Built for draft day, tested with ESPN mocks, and always meant to leave the final call with the person on the clock.

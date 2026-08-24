@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.8.6'}),
+      getManifest: () => ({version: '0.8.7'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -284,4 +284,27 @@ test('a passive War Room acknowledgment cannot clear captured picks or overwrite
   assert.equal(context.getPicks().length, 1);
   assert.equal(context.state.warRoom.reportedSettings.teams, 10);
   assert.equal(context.state.warRoom.requiredExtensionVersion, '0.8.2');
+});
+
+test('an explicit War Room settings update becomes authoritative and preserves same-size picks', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.config = {teams: 12, draftSlot: 10, rounds: 16};
+  context.state.ledgerTeams = 12;
+  context.state.picksByNumber = {
+    '11': {overallPick: 11, playerName: 'CeeDee Lamb', position: 'WR', method: 'dom'}
+  };
+
+  context.listeners.message[0]({
+    type: 'WAR_ROOM_SETTINGS_UPDATE',
+    config: {teams: 12, draftSlot: 11, rounds: 18},
+    requiredExtensionVersion: '0.8.7'
+  }, {tab: {id: 44}}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  assert.equal(context.state.config.draftSlot, 11);
+  assert.equal(context.state.config.rounds, 18);
+  assert.equal(context.getPicks().length, 1);
+  assert.equal(context.state.warRoom.requiredExtensionVersion, '0.8.7');
 });

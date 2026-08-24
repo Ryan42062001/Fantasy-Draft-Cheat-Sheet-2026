@@ -9,7 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
-  assert.equal(manifest.version, '0.8.6');
+  assert.equal(manifest.version, '0.8.7');
 });
 
 test('popup exposes version and copyable connection diagnostics', () => {
@@ -22,6 +22,12 @@ test('popup exposes version and copyable connection diagnostics', () => {
   assert.match(script, /API available\/complete/);
   assert.match(script, /Missing numbered picks/);
   assert.match(script, /Screen frames/);
+});
+
+test('War Room bridge forwards explicit website draft-setting edits', () => {
+  const script = fs.readFileSync(path.join(root, 'war-room-content.js'), 'utf8');
+  assert.match(script, /SETTINGS_UPDATE/);
+  assert.match(script, /WAR_ROOM_SETTINGS_UPDATE/);
 });
 
 test('requests only storage and host-restricted reinjection permission', () => {

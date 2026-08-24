@@ -36,6 +36,34 @@ assert.equal(await recommendationCard.getAttribute('open'), null);
 assert.equal(await page.locator('.recommendation-card-summary .recommendation-player b').count(), 1);
 assert.equal(await page.locator('.recommendation-one-line').count(), 1);
 
+const websiteSettingsSync = await page.evaluate(async () => {
+  const fields = ['pcTeams', 'pcSlot', 'pcRounds'].map(id => document.getElementById(id));
+  const original = fields.map(field => field.value);
+  const message = new Promise(resolve => {
+    const listener = event => {
+      if (event.source !== window || event.data?.type !== 'SETTINGS_UPDATE') return;
+      window.removeEventListener('message', listener);
+      resolve(event.data);
+    };
+    window.addEventListener('message', listener);
+  });
+  fields[0].value = '12';
+  fields[1].value = '11';
+  fields[2].value = '18';
+  updatePickSettings();
+  const observed = await message;
+  fields.forEach((field, index) => { field.value = original[index]; });
+  updatePickSettings();
+  return {
+    type: observed.type,
+    settings: observed.settings,
+    minVersion: observed.requiredExtensionVersion
+  };
+});
+assert.equal(websiteSettingsSync.type, 'SETTINGS_UPDATE');
+assert.deepEqual(websiteSettingsSync.settings, {teams:12, rounds:18, draftSlot:11, totalPicks:216});
+assert.equal(websiteSettingsSync.minVersion, '0.8.7');
+
 const jeffersonTurnFixture = await page.evaluate(() => {
   const original = {teams:LEAGUE_SIZE, slot:MY_DRAFT_SLOT, rounds:TOTAL_ROUNDS};
   const picks = [

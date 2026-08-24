@@ -7891,6 +7891,7 @@ function updatePickSettings() {
   renderAutoDraftTeamToggles();
   triggerAllBoardUpdates({deferIntelligence: true});
   scheduleSave();
+  publishEspnSyncSettingsUpdate();
 }
 
 function jumpTo(id){
@@ -8140,9 +8141,10 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.8.6';
+var ESPN_COMPANION_MIN_VERSION = '0.8.7';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
+var espnSettingsEditedAt = 0;
 var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0, marketAdpCount: 0};
 window.latestEspnSyncMeta = latestEspnSyncMeta;
 
@@ -8239,6 +8241,17 @@ function getEspnSyncSettings() {
   };
 }
 
+function publishEspnSyncSettingsUpdate() {
+  var targetOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
+  espnSettingsEditedAt = Date.now();
+  window.postMessage({
+    channel: ESPN_SYNC_CHANNEL,
+    type: 'SETTINGS_UPDATE',
+    settings: getEspnSyncSettings(),
+    requiredExtensionVersion: ESPN_COMPANION_MIN_VERSION
+  }, targetOrigin);
+}
+
 var autoDraftTeamSlots = [];
 
 function sanitizeAutoDraftTeamSlots(values) {
@@ -8276,6 +8289,11 @@ window.toggleAutoDraftTeam = toggleAutoDraftTeam;
 
 function applyEspnSyncSettings(config) {
   config = config || {};
+  // A snapshot already in flight can arrive just after the user edits the page.
+  // Hold the local values briefly while the companion persists and rebroadcasts them.
+  if (espnSettingsEditedAt && Date.now() - espnSettingsEditedAt < 1500) {
+    return getEspnSyncSettings();
+  }
   var teams = Math.max(2, Math.min(20, Number(config.teams) || LEAGUE_SIZE));
   var rounds = Math.max(1, Math.min(30, Number(config.rounds) || TOTAL_ROUNDS));
   var draftSlot = Math.max(1, Math.min(teams, Number(config.draftSlot) || MY_DRAFT_SLOT));

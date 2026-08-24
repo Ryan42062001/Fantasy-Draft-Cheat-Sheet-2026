@@ -42,6 +42,14 @@
         url: location.href
       });
     }
+    if (event.data.type === 'SETTINGS_UPDATE') {
+      sendRuntime({
+        type: 'WAR_ROOM_SETTINGS_UPDATE',
+        config: event.data.settings,
+        requiredExtensionVersion: event.data.requiredExtensionVersion,
+        url: location.href
+      });
+    }
   });
 
   postToWarRoom({

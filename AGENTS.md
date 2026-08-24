@@ -346,9 +346,17 @@ Current verification (2026-08-22):
 - Expanded recommendations explain ESPN rank, ESPN ADP, fallback source, active weights, estimated market pick, and next-turn distance; the header reports Board/ADP market coverage
 - Opponent position demand uses exact ESPN team-slot ownership when supplied, and Mock Audit records ESPN market inputs plus predicted-vs-observed survival by draft phase without auto-tuning
 - Draft Settings provides session-persisted, user-controlled Team Auto toggles; no team is marked automatically, and only selected upcoming Auto picks increase ESPN-board weighting toward 90%
+- Companion 0.8.7 makes draft settings explicitly editable from either The War Room or the extension popup, with two-way persistence and stale-snapshot protection
 - The ESPN board generator stores a SHA-256 source version and reports the largest rank changes when a replacement PDF is processed
 - Recommendation priority protects an already-overdue top-12 ECR value from being jumped by a materially later player sharing the same urgent market signal; the pick-14 Justin Jefferson fixture is covered by browser regression
 - Final waiver watch is roster-aware and position-balanced, suppressing quarterback clutter when the roster already has a top-36 ECR QB
+
+## Professional interface refresh
+- [x] Replace the field-green presentation with a steel, charcoal, and gold command-center visual system
+- [x] Add a restrained Steelers identity accent without replacing The War Room branding
+- [x] Widen and refine desktop cards, toolbars, controls, tables, states, and focus treatments
+- [x] Rewrite the public README as a concise user and contributor guide
+- [x] Restore two-way draft-setting edits between the website and ESPN companion
 
 ## Post-mock strategy polish
 - [x] Warn at three players sharing a bye, modestly penalize a fourth, and strongly caution against a fifth within the existing strategy budget

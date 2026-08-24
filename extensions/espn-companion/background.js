@@ -610,6 +610,14 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       return storageSave();
     }
 
+    if (message.type === 'WAR_ROOM_SETTINGS_UPDATE') {
+      state.warRoom.connected = true;
+      state.warRoom.lastSeenAt = new Date().toISOString();
+      state.warRoom.requiredExtensionVersion = message.requiredExtensionVersion ||
+        state.warRoom.requiredExtensionVersion || null;
+      return syncConfigAndReconcile(message.config, sendResponse);
+    }
+
     if (message.type === 'GET_STATUS') {
       sendResponse(statusSnapshot());
       return null;

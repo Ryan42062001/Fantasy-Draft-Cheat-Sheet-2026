@@ -2189,6 +2189,421 @@ details[open] .details-label-less {
   display: inline;
 }
 
+/* =========================================================
+   2026 PROFESSIONAL REMODEL — STEEL CITY COMMAND CENTER
+   ========================================================= */
+
+:root {
+  --field-green: #1b1d20;
+  --field-dark: #111214;
+  --chalk: #f4f2ec;
+  --hash: #35393f;
+  --gem: #ffb612;
+  --value: #69aee7;
+  --pup: #d05b55;
+  --sos-e: #62b785;
+  --sos-h: #d05b55;
+  --steel-0: #0c0d0f;
+  --steel-1: #111317;
+  --steel-2: #181b20;
+  --steel-3: #22262c;
+  --steel-4: #353a42;
+  --steel-muted: #969ca5;
+  --gold-soft: #ffd66b;
+  --card-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+}
+
+html,
+html body {
+  background: var(--steel-0) !important;
+}
+
+body {
+  position: relative;
+  font-family: Inter, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 50% -20%, rgba(255, 182, 18, 0.09), transparent 34rem),
+    linear-gradient(180deg, #121418 0, #0c0d0f 42rem) !important;
+  color: var(--chalk) !important;
+  letter-spacing: -0.006em;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, #000, transparent 80%);
+  content: "";
+}
+
+header {
+  min-height: 74px;
+  background:
+    linear-gradient(90deg, rgba(255,182,18,.075), transparent 27%),
+    rgba(14, 16, 19, .97);
+  border-bottom: 1px solid rgba(255, 182, 18, .42);
+  box-shadow: 0 10px 35px rgba(0,0,0,.28);
+  backdrop-filter: blur(18px);
+}
+
+.header-inner {
+  width: min(1180px, 100%);
+}
+
+.brand-mark {
+  width: 43px;
+  height: 43px;
+  border: 1px solid rgba(255, 182, 18, .62);
+  border-radius: 9px;
+  background: linear-gradient(145deg, #27231a, #111317);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 10px 28px rgba(0,0,0,.3);
+  color: var(--gold-soft);
+  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-size: .83rem;
+  font-weight: 950;
+  letter-spacing: -.06em;
+}
+
+.brand-kicker {
+  color: var(--gold-soft);
+  font-size: .52rem;
+  letter-spacing: .19em;
+}
+
+header h1 {
+  color: #fff;
+  font-size: 1.55rem;
+  letter-spacing: -.025em;
+  text-shadow: none;
+}
+
+.header-meta {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas: "team copy" "team badges";
+  align-items: center;
+  gap: 1px 12px;
+}
+
+.header-meta > p {
+  grid-area: copy;
+  color: var(--steel-muted);
+  font-size: .63rem;
+}
+
+.header-badges { grid-area: badges; }
+
+.steelers-accent {
+  grid-area: team;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-right: 12px;
+  border-right: 1px solid var(--steel-4);
+  color: #b3b7bd;
+  font-size: .48rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: .13em;
+  text-align: left;
+}
+
+.steelers-accent img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 10px rgba(0,0,0,.28));
+}
+
+.steelers-accent b { color: var(--gold-soft); }
+
+.data-freshness,
+.espn-sync-status {
+  margin-top: 3px;
+  border-color: #394047;
+  background: rgba(255,255,255,.035);
+  color: #bac0c7;
+}
+
+.toolbar,
+.statusbar,
+.nav {
+  border-color: #2b2f35;
+  background: rgba(17, 19, 23, .97);
+  backdrop-filter: blur(16px);
+}
+
+.toolbar {
+  justify-content: center;
+  padding: 7px max(10px, calc((100vw - 1180px) / 2));
+}
+
+.toolbar input[type=text],
+.dynamic-search-wrapper {
+  border-color: #3b4048 !important;
+  background: #1b1e23 !important;
+}
+
+.filterbtn,
+.resetbtn,
+.nav button,
+.mark-mode-btn {
+  border: 1px solid #3b4048;
+  border-radius: 7px;
+  background: #1b1e23;
+  color: #d8dadd;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  transition: border-color .15s ease, background .15s ease, color .15s ease, transform .15s ease;
+}
+
+.filterbtn:hover:not(.active),
+.resetbtn:hover,
+.nav button:hover,
+.mark-mode-btn:hover {
+  border-color: #626974;
+  background: #252930;
+  transform: translateY(-1px);
+}
+
+.filterbtn.active,
+.mark-mode-btn.active {
+  border-color: rgba(255,182,18,.8);
+  background: rgba(255,182,18,.14);
+  color: #ffe09a;
+  box-shadow: none;
+}
+
+.myteam-toggle {
+  border-radius: 7px;
+  background: var(--gem);
+  color: #16120a;
+  box-shadow: 0 7px 18px rgba(255,182,18,.15);
+}
+
+.statusbar {
+  justify-content: center;
+  gap: 9px 14px;
+  padding: 7px max(12px, calc((100vw - 1180px) / 2));
+  color: #aeb3ba;
+}
+
+.draft-session-control select {
+  border-color: #3d4249;
+  border-radius: 6px;
+  background: #171a1e;
+  color: #f2f2f2;
+}
+
+#editRanksBtn {
+  border-color: rgba(255,182,18,.5);
+  background: rgba(255,182,18,.09);
+  color: #f4d788;
+}
+
+.fantasypros-order-btn {
+  border-color: rgba(105,174,231,.45);
+  background: rgba(105,174,231,.08);
+  color: #a8d3f6;
+}
+
+.nav {
+  justify-content: center;
+  padding: 7px max(10px, calc((100vw - 1180px) / 2));
+}
+
+.nav button {
+  padding: 5px 13px;
+  border-color: #30343a;
+  background: transparent;
+  color: #9fa5ad;
+  font-size: .65rem;
+  letter-spacing: .055em;
+}
+
+main {
+  max-width: 1180px;
+  padding: 18px 14px 80px;
+  background: transparent;
+}
+
+.widget-box {
+  border: 1px solid #32363d;
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(30,33,38,.97), rgba(21,23,27,.97));
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.widget-box:hover {
+  border-color: #41464e;
+  background: linear-gradient(145deg, rgba(32,35,40,.98), rgba(22,24,28,.98));
+}
+
+.widget-title,
+.board-pressure-summary b {
+  color: #f2f1ed;
+  font-size: .74rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.widget-index {
+  display: inline-grid;
+  width: 21px;
+  height: 18px;
+  place-items: center;
+  margin-right: 6px;
+  border: 1px solid rgba(255,182,18,.4);
+  border-radius: 4px;
+  color: var(--gold-soft);
+  font-size: .52rem;
+  letter-spacing: 0;
+}
+
+#pick-counter-box {
+  border-color: rgba(255,182,18,.45);
+  background:
+    linear-gradient(90deg, rgba(255,182,18,.06), transparent 28%),
+    linear-gradient(145deg, #202329, #17191d);
+}
+
+.draft-settings-summary { color: #b3b8bf; }
+
+.pc-inputs label {
+  align-items: flex-start;
+  color: #8e949c;
+  font-size: .59rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.pc-inputs input {
+  width: 64px;
+  min-height: 34px;
+  border: 1px solid #4a5058;
+  border-radius: 7px;
+  background: #101216;
+  color: #fff;
+  font-size: .82rem;
+  font-weight: 750;
+  pointer-events: auto;
+}
+
+.pc-inputs input:focus {
+  border-color: var(--gem);
+  outline: 3px solid rgba(255,182,18,.12);
+}
+
+.auto-draft-settings {
+  max-width: 650px;
+  margin: 10px auto 0;
+  border-color: #383d44;
+  background: rgba(0,0,0,.12);
+}
+
+.auto-draft-settings legend { color: #c6c9cd; }
+.auto-draft-settings p { color: #858b93; }
+.auto-draft-team-toggle { border-color: #41464d; background: #181b20; color: #adb1b7; }
+.auto-draft-team-toggle[aria-pressed="true"] { border-color: var(--gem); background: rgba(255,182,18,.13); color: #ffe09a; }
+
+#recommended-pick-box,
+#board-pressure-widget {
+  border-color: #343941;
+  background: linear-gradient(145deg, rgba(29,32,37,.98), rgba(19,21,25,.98));
+}
+
+.recommendation-card {
+  border-color: #3a3f46;
+  border-radius: 9px;
+  background: rgba(9,10,12,.32);
+}
+
+.recommendation-action {
+  border-color: rgba(98,183,133,.5);
+  background: rgba(98,183,133,.1);
+}
+
+.recommendation-player b { color: #fff; }
+.recommendation-player small,
+.recommendation-one-line,
+.board-pressure-summary small { color: #9298a0; }
+
+.board-pressure-details { padding: 14px; }
+
+.table-wrap {
+  border: 1px solid #30343a;
+  border-radius: 12px;
+  background: #121417;
+  box-shadow: var(--card-shadow);
+}
+
+table { border-collapse: separate; border-spacing: 0; }
+
+thead th {
+  background: #23272c;
+  color: #c9cbd0;
+  border-bottom-color: #4a4f57;
+  font-size: .6rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+tr.draftrow {
+  background: #16191d;
+}
+
+tr.draftrow:nth-child(even) { background: #191c21; }
+tr.draftrow:hover { background: #22262c; }
+tr.draftrow td { border-bottom-color: #292d33; }
+
+.tier-header td,
+tr.tier-title-row td {
+  background: linear-gradient(90deg, #24282e, #191c20) !important;
+}
+
+#myteam-panel {
+  border-left: 1px solid #3e434a;
+  background: rgba(17,19,23,.98);
+  box-shadow: -24px 0 70px rgba(0,0,0,.42);
+  backdrop-filter: blur(20px);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--gem);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .header-inner { gap: 10px; }
+  .steelers-accent span,
+  .header-meta > p { display: none; }
+  .steelers-accent { padding-right: 0; border-right: 0; }
+  .steelers-accent img { width: 29px; height: 29px; }
+  .header-meta { display: flex; gap: 6px; }
+  .toolbar,
+  .statusbar,
+  .nav { justify-content: flex-start; }
+  main { padding: 12px 8px 70px; }
+  .widget-box { border-radius: 10px; }
+  .draft-settings-details[open] .pc-inputs { display: flex; }
+  .pc-inputs { gap: 8px; }
+  .pc-inputs input { width: 62px; }
+}
+
+@media (max-width: 420px) {
+  header h1 { font-size: 1.3rem; }
+  .brand-mark { width: 38px; height: 38px; }
+  .steelers-accent img { width: 26px; height: 26px; }
+}
+
 
 /* Desktop keeps the normal full controls visible. */
 @media (min-width: 769px) {
@@ -2349,4 +2764,40 @@ details[open] .details-label-less {
     color: #8faa92;
   }
 
+}
+
+/* Final remodel layout refinements intentionally follow legacy responsive rules. */
+@media (min-width: 769px) {
+  #pick-counter-box {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr);
+    align-items: center;
+    min-height: 132px;
+    padding: 14px 18px;
+  }
+
+  #pick-counter-box > .widget-title {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    margin: 0;
+    padding-left: 10px;
+    text-align: left;
+  }
+
+  #pick-counter-box > .draft-settings-details,
+  #pick-counter-box > #pick-counter-text {
+    grid-column: 2;
+  }
+
+  #pick-counter-box > #pick-counter-text { margin-top: 5px; }
+}
+
+@media (max-width: 1100px) and (min-width: 769px) {
+  .header-meta > p { display: none; }
+  .header-meta {
+    display: flex;
+    max-width: 62%;
+  }
+  .steelers-accent span { display: none; }
+  .header-badges { flex-wrap: wrap; }
 }
