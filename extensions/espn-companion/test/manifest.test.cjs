@@ -9,6 +9,17 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
+  assert.equal(manifest.version, '0.8.2');
+});
+
+test('popup exposes version and copyable connection diagnostics', () => {
+  const html = fs.readFileSync(path.join(root, 'popup.html'), 'utf8');
+  const script = fs.readFileSync(path.join(root, 'popup.js'), 'utf8');
+  assert.match(html, /id="extension-version"/);
+  assert.match(html, /id="version-warning"/);
+  assert.match(html, /id="copy-diagnostics"/);
+  assert.match(script, /Captured\/applied\/unmatched/);
+  assert.match(script, /API available\/complete/);
 });
 
 test('requests only storage and host-restricted reinjection permission', () => {

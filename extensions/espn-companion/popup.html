@@ -9,7 +9,7 @@
 <body>
   <header>
     <span aria-hidden="true">&#127944;</span>
-    <div><small>THE WAR ROOM</small><h1>ESPN Companion</h1></div>
+    <div><small>THE WAR ROOM</small><h1>ESPN Companion</h1><span id="extension-version" class="version-label">Version…</span></div>
   </header>
 
   <main>
@@ -28,6 +28,8 @@
     <section class="direct-diagnostics" aria-live="polite">
       <h2>ESPN data connection</h2>
       <p id="direct-status">Checking the structured ESPN feed…</p>
+      <p id="version-warning" class="version-warning" hidden></p>
+      <button id="copy-diagnostics" class="copy-diagnostics">Copy diagnostics</button>
     </section>
 
     <section>

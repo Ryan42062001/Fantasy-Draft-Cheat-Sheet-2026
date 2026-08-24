@@ -1,6 +1,16 @@
 'use strict';
 
 var settingsDirty = false;
+var latestStatus = null;
+
+function compareVersions(left, right) {
+  var a = String(left || '').split('.').map(function(part) { return parseInt(part, 10) || 0; });
+  var b = String(right || '').split('.').map(function(part) { return parseInt(part, 10) || 0; });
+  for (var i = 0; i < Math.max(a.length, b.length); i++) {
+    if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) < (b[i] || 0) ? -1 : 1;
+  }
+  return 0;
+}
 
 function send(message) {
   return chrome.runtime.sendMessage(message).catch(function(error) {
@@ -14,10 +24,20 @@ function setOnline(id, online) {
 
 function render(status) {
   status = status || {};
+  latestStatus = status;
   var config = status.config || {};
   var espn = status.espn || {};
   var warRoom = status.warRoom || {};
   var picks = Array.isArray(status.picks) ? status.picks : [];
+  var extensionVersion = status.extensionVersion || chrome.runtime.getManifest().version;
+  var requiredVersion = warRoom.requiredExtensionVersion || null;
+  document.getElementById('extension-version').textContent = 'Installed v' + extensionVersion;
+  var versionWarning = document.getElementById('version-warning');
+  var outdated = requiredVersion && compareVersions(extensionVersion, requiredVersion) < 0;
+  versionWarning.hidden = !outdated;
+  versionWarning.textContent = outdated
+    ? 'Update required: The War Room expects v' + requiredVersion + ' or newer. Reload the unpacked extension.'
+    : '';
 
   setOnline('espn-dot', espn.connected && espn.draftPage);
   setOnline('war-room-dot', warRoom.connected);
@@ -63,6 +83,7 @@ function render(status) {
 
   var message = document.getElementById('message');
   if (status.error) message.textContent = status.error;
+  else if (outdated) message.textContent = 'This extension is older than the open War Room. Reload it on chrome://extensions before drafting.';
   else if (warRoom.deliveryError) message.textContent = warRoom.deliveryError;
   else if (!espn.connected || !warRoom.connected) {
     message.textContent = 'Open both the ESPN draft room and The War Room, then press Rescan ESPN.';
@@ -89,6 +110,30 @@ function render(status) {
         ? 'Hybrid sync active. ESPN supplies pick ownership and numbering; the visible table fills unresolved names.'
       : 'Screen fallback active. Open ESPN’s Board tab once if any completed picks are missing.';
   }
+}
+
+function buildDiagnostics(status) {
+  status = status || {};
+  var espn = status.espn || {};
+  var warRoom = status.warRoom || {};
+  var picks = Array.isArray(status.picks) ? status.picks : [];
+  return [
+    'The War Room ESPN Companion diagnostics',
+    'Generated: ' + new Date().toISOString(),
+    'Extension: ' + (status.extensionVersion || chrome.runtime.getManifest().version),
+    'War Room requires: ' + (warRoom.requiredExtensionVersion || 'not reported'),
+    'Connection method: ' + (espn.method || 'none'),
+    'ESPN connected/draft page: ' + Boolean(espn.connected) + '/' + Boolean(espn.draftPage),
+    'War Room connected: ' + Boolean(warRoom.connected),
+    'Captured/applied/unmatched: ' + picks.length + '/' + (Number(warRoom.applied) || 0) + '/' + (Number(warRoom.unmatched) || 0),
+    'Draft complete: ' + Boolean(espn.draftComplete),
+    'Current/expected completed: ' + (espn.currentPick || 'unknown') + '/' + (Number(espn.expectedCompleted) || 0),
+    'API available/complete: ' + Boolean(espn.apiAvailable) + '/' + Boolean(espn.apiComplete),
+    'API HTTP/transport/role: ' + (espn.apiHttpStatus || 'none') + '/' + (espn.apiTransport || 'none') + '/' + (espn.apiRole || 'none'),
+    'API resolved/raw/unresolved: ' + (Number(espn.apiResolved) || 0) + '/' + (Number(espn.apiRawCount) || 0) + '/' + (Number(espn.apiUnresolved) || 0),
+    'API error: ' + (espn.apiError || 'none'),
+    'Delivery error: ' + (warRoom.deliveryError || 'none')
+  ].join('\n');
 }
 
 function refresh() {
@@ -136,6 +181,17 @@ document.getElementById('reset').addEventListener('click', function(event) {
   button.dataset.armed = '0';
   button.textContent = 'Clear captured picks';
   send({type: 'RESET_PICKS'}).then(render);
+});
+
+document.getElementById('copy-diagnostics').addEventListener('click', function(event) {
+  var button = event.currentTarget;
+  navigator.clipboard.writeText(buildDiagnostics(latestStatus)).then(function() {
+    button.textContent = 'Diagnostics copied';
+    setTimeout(function() { button.textContent = 'Copy diagnostics'; }, 1800);
+  }).catch(function() {
+    button.textContent = 'Copy failed';
+    setTimeout(function() { button.textContent = 'Copy diagnostics'; }, 1800);
+  });
 });
 
 document.getElementById('open-tab').addEventListener('click', function() {

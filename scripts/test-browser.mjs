@@ -165,6 +165,10 @@ const completedCounter = await page.evaluate(() => {
 });
 assert.match(completedCounter, /Draft complete/);
 assert.match(completedCounter, /160 picks/);
+const auditPortfolio = await page.evaluate(() => getRecommendationAuditPortfolioSummary());
+assert.equal(typeof auditPortfolio.reviewReady, 'boolean');
+assert.equal(typeof auditPortfolio.strongReviewSample, 'boolean');
+assert.equal(auditPortfolio.reviewReady, false);
 
 await page.getByRole('button', {name:/My Draft/}).click();
 assert.equal(await page.locator('#myteam-panel').getAttribute('aria-hidden'), 'false');
