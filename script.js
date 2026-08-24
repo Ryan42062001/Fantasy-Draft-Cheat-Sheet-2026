@@ -9424,6 +9424,12 @@ function updateFantasyProsRowDataAttributes(
       : ''
   );
 
+  var espnBoardPlayer = getEspnBoardPlayer(player.name, player.pos, player.team);
+  row.setAttribute(
+    'data-espn-rank',
+    espnBoardPlayer ? String(espnBoardPlayer.rank) : ''
+  );
+
   row.setAttribute(
     'data-fantasypros-tier',
     player.fantasyProsTier != null
@@ -9460,6 +9466,32 @@ function updateFantasyProsRowDataAttributes(
     player.pos === 'K' || player.pos === 'DST'
   );
 
+}
+
+var espnBoardByCanonicalName = null;
+var espnBoardByPositionTeam = null;
+
+function canonicalEspnBoardName(name) {
+  return canonicalExpertPlayerName(name).replace(/\s+(?:jr|sr|ii|iii|iv)$/i, '');
+}
+
+function getEspnBoardPlayer(name, position, team) {
+  if (!espnBoardByCanonicalName) {
+    espnBoardByCanonicalName = {};
+    espnBoardByPositionTeam = {};
+    var board = window.ESPN_2026_PPR_BOARD;
+    (board && Array.isArray(board.players) ? board.players : []).forEach(function(player) {
+      espnBoardByCanonicalName[canonicalEspnBoardName(player.name)] = player;
+      var positionTeamKey = String(player.position || '') + '|' + String(player.team || '');
+      if (!espnBoardByPositionTeam[positionTeamKey]) espnBoardByPositionTeam[positionTeamKey] = [];
+      espnBoardByPositionTeam[positionTeamKey].push(player);
+    });
+  }
+  var named = espnBoardByCanonicalName[canonicalEspnBoardName(name)];
+  if (named) return named;
+  if (String(position || '') !== 'DST') return null;
+  var matches = espnBoardByPositionTeam[String(position || '') + '|' + String(team || '')] || [];
+  return matches.length === 1 ? matches[0] : null;
 }
 
 
@@ -13314,6 +13346,7 @@ var adp = getDraftRowNumber(row, 'data-adp');
 var adpRank = getDraftRowNumber(row, 'data-adp-rank');
 var realTimeAdp = getDraftRowNumber(row, 'data-realtime-adp');
 var espnAdp = getDraftRowNumber(row, 'data-espn-adp');
+var espnRank = getDraftRowNumber(row, 'data-espn-rank');
 var rank = ecr != null ? ecr : boardRank;
 
     /*
@@ -13338,6 +13371,7 @@ var rank = ecr != null ? ecr : boardRank;
       adpRank: adpRank,
       realTimeAdp: realTimeAdp,
       espnAdp: espnAdp,
+      espnRank: espnRank,
       bye: String(row.getAttribute('data-bye') || '').trim(),
       fantasyProsTier: getDraftRowNumber(row, 'data-fantasypros-tier'),
       semanticTier: row.getAttribute('data-semantic-tier') ||
@@ -15523,7 +15557,17 @@ function calculatePositionScarcity(
  * "There are still plenty of comparable QBs/TEs,
  * so don't draft one early."
  */
-function getFantasyProsMarketRank(player) {
+function getFantasyProsMarketRank(player, context) {
+  var espnRank = Number(player && player.espnRank);
+  var espnAdp = Number(player && player.espnAdp);
+  if (Number.isFinite(espnRank) && espnRank > 0) {
+    if (Number.isFinite(espnAdp) && espnAdp > 0) {
+      var currentPick = Number(context && context.currentPick) || 1;
+      var boardWeight = currentPick <= 36 ? 0.75 : currentPick <= 96 ? 0.65 : 0.5;
+      return espnRank * boardWeight + espnAdp * (1 - boardWeight);
+    }
+    return espnRank;
+  }
   var candidates = [
     player && player.espnAdp,
     player && player.adp,
@@ -15559,7 +15603,7 @@ function calculateLateAvailability(
    */
 
   var playerRank =
-    getFantasyProsMarketRank(player);
+    getFantasyProsMarketRank(player, context);
 
   /* Missing ADP is unknown timing, not permission to substitute ECR. */
   if (!Number.isFinite(playerRank)) {
@@ -15624,7 +15668,7 @@ function calculateLateAvailability(
       return p &&
         p.available &&
         p.position === player.position &&
-        Number.isFinite(getFantasyProsMarketRank(p));
+        Number.isFinite(getFantasyProsMarketRank(p, context));
 
     });
 
@@ -15633,7 +15677,7 @@ function calculateLateAvailability(
     samePosition.filter(function(p) {
 
       return (
-        getFantasyProsMarketRank(p) < playerRank
+        getFantasyProsMarketRank(p, context) < playerRank
       );
 
     }).length;
@@ -15652,7 +15696,7 @@ function calculateLateAvailability(
   samePosition.filter(function(p) {
 
     var rank =
-      getFantasyProsMarketRank(p);
+      getFantasyProsMarketRank(p, context);
 
     return (
       p !== player &&
@@ -19640,7 +19684,7 @@ if (picksBetween <= 0) {
 }
 
 var rank =
-  getFantasyProsMarketRank(candidate);
+  getFantasyProsMarketRank(candidate, context);
 
 /* No ESPN or FantasyPros ADP means market survival is unknown. */
 if (!Number.isFinite(rank)) {
@@ -20370,6 +20414,16 @@ if (
 }
 
 alignRecommendationActionWithMarketTiming(decision, player, backToBackTurn);
+
+if (
+  decision &&
+  decision.recommendation === 'DRAFT' &&
+  scoreGap < 0 &&
+  !backToBackTurn
+) {
+  decision.recommendation = 'CONSIDER';
+  decision.summary = 'Board pressure is high, but a stronger available option still leads the recommendation.';
+}
 
 
 /*
