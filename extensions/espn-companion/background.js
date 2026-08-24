@@ -309,6 +309,10 @@ function activateDraft(url) {
     state.espn.apiError = null;
     state.espn.unresolvedPickNumbers = [];
     state.espn.unresolvedPickMetadata = {};
+    state.warRoom.applied = 0;
+    state.warRoom.unmatched = 0;
+    state.warRoom.acknowledgedCaptured = 0;
+    state.warRoom.lastRetryCaptured = null;
   }
   return changed;
 }
@@ -630,10 +634,16 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     if (message.type === 'WAR_ROOM_ACK') {
       var result = message.result || {};
+      var acknowledgedCaptured = Number(result.captured) || 0;
+      var previousAcknowledged = Number(state.warRoom.acknowledgedCaptured) || 0;
+      var ledgerCaptured = getPicks().length;
       state.warRoom.connected = true;
-      state.warRoom.applied = Number(result.applied) || 0;
-      state.warRoom.unmatched = Array.isArray(result.unmatched) ? result.unmatched.length : 0;
       state.warRoom.lastSeenAt = new Date().toISOString();
+      if (acknowledgedCaptured >= previousAcknowledged) {
+        state.warRoom.acknowledgedCaptured = acknowledgedCaptured;
+        state.warRoom.applied = Number(result.applied) || 0;
+        state.warRoom.unmatched = Array.isArray(result.unmatched) ? result.unmatched.length : 0;
+      }
       state.warRoom.requiredExtensionVersion = message.requiredExtensionVersion ||
         state.warRoom.requiredExtensionVersion || null;
       // The popup's saved settings are authoritative. A passive page ACK can
@@ -643,7 +653,13 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.warRoom.reportedSettings = message.settings
         ? Object.assign({}, message.settings)
         : null;
-      return storageSave();
+      var effectiveAcknowledged = Math.max(previousAcknowledged, acknowledgedCaptured);
+      var shouldRetry = effectiveAcknowledged < ledgerCaptured &&
+        Number(state.warRoom.lastRetryCaptured) !== ledgerCaptured;
+      if (shouldRetry) state.warRoom.lastRetryCaptured = ledgerCaptured;
+      return storageSave().then(function() {
+        return shouldRetry ? broadcastWarRoom(true) : null;
+      });
     }
 
     if (message.type === 'WAR_ROOM_SETTINGS_UPDATE') {

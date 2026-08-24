@@ -6,7 +6,7 @@ ESPN's mock clock is 30 seconds. Make the user-slot pick before it expires. A ti
 
 ## Direct-mode full mock
 
-1. Reload extension version 0.8.10 and refresh ESPN plus The War Room.
+1. Reload extension version 0.8.11 and refresh ESPN plus The War Room.
 2. Start a mock with the same teams, slot, and rounds configured in the popup.
 3. Confirm the popup says `Draft detected · Direct` after the first completed pick.
 4. At picks 1, 10, the first turn, midpoint, your final pick, and draft end, record copied diagnostics.
@@ -21,6 +21,15 @@ ESPN's mock clock is 30 seconds. Make the user-slot pick before it expires. A ti
 4. Rescan at the same checkpoints used above and save copied diagnostics.
 5. Confirm numbered picks remain sequential, Taken/Mine ownership follows snake position, and Captured/Applied remain equal with zero unmatched names.
 6. Confirm the terminal Board slot produces `Draft complete` and the War Room final report.
+
+## Live-person public mock comparison
+
+1. Join a disposable public snake PPR mock that contains at least one other live manager; do not use a real league draft.
+2. Keep Companion 0.8.11, ESPN, and The War Room open with matching teams, slot, and rounds.
+3. Copy diagnostics before pick one, after the first completed pick, near pick 10, and after the draft. Make each user pick before ESPN's 30-second timeout.
+4. Record whether `Connection method` remains `api`, becomes `hybrid`, or falls back to `dom`, plus API resolved/raw/unresolved and HTTP/transport.
+5. Confirm the acknowledged snapshot size catches up to Captured. A smaller late acknowledgment must never lower Applied, and one forced resend should close a trailing acknowledgment.
+6. Compare these results with the all-Auto practice behavior without assuming that public and league-specific ESPN feeds use the same backend timing.
 
 ## Pass record
 

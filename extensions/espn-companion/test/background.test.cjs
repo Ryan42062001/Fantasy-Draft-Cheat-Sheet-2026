@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.8.10'}),
+      getManifest: () => ({version: '0.8.11'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -337,6 +337,47 @@ test('a passive War Room acknowledgment cannot clear captured picks or overwrite
   assert.equal(context.getPicks().length, 1);
   assert.equal(context.state.warRoom.reportedSettings.teams, 10);
   assert.equal(context.state.warRoom.requiredExtensionVersion, '0.8.2');
+});
+
+test('late acknowledgments cannot lower applied progress and a trailing snapshot is resent once', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.config = {teams: 12, draftSlot: 5, rounds: 16};
+  context.state.ledgerTeams = 12;
+  for (let pick = 1; pick <= 192; pick++) {
+    context.state.picksByNumber[String(pick)] = {
+      overallPick: pick, playerName: 'Player ' + pick, position: 'WR', method: 'dom'
+    };
+  }
+  let deliveries = 0;
+  context.chrome.tabs.query = async query => Array.from(query.url).some(url => url.includes('github.io'))
+    ? [{id: 44}]
+    : [];
+  context.chrome.tabs.sendMessage = async () => { deliveries++; };
+  const listener = context.listeners.message[0];
+
+  listener({type: 'WAR_ROOM_ACK', result: {captured: 192, applied: 192, unmatched: []}}, {tab: {id: 44}}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(context.state.warRoom.applied, 192);
+  assert.equal(context.state.warRoom.acknowledgedCaptured, 192);
+
+  listener({type: 'WAR_ROOM_ACK', result: {captured: 133, applied: 133, unmatched: []}}, {tab: {id: 44}}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(context.state.warRoom.applied, 192);
+  assert.equal(context.state.warRoom.acknowledgedCaptured, 192);
+  assert.equal(deliveries, 0);
+
+  context.state.warRoom.applied = 133;
+  context.state.warRoom.acknowledgedCaptured = 133;
+  listener({type: 'WAR_ROOM_ACK', result: {captured: 133, applied: 133, unmatched: []}}, {tab: {id: 44}}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(deliveries, 1);
+  assert.equal(context.state.warRoom.lastRetryCaptured, 192);
+
+  listener({type: 'WAR_ROOM_ACK', result: {captured: 133, applied: 133, unmatched: []}}, {tab: {id: 44}}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(deliveries, 1);
 });
 
 test('an explicit War Room settings update becomes authoritative and preserves same-size picks', async () => {
