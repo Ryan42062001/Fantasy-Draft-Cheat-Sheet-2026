@@ -371,10 +371,20 @@ Current verification (2026-08-22):
 - [x] Distinguish a completed ESPN draft from fully synchronized numbered-pick coverage
 - [x] Allow a clearly labeled provisional final report when ESPN is complete and the user's full roster is known
 - [x] Add final-report insights for WR foundation, RB workload risk, and bye-week concentration
+- [x] Preserve ESPN rank and ADP on scored recommendation objects instead of dropping them before market-priority sorting
+- [x] Add live-mock regression fixtures for the pick-38 zero-RB decision and pick-86 Chris Godwin market-timing decision
+- [x] Label the board market column explicitly and show ESPN board rank/live ESPN ADP with an honest FantasyPros fallback
+- [x] Exclude final-round K/DST picks from ECR-reach criticism and grade their timing instead
 
 Verification (2026-08-23):
 - Provisional completion, 11-of-192 partial-sync messaging, WR-heavy construction, fifth-player bye penalty, and final-report insight fixtures pass in browser automation
 - Canonical regressions 165/165; calculation sanity 20/20; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 50/50
+
+Live-person mock evidence (2026-08-24):
+- Companion 0.8.11 synchronized a 12-team, 16-round public mock at 192 captured / 192 applied / 0 unmatched, with no missing numbered picks and zero acknowledgment lag
+- ESPN's structured mock feed remained empty after the draft began, so the companion correctly completed the mock through the visible draft-room fallback
+- Exact pick-38 reconstruction (Jefferson / London / Allen roster) now recommends Kyren Williams over a third WR; FantasyPros ECR remains the base value authority
+- Pick-86 reconstruction retains Chris Godwin Jr. as ECR value but uses ESPN board rank #127 for timing, producing high next-turn survival and prioritizing the open RB starter instead
 
 ## User roster recommendation preferences
 - [x] Hard-cap the recommendation pool at one QB
