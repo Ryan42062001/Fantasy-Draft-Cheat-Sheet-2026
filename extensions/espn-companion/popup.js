@@ -129,6 +129,9 @@ function buildDiagnostics(status) {
       ': picks ' + (Number(frame.picks) || 0) + ', candidates ' + (Number(frame.candidates) || 0) +
       ', rejected ' + (Number(frame.rejected) || 0) + ', current ' + (Number(frame.currentPick) || 0);
   }).join(' | ');
+  var parseFailures = Object.keys(espn.screenFrames || {}).reduce(function(samples, key) {
+    return samples.concat((espn.screenFrames[key] && espn.screenFrames[key].parseFailureSamples) || []);
+  }, []).slice(0, 8);
   return [
     'The War Room ESPN Companion diagnostics',
     'Generated: ' + new Date().toISOString(),
@@ -142,7 +145,8 @@ function buildDiagnostics(status) {
     'Current/expected completed: ' + (espn.currentPick || 'unknown') + '/' + expectedCompleted,
     'Missing numbered picks: ' + (missingNumbers.length ? missingNumbers.slice(0, 80).join(',') + (missingNumbers.length > 80 ? '…' : '') : 'none'),
     'Screen frames: ' + (frameSummary || 'none reported'),
-    'Visible candidates/rejected: ' + (Number(espn.visibleCandidates) || 0) + '/' + (Number(espn.visibleRejected) || 0),
+    'Unique candidates/unresolved-or-duplicate: ' + (Number(espn.visibleCandidates) || 0) + '/' + (Number(espn.visibleRejected) || 0),
+    'Unparseable row samples: ' + (parseFailures.length ? parseFailures.join(' || ') : 'none'),
     'API available/complete: ' + Boolean(espn.apiAvailable) + '/' + Boolean(espn.apiComplete),
     'API HTTP/transport/role: ' + (espn.apiHttpStatus || 'none') + '/' + (espn.apiTransport || 'none') + '/' + (espn.apiRole || 'none'),
     'API resolved/raw/unresolved: ' + (Number(espn.apiResolved) || 0) + '/' + (Number(espn.apiRawCount) || 0) + '/' + (Number(espn.apiUnresolved) || 0),

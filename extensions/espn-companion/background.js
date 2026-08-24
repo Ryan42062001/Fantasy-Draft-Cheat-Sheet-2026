@@ -273,6 +273,9 @@ function recordScreenFrame(sender, message) {
     picks: Math.max(Number(previous.picks) || 0, Number(message.captured) || Number(message.pickCount) || 0),
     candidates: Math.max(Number(previous.candidates) || 0, Number(message.candidates) || 0),
     rejected: Math.max(Number(previous.rejected) || 0, Number(message.rejected) || 0),
+    parseFailureSamples: Array.isArray(message.parseFailureSamples)
+      ? message.parseFailureSamples.slice(0, 8).map(function(value) { return String(value).slice(0, 180); })
+      : previous.parseFailureSamples || [],
     currentPick: Math.max(Number(previous.currentPick) || 0, Number(message.currentPick) || 0),
     urlPath: String(message.url || '').replace(/^https?:\/\/[^/]+/i, '').slice(0, 160),
     lastSeenAt: new Date().toISOString()
@@ -523,6 +526,12 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         Number(state.espn.expectedCompleted) || 0,
         Number(message.expectedCompleted) || 0
       );
+      if (Number(message.expectedCompleted) > 0) {
+        state.espn.currentPick = Math.max(
+          Number(state.espn.currentPick) || 0,
+          Number(message.expectedCompleted) + 1
+        );
+      }
       state.espn.apiBehind = Boolean(message.behind);
       state.espn.apiPickFields = Array.isArray(message.pickFields)
         ? message.pickFields.slice(0, 20).map(String)

@@ -871,15 +871,58 @@ function getFinalDraftAlternative(player) {
 }
 
 function getFinalWaiverWatch(limit) {
-  return getDraftAssistantPlayers()
+  var pool = getDraftAssistantPlayers()
     .filter(function(player) {
       return player && player.available && player.ecr != null &&
         ['QB', 'RB', 'WR', 'TE'].indexOf(player.position) >= 0;
     })
     .sort(function(a, b) {
       return Number(a.ecr) - Number(b.ecr);
-    })
-    .slice(0, limit || 6);
+    });
+  var rosterCounts = {QB:0, RB:0, WR:0, TE:0};
+  var lockedQuarterback = false;
+  getCachedDraftRows().filter(function(row) {
+    return row.classList.contains('drafted-mine');
+  }).forEach(function(row) {
+    var position = String(row.getAttribute('data-pos') || '').toUpperCase();
+    if (rosterCounts[position] != null) rosterCounts[position]++;
+    if (position === 'QB') {
+      var ecr = getDraftRowNumber(row, 'data-ecr');
+      if (ecr != null && ecr <= 36) lockedQuarterback = true;
+    }
+  });
+  var target = Math.max(1, Number(limit) || 6);
+  var quotas = {
+    RB: rosterCounts.RB < 4 ? 3 : 2,
+    WR: rosterCounts.WR < 5 ? 3 : 2,
+    TE: 1,
+    QB: lockedQuarterback ? 0 : 1
+  };
+  var selected = [];
+  ['RB', 'WR', 'TE', 'QB'].forEach(function(position) {
+    pool.filter(function(player) { return player.position === position; })
+      .slice(0, quotas[position])
+      .forEach(function(player) {
+        if (selected.length < target) selected.push(player);
+      });
+  });
+  if (selected.length < target) {
+    pool.forEach(function(player) {
+      if (selected.length >= target || selected.indexOf(player) >= 0) return;
+      if (player.position === 'QB' && lockedQuarterback) return;
+      selected.push(player);
+    });
+  }
+  return selected.sort(function(a, b) { return Number(a.ecr) - Number(b.ecr); }).slice(0, target);
+}
+
+function getWaiverWatchRole(player) {
+  if (!player) return '';
+  if (player.position === 'RB') return 'RB depth';
+  if (player.position === 'WR') return 'WR upside';
+  if (player.position === 'TE') return 'TE contingency';
+  if (player.position === 'QB') return 'Streaming QB';
+  return '';
 }
 
 function buildWaiverWatchHtml(players, compact) {
@@ -893,7 +936,7 @@ function buildWaiverWatchHtml(players, compact) {
       '<div class="waiver-watch-player">' +
         '<span class="pos-pill pos-' + escapeSummaryHtml(player.position) + '">' + escapeSummaryHtml(player.position) + '</span>' +
         '<strong>' + escapeSummaryHtml(name) + '</strong>' +
-        '<small>ECR ' + Number(player.ecr).toFixed(0) + (player.adp != null ? ' · ADP ' + Number(player.adp).toFixed(1) : '') + '</small>' +
+        '<small>' + escapeSummaryHtml(getWaiverWatchRole(player)) + ' · ECR ' + Number(player.ecr).toFixed(0) + (player.adp != null ? ' · ADP ' + Number(player.adp).toFixed(1) : '') + '</small>' +
       '</div>'
     );
   }).join('') + '</div>';
@@ -3976,12 +4019,15 @@ function applyMarketAwareRecommendationPriority(scoredPlayers, context) {
 
   if (bestEcrPlayer && bestEcrSurvival < 35) {
     var bestPriority = Number(bestEcrPlayer.recommendationPriorityScore) || 0;
+    var currentPick = Number(context.currentPick) || 0;
+    var protectionGap = bestEcrRank <= 12 && currentPick - bestEcrRank >= 4 ? 5 : 8;
     scoredPlayers.forEach(function(player) {
       if (!player || player === bestEcrPlayer || !corePositions.includes(player.position)) return;
       var ecrRank = Number(player.ecr || player.rank);
-      if (!Number.isFinite(ecrRank) || ecrRank - bestEcrRank < 8 || player.recommendationSurvival < 35) return;
-      // Positional value may break close ECR ties, but a clearly later ECR
-      // player who is likely to survive cannot jump an urgent top value.
+      if (!Number.isFinite(ecrRank) || ecrRank - bestEcrRank < protectionGap) return;
+      // Positional value may break close ECR ties, but another urgent player
+      // cannot use the same market signal to jump a materially better,
+      // already-overdue ECR value.
       if (player.recommendationPriorityScore >= bestPriority) {
         player.recommendationPriorityScore = bestPriority - 0.01;
         player.marketEcrGuardrail = true;
@@ -8091,7 +8137,7 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.8.4';
+var ESPN_COMPANION_MIN_VERSION = '0.8.5';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
 var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0};

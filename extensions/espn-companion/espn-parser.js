@@ -289,6 +289,8 @@
 
     var byPick = new Map();
     var candidateCount = 0;
+    var candidateTexts = new Set();
+    var parseFailureSamples = [];
     nodes.slice(0, 20000).forEach(function(node) {
       var candidate = node;
       for (var depth = 0; candidate && depth < 4; depth++) {
@@ -309,6 +311,12 @@
         var likelyPick = labeledPick || roundPick || historyNumber;
         if (/\bavailable players?\b|\badd to queue\b|\bplayer rankings?\b/i.test(text)) likelyPick = false;
         if (likelyPick && text.length <= 900) {
+          var candidateSignature = text.toLowerCase().replace(/\s+/g, ' ').trim();
+          if (candidateTexts.has(candidateSignature)) {
+            candidate = candidate.parentElement;
+            continue;
+          }
+          candidateTexts.add(candidateSignature);
           candidateCount++;
           var link = candidate.matches && candidate.matches('a[href]')
             ? candidate
@@ -323,6 +331,9 @@
             byPick.set(parsed.overallPick, parsed);
             break;
           }
+          if (!parsed && parseFailureSamples.length < 8) {
+            parseFailureSamples.push(text.slice(0, 180));
+          }
         }
         candidate = candidate.parentElement;
       }
@@ -332,6 +343,7 @@
       candidateCount: candidateCount,
       rejectedCount: Math.max(0, candidateCount - byPick.size),
       scannedNodeCount: Math.min(nodes.length, 20000),
+      parseFailureSamples: parseFailureSamples,
       picks: Array.from(byPick.values()).sort(function(a, b) {
         return a.overallPick - b.overallPick;
       })

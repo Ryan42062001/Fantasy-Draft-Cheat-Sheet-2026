@@ -229,7 +229,7 @@
   function scanVisibleDraft(force) {
     var scanResult = parser.scanDocumentDetailed
       ? parser.scanDocumentDetailed(document, config)
-      : {picks: parser.scanDocument(document, config), candidateCount: 0, rejectedCount: 0, scannedNodeCount: 0};
+      : {picks: parser.scanDocument(document, config), candidateCount: 0, rejectedCount: 0, scannedNodeCount: 0, parseFailureSamples: []};
     var picks = scanResult.picks;
     var unavailablePlayers = parser.scanDraftedPlayerLabels
       ? parser.scanDraftedPlayerLabels(document)
@@ -245,6 +245,7 @@
         pickCount: picks.length,
         candidates: scanResult.candidateCount,
         rejected: scanResult.rejectedCount,
+        parseFailureSamples: scanResult.parseFailureSamples,
         scannedNodes: scanResult.scannedNodeCount,
         currentPick: shape.currentPick,
         topFrame: topFrame,
@@ -257,6 +258,7 @@
       captured: picks.length,
       candidates: scanResult.candidateCount,
       rejected: scanResult.rejectedCount,
+      parseFailureSamples: scanResult.parseFailureSamples,
       detectedTeams: shape.teams,
       detectedRounds: shape.rounds,
       currentPick: shape.currentPick,

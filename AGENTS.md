@@ -338,7 +338,9 @@ Current verification (2026-08-22):
 - Companion 0.7.2 makes the popup's saved draft settings authoritative during sync and prevents an early War Room acknowledgment from clearing Direct or Board-fallback picks
 - Companion 0.7.3 detects a structured feed lagging behind ESPN's on-clock pick and automatically falls back to the visible PICK / PLAYER / TEAM history table
 - Companion 0.7.4 detects a filled terminal Board slot after the on-clock banner disappears and keeps all completed scheduled slots eligible for Hybrid reconciliation instead of replacing the Board with a partial API result
-- Companion 0.8.4 keeps the greatest observed pick progress across ESPN frames, accumulates Board/Pick History rescans, and reports frame coverage, rejected candidates, missing pick numbers, API field shape, and acknowledgment lag
+- Companion 0.8.5 keeps the greatest observed pick progress across ESPN frames, accumulates Board/Pick History rescans, deduplicates diagnostic candidates, reports representative unresolved rows, and reconciles API-observed progress with the displayed current pick
+- Recommendation priority protects an already-overdue top-12 ECR value from being jumped by a materially later player sharing the same urgent market signal; the pick-14 Justin Jefferson fixture is covered by browser regression
+- Final waiver watch is roster-aware and position-balanced, suppressing quarterback clutter when the roster already has a top-36 ECR QB
 
 ## Post-mock strategy polish
 - [x] Warn at three players sharing a bye, modestly penalize a fourth, and strongly caution against a fifth within the existing strategy budget
