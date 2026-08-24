@@ -16,7 +16,9 @@ The old custom 2026 expert ranking dataset is NOT authoritative and should be di
 Use FantasyPros 2026 PPR data as the ranking authority:
 - FantasyPros Top-20 Draft Experts PPR ECR = primary player value / board rank / VORP / scarcity / tier logic
 - FantasyPros broader PPR ECR = fallback for deeper players absent from the Top-20 export
-- FantasyPros PPR ADP = market cost / survival-to-next-pick / reach-value / timing logic
+- ESPN default PPR board rank = primary ESPN draft-room survival pressure, especially early and for autopicks
+- ESPN PPR ADP = secondary live ESPN market signal when supplied by the companion
+- FantasyPros PPR ADP = market fallback / reach-value / timing when ESPN data is absent
 
 Never invent player rankings, ADP, teams, bye weeks, or tier assignments when source data is absent.
 
@@ -340,6 +342,7 @@ Current verification (2026-08-22):
 - Companion 0.7.4 detects a filled terminal Board slot after the on-clock banner disappears and keeps all completed scheduled slots eligible for Hybrid reconciliation instead of replacing the Board with a partial API result
 - Companion 0.8.5 keeps the greatest observed pick progress across ESPN frames, accumulates Board/Pick History rescans, deduplicates diagnostic candidates, reports representative unresolved rows, and reconciles API-observed progress with the displayed current pick
 - Companion 0.8.6 imports authenticated ESPN PPR ADP as the preferred live survival/timing signal with player-level FantasyPros ADP fallback; FantasyPros ECR remains authoritative for value, tiers, VORP, and scarcity
+- The committed 300-player ESPN PPR board uses a round-aware blend with ESPN ADP for survival: 75/25 through pick 36, 65/35 through pick 96, and 50/50 afterward; board rank works alone until live ESPN ADP arrives
 - Recommendation priority protects an already-overdue top-12 ECR value from being jumped by a materially later player sharing the same urgent market signal; the pick-14 Justin Jefferson fixture is covered by browser regression
 - Final waiver watch is roster-aware and position-balanced, suppressing quarterback clutter when the roster already has a top-36 ECR QB
 

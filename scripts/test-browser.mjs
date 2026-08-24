@@ -24,11 +24,13 @@ await page.waitForSelector('.recommendation-card');
 
 const startup = await page.evaluate(() => ({
   dataset: FANTASYPROS_2026_DATASET.length,
+  espnBoard: ESPN_2026_PPR_BOARD.players.length,
+  espnRankedRows: document.querySelectorAll('tr.draftrow[data-espn-rank]:not([data-espn-rank=""])').length,
   rows: document.querySelectorAll('tr.draftrow').length,
   controls: document.querySelectorAll('.rank-controls').length,
   duplicates: FANTASYPROS_2026_DATASET.length - new Set(FANTASYPROS_2026_DATASET.map(p => canonicalExpertPlayerName(p.name))).size
 }));
-assert.deepEqual(startup, {dataset:717, rows:717, controls:0, duplicates:0});
+assert.deepEqual(startup, {dataset:717, espnBoard:300, espnRankedRows:300, rows:717, controls:0, duplicates:0});
 const recommendationCard = page.locator('.recommendation-card');
 assert.equal(await recommendationCard.getAttribute('open'), null);
 assert.equal(await page.locator('.recommendation-card-summary .recommendation-player b').count(), 1);
@@ -95,13 +97,22 @@ const espnMarketTiming = await page.evaluate(() => {
   const row = findDraftRowByExpertName('Justin Jefferson');
   applyEspnDraftSnapshot({force:true, marketAdp:[{playerName:'Justin Jefferson', position:'WR', adp:10.7}], picks:[]});
   const player = getDraftAssistantPlayers().find(item => item.name === 'Justin Jefferson');
-  const result = {attribute:row.getAttribute('data-espn-adp'), preferred:getFantasyProsMarketRank(player), fantasyPros:player.adp};
+  const result = {
+    attribute:row.getAttribute('data-espn-adp'), boardRank:player.espnRank,
+    early:getFantasyProsMarketRank(player, {currentPick:14}),
+    middle:getFantasyProsMarketRank(player, {currentPick:60}),
+    late:getFantasyProsMarketRank(player, {currentPick:120}),
+    fantasyPros:player.adp
+  };
   row.removeAttribute('data-espn-adp');
   return result;
 });
 assert.equal(espnMarketTiming.attribute, '10.7');
-assert.equal(espnMarketTiming.preferred, 10.7);
-assert.notEqual(espnMarketTiming.preferred, espnMarketTiming.fantasyPros);
+assert.equal(espnMarketTiming.boardRank, 11);
+assert.ok(Math.abs(espnMarketTiming.early - 10.925) < 0.001);
+assert.ok(Math.abs(espnMarketTiming.middle - 10.895) < 0.001);
+assert.ok(Math.abs(espnMarketTiming.late - 10.85) < 0.001);
+assert.notEqual(espnMarketTiming.early, espnMarketTiming.fantasyPros);
 await page.locator('.recommendation-card-summary').click();
 assert.equal(await recommendationCard.getAttribute('open'), '');
 assert.equal(await page.locator('.recommendation-factor').count(), 4);
