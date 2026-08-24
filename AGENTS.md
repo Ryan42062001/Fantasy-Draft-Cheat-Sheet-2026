@@ -339,6 +339,7 @@ Current verification (2026-08-22):
 - Companion 0.7.3 detects a structured feed lagging behind ESPN's on-clock pick and automatically falls back to the visible PICK / PLAYER / TEAM history table
 - Companion 0.7.4 detects a filled terminal Board slot after the on-clock banner disappears and keeps all completed scheduled slots eligible for Hybrid reconciliation instead of replacing the Board with a partial API result
 - Companion 0.8.5 keeps the greatest observed pick progress across ESPN frames, accumulates Board/Pick History rescans, deduplicates diagnostic candidates, reports representative unresolved rows, and reconciles API-observed progress with the displayed current pick
+- Companion 0.8.6 imports authenticated ESPN PPR ADP as the preferred live survival/timing signal with player-level FantasyPros ADP fallback; FantasyPros ECR remains authoritative for value, tiers, VORP, and scarcity
 - Recommendation priority protects an already-overdue top-12 ECR value from being jumped by a materially later player sharing the same urgent market signal; the pick-14 Justin Jefferson fixture is covered by browser regression
 - Final waiver watch is roster-aware and position-balanced, suppressing quarterback clutter when the roster already has a top-36 ECR QB
 
@@ -351,7 +352,7 @@ Current verification (2026-08-22):
 
 Verification (2026-08-23):
 - Provisional completion, 11-of-192 partial-sync messaging, WR-heavy construction, fifth-player bye penalty, and final-report insight fixtures pass in browser automation
-- Canonical regressions 165/165; calculation sanity 20/20; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 49/49
+- Canonical regressions 165/165; calculation sanity 20/20; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 50/50
 
 ## User roster recommendation preferences
 - [x] Hard-cap the recommendation pool at one QB

@@ -15,6 +15,8 @@
   var lastApiSignature = '';
   var lastApiAvailable = false;
   var apiScanInFlight = null;
+  var marketScanAt = 0;
+  var marketScanInFlight = null;
   var pageRequestSequence = 0;
   var topFrame = false;
   try { topFrame = window.top === window; } catch (error) {}
@@ -114,6 +116,16 @@
     var directory = parser.scanPlayerDirectory ? parser.scanPlayerDirectory(document) : {};
     var draftShape = parser.detectDraftShape ? parser.detectDraftShape(document, config) : {};
     var draftOptions = {draftComplete: Boolean(draftShape.draftComplete)};
+    if ((force || Date.now() - marketScanAt > 300000) && !marketScanInFlight) {
+      marketScanAt = Date.now();
+      marketScanInFlight = requestStructuredJson(api.buildPlayerLookupUrl(context), {
+        'X-Fantasy-Filter': JSON.stringify(api.buildMarketFilter())
+      }).then(function(response) {
+        var marketAdp = api.extractMarketAdp(response.payload);
+        if (marketAdp.length) send({type: 'ESPN_MARKET_ADP', players: marketAdp, url: location.href});
+      }).catch(function() {}).finally(function() { marketScanInFlight = null; });
+    }
+
     apiScanInFlight = requestStructuredJson(api.buildDraftDetailUrl(context)).then(function(response) {
       var telemetry = {
         httpStatus: response.httpStatus,

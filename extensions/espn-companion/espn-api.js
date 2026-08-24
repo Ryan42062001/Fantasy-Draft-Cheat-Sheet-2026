@@ -46,6 +46,30 @@
       '/players?scoringPeriodId=0&view=players_wl';
   }
 
+  function buildMarketFilter() {
+    return {players: {limit: 2000, sortDraftRanks: {sortPriority: 100, sortAsc: true, value: 'PPR'}}};
+  }
+
+  function extractMarketAdp(payload) {
+    var collections = [Array.isArray(payload) ? payload : null, payload && payload.players,
+      payload && payload.playerPool, payload && payload.athletes];
+    var byName = {};
+    collections.forEach(function(collection) {
+      (Array.isArray(collection) ? collection : []).forEach(function(entry) {
+        var player = entry && (entry.player || entry.athlete || entry);
+        var name = player && (player.fullName || player.displayName || player.name);
+        var position = normalizePosition(player && (player.defaultPositionId || player.positionId || player.position));
+        var ownership = player && player.ownership || entry && entry.ownership || {};
+        var adp = Number(ownership.averageDraftPosition);
+        if (!name || !position || !Number.isFinite(adp) || adp <= 0 || adp > 500) return;
+        var key = String(name).trim().toLowerCase();
+        if (!byName[key] || adp < byName[key].adp) byName[key] = {playerName: String(name).trim(), position: position, adp: adp};
+      });
+    });
+    return Object.keys(byName).map(function(key) { return byName[key]; })
+      .sort(function(a, b) { return a.adp - b.adp; });
+  }
+
   function addDirectoryEntry(directory, raw) {
     raw = raw || {};
     var player = raw.player || raw.athlete || raw;
@@ -183,6 +207,8 @@
     parseLeagueContext: parseLeagueContext,
     buildDraftDetailUrl: buildDraftDetailUrl,
     buildPlayerLookupUrl: buildPlayerLookupUrl,
+    buildMarketFilter: buildMarketFilter,
+    extractMarketAdp: extractMarketAdp,
     buildPlayerDirectory: buildPlayerDirectory,
     extractDraftSnapshot: extractDraftSnapshot,
     assessStructuredFeed: assessStructuredFeed

@@ -20,6 +20,7 @@ var state = {
   draftKey: null,
   picksByNumber: {},
   unavailablePlayersByKey: {},
+  marketAdpByName: {},
   ledgerTeams: null,
   espn: {connected: false, draftPage: false, captured: 0, lastSeenAt: null},
   warRoom: {connected: false, applied: 0, unmatched: 0, lastSeenAt: null}
@@ -34,6 +35,7 @@ function storageGet() {
       state.draftKey = stored.draftKey || null;
       state.picksByNumber = Object.assign({}, stored.picksByNumber || {});
       state.unavailablePlayersByKey = Object.assign({}, stored.unavailablePlayersByKey || {});
+      state.marketAdpByName = Object.assign({}, stored.marketAdpByName || {});
       state.ledgerTeams = Number(stored.ledgerTeams) || null;
       state.espn = Object.assign({}, state.espn, stored.espn || {});
       state.warRoom = Object.assign({}, state.warRoom, stored.warRoom || {});
@@ -192,6 +194,7 @@ function broadcastWarRoom(force) {
           expectedCompleted: Number(state.espn.expectedCompleted) || 0,
           picks: picks,
           unavailablePlayers: getUnavailablePlayers(),
+          marketAdp: Object.keys(state.marketAdpByName || {}).map(function(key) { return state.marketAdpByName[key]; }),
           force: Boolean(force),
           config: Object.assign({}, state.config)
         }
@@ -545,6 +548,20 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       return storageSave();
     }
 
+    if (message.type === 'ESPN_MARKET_ADP') {
+      (Array.isArray(message.players) ? message.players : []).slice(0, 2000).forEach(function(player) {
+        var name = String(player && player.playerName || '').trim();
+        var adp = Number(player && player.adp);
+        if (!name || !Number.isFinite(adp) || adp <= 0 || adp > 500) return;
+        state.marketAdpByName[name.toLowerCase()] = {
+          playerName: name.slice(0, 100), position: String(player.position || '').slice(0, 4), adp: adp
+        };
+      });
+      state.espn.marketAdpCount = Object.keys(state.marketAdpByName).length;
+      state.espn.marketAdpAt = new Date().toISOString();
+      return storageSave().then(function() { return broadcastWarRoom(true); });
+    }
+
     if (message.type === 'WAR_ROOM_READY') {
       state.warRoom.connected = true;
       state.warRoom.lastSeenAt = new Date().toISOString();
@@ -567,6 +584,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
             expectedCompleted: Number(state.espn.expectedCompleted) || 0,
             picks: getPicks(),
             unavailablePlayers: getUnavailablePlayers(),
+            marketAdp: Object.keys(state.marketAdpByName || {}).map(function(key) { return state.marketAdpByName[key]; }),
             config: Object.assign({}, state.config)
           }
         });
