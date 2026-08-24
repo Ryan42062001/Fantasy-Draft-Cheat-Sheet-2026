@@ -8091,7 +8091,7 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.8.3';
+var ESPN_COMPANION_MIN_VERSION = '0.8.4';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
 var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0};

@@ -252,9 +252,31 @@ function resetEspnDraftProgress() {
   state.espn.captured = 0;
   state.espn.visibleCaptured = 0;
   state.espn.visibleCandidates = 0;
+  state.espn.visibleRejected = 0;
   state.espn.currentPick = null;
   state.espn.expectedCompleted = 0;
   state.espn.draftComplete = false;
+  state.espn.screenFrames = {};
+  state.espn.apiPickFields = [];
+}
+
+function recordScreenFrame(sender, message) {
+  var frameId = sender && Number.isInteger(sender.frameId) ? sender.frameId : -1;
+  var key = String(frameId);
+  if (!state.espn.screenFrames || typeof state.espn.screenFrames !== 'object') {
+    state.espn.screenFrames = {};
+  }
+  var previous = state.espn.screenFrames[key] || {};
+  state.espn.screenFrames[key] = {
+    frameId: frameId,
+    topFrame: Boolean(message.topFrame),
+    picks: Math.max(Number(previous.picks) || 0, Number(message.captured) || Number(message.pickCount) || 0),
+    candidates: Math.max(Number(previous.candidates) || 0, Number(message.candidates) || 0),
+    rejected: Math.max(Number(previous.rejected) || 0, Number(message.rejected) || 0),
+    currentPick: Math.max(Number(previous.currentPick) || 0, Number(message.currentPick) || 0),
+    urlPath: String(message.url || '').replace(/^https?:\/\/[^/]+/i, '').slice(0, 160),
+    lastSeenAt: new Date().toISOString()
+  };
 }
 
 function activateDraft(url) {
@@ -404,6 +426,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     }
 
     if (message.type === 'ESPN_HEARTBEAT') {
+      recordScreenFrame(sender, message);
       state.espn.connected = true;
       if (message.draftPage || message.topFrame) {
         state.espn.draftPage = Boolean(message.draftPage);
@@ -411,14 +434,17 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.espn.lastSeenAt = new Date().toISOString();
       state.espn.lastUrl = message.url || state.espn.lastUrl || null;
       if (Number.isFinite(Number(message.captured))) {
-        state.espn.visibleCaptured = Number(message.captured);
+        state.espn.visibleCaptured = Math.max(Number(state.espn.visibleCaptured) || 0, Number(message.captured));
       }
       if (Number.isFinite(Number(message.candidates))) {
-        state.espn.visibleCandidates = Number(message.candidates);
+        state.espn.visibleCandidates = Math.max(Number(state.espn.visibleCandidates) || 0, Number(message.candidates));
       }
       if (Number.isFinite(Number(message.currentPick)) && Number(message.currentPick) > 0) {
-        state.espn.currentPick = Number(message.currentPick);
-        state.espn.expectedCompleted = Math.max(0, Number(message.currentPick) - 1);
+        state.espn.currentPick = Math.max(Number(state.espn.currentPick) || 0, Number(message.currentPick));
+        state.espn.expectedCompleted = Math.max(
+          Number(state.espn.expectedCompleted) || 0,
+          Number(message.currentPick) - 1
+        );
       }
       // Readers run in every ESPN frame. A child frame may positively detect
       // completion, but it must not clear a completed state reported by the
@@ -444,6 +470,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     if (message.type === 'ESPN_PICKS_FOUND') {
       activateDraft(message.url);
+      recordScreenFrame(sender, message);
       mergeUnavailablePlayers(message.unavailablePlayers);
       if (structuredFeedIsFresh() && state.espn.method === 'api') {
         return storageSave().then(function() { return broadcastWarRoom(false); });
@@ -457,6 +484,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.espn.connected = true;
       state.espn.draftPage = true;
       state.espn.lastSeenAt = new Date().toISOString();
+      state.espn.visibleRejected = Math.max(Number(state.espn.visibleRejected) || 0, Number(message.rejected) || 0);
       return storageSave().then(function() { return broadcastWarRoom(false); });
     }
 
@@ -491,7 +519,14 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.espn.apiResolved = Number(message.resolved) || 0;
       state.espn.apiUnresolved = Number(message.unresolved) || 0;
       state.espn.apiExpectedCompleted = Number(message.expectedCompleted) || 0;
+      state.espn.expectedCompleted = Math.max(
+        Number(state.espn.expectedCompleted) || 0,
+        Number(message.expectedCompleted) || 0
+      );
       state.espn.apiBehind = Boolean(message.behind);
+      state.espn.apiPickFields = Array.isArray(message.pickFields)
+        ? message.pickFields.slice(0, 20).map(String)
+        : [];
       state.espn.apiError = message.error ? String(message.error).slice(0, 160) : null;
       if (message.behind) {
         state.espn.structuredAt = null;
