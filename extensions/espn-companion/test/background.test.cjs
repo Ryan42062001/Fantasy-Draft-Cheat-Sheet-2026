@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.8.8'}),
+      getManifest: () => ({version: '0.8.9'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -103,6 +103,59 @@ test('an embedded ESPN frame cannot clear a completed-draft heartbeat', async ()
   listener({type: 'ESPN_HEARTBEAT', topFrame: false, draftPage: true, draftComplete: false}, {}, () => {});
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(context.state.espn.draftComplete, true);
+});
+
+test('terminal heartbeat reconciles expected progress to the configured final pick', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.config = {teams: 12, draftSlot: 5, rounds: 16};
+  context.listeners.message[0]({
+    type: 'ESPN_HEARTBEAT', topFrame: true, draftPage: true,
+    draftComplete: true, currentPick: 192
+  }, {}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(context.state.espn.currentPick, 192);
+  assert.equal(context.state.espn.expectedCompleted, 192);
+});
+
+test('screen reconciliation rejects a false pick beyond the configured draft total', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.config = {teams: 12, draftSlot: 5, rounds: 16};
+  context.mergePicks([
+    {overallPick: 192, playerName: 'Final Valid Player', position: 'DST', method: 'dom'},
+    {overallPick: 193, playerName: 'False Terminal Candidate', position: 'WR', method: 'dom'}
+  ]);
+  assert.equal(context.getPicks().length, 1);
+  assert.equal(context.getPicks()[0].overallPick, 192);
+});
+
+test('post-draft 404 retains the last successful structured API evidence', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.espn.draftComplete = true;
+  context.state.espn.apiAvailable = true;
+  context.state.espn.apiComplete = true;
+  context.state.espn.apiHttpStatus = 200;
+  context.state.espn.apiResolved = 192;
+  context.state.espn.apiRawCount = 192;
+  context.state.espn.lastSuccessfulApiAt = '2026-08-24T03:20:00.000Z';
+  context.state.espn.lastSuccessfulApiResolved = 192;
+  context.state.espn.lastSuccessfulApiRawCount = 192;
+  context.state.espn.lastSuccessfulApiHttpStatus = 200;
+
+  context.listeners.message[0]({
+    type: 'ESPN_API_STATUS', available: false, complete: false,
+    httpStatus: 404, error: 'ESPN draft feed returned HTTP 404'
+  }, {}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  assert.equal(context.state.espn.apiAvailable, true);
+  assert.equal(context.state.espn.apiComplete, true);
+  assert.equal(context.state.espn.apiResolved, 192);
+  assert.equal(context.state.espn.apiPostDraftUnavailable, true);
+  assert.match(context.state.espn.apiError, /retained the last successful structured snapshot/);
+  assert.equal(context.state.espn.lastApiAttemptHttpStatus, 404);
 });
 
 test('smaller frame heartbeats cannot lower shared pick progress', async () => {
