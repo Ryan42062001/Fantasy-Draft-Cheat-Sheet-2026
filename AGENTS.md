@@ -343,6 +343,10 @@ Current verification (2026-08-22):
 - Companion 0.8.5 keeps the greatest observed pick progress across ESPN frames, accumulates Board/Pick History rescans, deduplicates diagnostic candidates, reports representative unresolved rows, and reconciles API-observed progress with the displayed current pick
 - Companion 0.8.6 imports authenticated ESPN PPR ADP as the preferred live survival/timing signal with player-level FantasyPros ADP fallback; FantasyPros ECR remains authoritative for value, tiers, VORP, and scarcity
 - The committed 300-player ESPN PPR board uses a round-aware blend with ESPN ADP for survival: 75/25 through pick 36, 65/35 through pick 96, and 50/50 afterward; board rank works alone until live ESPN ADP arrives
+- Expanded recommendations explain ESPN rank, ESPN ADP, fallback source, active weights, estimated market pick, and next-turn distance; the header reports Board/ADP market coverage
+- Opponent position demand uses exact ESPN team-slot ownership when supplied, and Mock Audit records ESPN market inputs plus predicted-vs-observed survival by draft phase without auto-tuning
+- Draft Settings provides session-persisted, user-controlled Team Auto toggles; no team is marked automatically, and only selected upcoming Auto picks increase ESPN-board weighting toward 90%
+- The ESPN board generator stores a SHA-256 source version and reports the largest rank changes when a replacement PDF is processed
 - Recommendation priority protects an already-overdue top-12 ECR value from being jumped by a materially later player sharing the same urgent market signal; the pick-14 Justin Jefferson fixture is covered by browser regression
 - Final waiver watch is roster-aware and position-balanced, suppressing quarterback clutter when the roster already has a top-36 ECR QB
 

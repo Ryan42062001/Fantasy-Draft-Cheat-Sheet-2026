@@ -4801,11 +4801,13 @@ function getDraftedRosterByTeam(
       }
 
 
-      var mapping =
-        getSnakeDraftTeamForPick(
-          pick,
-          teams
-        );
+      var recordedTeamSlot = Number(row.getAttribute('data-team-slot')) || 0;
+      var mapping = recordedTeamSlot
+        ? {teamSlot: recordedTeamSlot}
+        : getSnakeDraftTeamForPick(
+            pick,
+            teams
+          );
 
       if (
         !mapping ||
@@ -7886,6 +7888,7 @@ function updatePickSettings() {
   if (pcSlot && pcSlot.value) MY_DRAFT_SLOT = parseInt(pcSlot.value, 10) || 10;
   if (pcRounds && pcRounds.value) TOTAL_ROUNDS = parseInt(pcRounds.value, 10) || 16;
 
+  renderAutoDraftTeamToggles();
   triggerAllBoardUpdates({deferIntelligence: true});
   scheduleSave();
 }
@@ -8140,7 +8143,7 @@ var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
 var ESPN_COMPANION_MIN_VERSION = '0.8.6';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
-var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0};
+var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0, marketAdpCount: 0};
 window.latestEspnSyncMeta = latestEspnSyncMeta;
 
 function normalizeEspnSyncPosition(position) {
@@ -8236,6 +8239,41 @@ function getEspnSyncSettings() {
   };
 }
 
+var autoDraftTeamSlots = [];
+
+function sanitizeAutoDraftTeamSlots(values) {
+  return Array.from(new Set((Array.isArray(values) ? values : []).map(Number).filter(function(slot) {
+    return Number.isInteger(slot) && slot >= 1 && slot <= LEAGUE_SIZE && slot !== MY_DRAFT_SLOT;
+  }))).sort(function(a, b) { return a - b; });
+}
+
+function renderAutoDraftTeamToggles() {
+  var target = document.getElementById('auto-draft-team-toggles');
+  if (!target) return;
+  autoDraftTeamSlots = sanitizeAutoDraftTeamSlots(autoDraftTeamSlots);
+  var markup = [];
+  for (var slot = 1; slot <= LEAGUE_SIZE; slot++) {
+    if (slot === MY_DRAFT_SLOT) continue;
+    var active = autoDraftTeamSlots.indexOf(slot) >= 0;
+    markup.push('<button type="button" class="auto-draft-team-toggle" data-team-slot="' + slot +
+      '" aria-pressed="' + active + '" onclick="toggleAutoDraftTeam(' + slot + ')">Team ' + slot + (active ? ' · Auto' : '') + '</button>');
+  }
+  target.innerHTML = markup.join('');
+}
+
+function toggleAutoDraftTeam(slot) {
+  slot = Number(slot);
+  var index = autoDraftTeamSlots.indexOf(slot);
+  if (index >= 0) autoDraftTeamSlots.splice(index, 1);
+  else autoDraftTeamSlots.push(slot);
+  autoDraftTeamSlots = sanitizeAutoDraftTeamSlots(autoDraftTeamSlots);
+  renderAutoDraftTeamToggles();
+  triggerAllBoardUpdates({deferIntelligence: true});
+  scheduleSave();
+}
+
+window.toggleAutoDraftTeam = toggleAutoDraftTeam;
+
 function applyEspnSyncSettings(config) {
   config = config || {};
   var teams = Math.max(2, Math.min(20, Number(config.teams) || LEAGUE_SIZE));
@@ -8309,7 +8347,10 @@ function applyEspnDraftSnapshot(snapshot) {
   latestEspnSyncMeta = {
     draftComplete: Boolean(snapshot.draftComplete),
     expectedCompleted: Number(snapshot.expectedCompleted) || 0,
-    numberedPicks: picks.length
+    numberedPicks: picks.length,
+    marketAdpCount: incomingMarketAdp.filter(function(player) {
+      return Boolean(findDraftRowByExpertName(player && player.playerName));
+    }).length
   };
   window.latestEspnSyncMeta = latestEspnSyncMeta;
   var signature = JSON.stringify({
@@ -8416,7 +8457,8 @@ function applyEspnDraftSnapshot(snapshot) {
     updateEspnSyncStatus(
       'connected',
       'ESPN Sync · ' + applied + ' picks' +
-        (unavailableApplied ? ' · ' + unavailableApplied + ' drafted labels' : '')
+        (unavailableApplied ? ' · ' + unavailableApplied + ' drafted labels' : '') +
+        ' · Market 300/' + latestEspnSyncMeta.marketAdpCount
     );
   }
 
@@ -8881,6 +8923,7 @@ function saveState(){
       slot: MY_DRAFT_SLOT,
       rounds: TOTAL_ROUNDS,
       recommendationAudit: recommendationAudit,
+      autoDraftTeamSlots: autoDraftTeamSlots.slice(),
       state: state,
       draftMeta: draftMeta,
       order: order
@@ -8962,6 +9005,7 @@ function loadState(){
         recommendationAudit = Array.isArray(payload.recommendationAudit)
           ? payload.recommendationAudit.slice(-200)
           : [];
+        autoDraftTeamSlots = sanitizeAutoDraftTeamSlots(payload.autoDraftTeamSlots);
 
         var datasetSnapshotDate = typeof FANTASYPROS_2026_DATASET_META !== 'undefined'
           ? FANTASYPROS_2026_DATASET_META.sourceSnapshotDate || null
@@ -10712,6 +10756,23 @@ function buildCompactFactorHtml(label, value) {
     '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + score + '"><i style="width:' + score + '%"></i></div></div>';
 }
 
+function buildMarketTimingDetailsHtml(player, context) {
+  var market = getMarketTimingDetails(player, context);
+  var nextPick = Number(context && (context.calculatedNextPick || context.nextPick)) || 0;
+  var currentPick = Number(context && context.currentPick) || 0;
+  var parts = [];
+  if (market.espnRank != null) parts.push('ESPN board <b>#' + market.espnRank.toFixed(0) + '</b>');
+  if (market.espnAdp != null) parts.push('ESPN ADP <b>' + market.espnAdp.toFixed(1) + '</b>');
+  if (market.source === 'FantasyPros ADP fallback' && market.marketRank != null) parts.push('FantasyPros ADP <b>' + market.marketRank.toFixed(1) + '</b>');
+  if (market.espnRank != null && market.espnAdp != null) parts.push('weights <b>' + Math.round(market.boardWeight * 100) + '/' + Math.round(market.adpWeight * 100) + '</b>');
+  if (market.autoOpponentPicks) parts.push('confirmed Auto picks before next turn <b>' + market.autoOpponentPicks + '/' + market.totalOpponentPicks + '</b>');
+  if (market.marketRank != null) parts.push('estimated market pick <b>' + market.marketRank.toFixed(1) + '</b>');
+  if (nextPick) parts.push('next pick <b>#' + nextPick + '</b> (' + Math.max(0, nextPick - currentPick) + ' away)');
+  return '<details class="recommendation-score-details recommendation-market-details"><summary>Why this survival?</summary><div>' +
+    (parts.length ? parts.join(' · ') : 'No ESPN or FantasyPros market data is available for this player.') +
+    '</div><small>' + escapeSummaryHtml(market.source) + '</small></details>';
+}
+
 function renderCompactRecommendationCard(element, recommendation, explanation, primary, state) {
   var action = String(recommendation.recommendation || 'CONSIDER').toUpperCase();
   var actionClass = action.toLowerCase().replace(/[^a-z]+/g, '-');
@@ -10754,6 +10815,7 @@ function renderCompactRecommendationCard(element, recommendation, explanation, p
       ' · ' + escapeSummaryHtml(alternative.position) + '</b><small>' + (scoreGap >= 0 ? '+' : '') + scoreGap.toFixed(1) + ' score gap</small></div>';
   }
   if (explanation.nextAction) details += '<div class="recommendation-next"><span>Next</span>' + escapeSummaryHtml(explanation.nextAction) + '</div>';
+  details += buildMarketTimingDetailsHtml(primary, state.context);
   details += '<details class="recommendation-score-details"><summary>Scoring details</summary><div>Base value <b>' + Number(primary.baseScore || 0).toFixed(1) +
     '</b> · Strategy impact <b>' + (Number(primary.cappedStrategyAdjustment || 0) >= 0 ? '+' : '') + Number(primary.cappedStrategyAdjustment || 0).toFixed(1) +
     '</b> · Guardrails <b>' + (Number(primary.guardrailAdjustment || 0) >= 0 ? '+' : '') + Number(primary.guardrailAdjustment || 0).toFixed(1) +
@@ -10854,6 +10916,7 @@ function updateRecommendationAudit(recommendation, primary, state) {
     });
     if (changed) existingEntry.updatedAt = new Date().toISOString();
   } else {
+    var marketDetails = getMarketTimingDetails(primary, state.context);
     recommendationAudit.push({
       key: key,
       recordedAt: new Date().toISOString(),
@@ -10863,6 +10926,12 @@ function updateRecommendationAudit(recommendation, primary, state) {
       position: primary.position,
       ecr: primary.ecr == null ? Number(primary.rank) || null : Number(primary.ecr),
       adp: primary.adp == null ? null : Number(primary.adp),
+      espnBoardRank: marketDetails.espnRank,
+      espnAdp: marketDetails.espnAdp,
+      marketSource: marketDetails.source,
+      marketEstimate: marketDetails.marketRank,
+      boardWeight: marketDetails.boardWeight,
+      draftPhase: decisionPick <= 36 ? 'EARLY' : decisionPick <= 96 ? 'MIDDLE' : 'LATE',
       predictedSurvival: Math.round(clampRecommendationFactor(calculateNextPickSurvival(primary, state.context))),
       action: recommendation.recommendation,
       scoreGap: Number(recommendation.scoreGap) || 0,
@@ -10914,6 +10983,15 @@ function getRecommendationAuditPortfolioSummary() {
       var noiseRate = resolved.length ? noisy / resolved.length : 0;
       var complete = numberedPicks >= totalPicks;
       var clean = complete && eligible.length > 0 && noiseRate < 0.35;
+      var calibrationByPhase = {};
+      ['EARLY', 'MIDDLE', 'LATE'].forEach(function(phase) {
+        var phaseEntries = eligible.filter(function(entry) { return entry.draftPhase === phase; });
+        calibrationByPhase[phase] = {
+          decisions: phaseEntries.length,
+          predicted: phaseEntries.length ? Math.round(phaseEntries.reduce(function(sum, entry) { return sum + Number(entry.predictedSurvival || 0); }, 0) / phaseEntries.length) : null,
+          observed: phaseEntries.length ? Math.round(phaseEntries.filter(function(entry) { return entry.survived; }).length / phaseEntries.length * 100) : null
+        };
+      });
       return {
         id: session.id,
         name: session.name,
@@ -10925,11 +11003,22 @@ function getRecommendationAuditPortfolioSummary() {
         noisyDecisions: noisy,
         qbDecisions: eligible.filter(function(entry) { return entry.position === 'QB'; }).length,
         teDecisions: eligible.filter(function(entry) { return entry.position === 'TE'; }).length,
-        byePenaltyDecisions: eligible.filter(function(entry) { return Number(entry.byeWeekAdjustment) < 0; }).length
+        byePenaltyDecisions: eligible.filter(function(entry) { return Number(entry.byeWeekAdjustment) < 0; }).length,
+        calibrationByPhase: calibrationByPhase
       };
     } catch (error) { return null; }
   }).filter(Boolean);
   var cleanDrafts = drafts.filter(function(draft) { return draft.clean; });
+  var phaseCalibration = {};
+  ['EARLY', 'MIDDLE', 'LATE'].forEach(function(phase) {
+    var rows = cleanDrafts.map(function(draft) { return draft.calibrationByPhase[phase]; }).filter(function(row) { return row && row.decisions; });
+    var decisions = rows.reduce(function(sum, row) { return sum + row.decisions; }, 0);
+    phaseCalibration[phase] = {
+      decisions: decisions,
+      predicted: decisions ? Math.round(rows.reduce(function(sum, row) { return sum + row.predicted * row.decisions; }, 0) / decisions) : null,
+      observed: decisions ? Math.round(rows.reduce(function(sum, row) { return sum + row.observed * row.decisions; }, 0) / decisions) : null
+    };
+  });
   return {
     savedDrafts: drafts.length,
     completedDrafts: drafts.filter(function(draft) { return draft.complete; }).length,
@@ -10940,6 +11029,7 @@ function getRecommendationAuditPortfolioSummary() {
     qbDecisions: cleanDrafts.reduce(function(sum, draft) { return sum + draft.qbDecisions; }, 0),
     teDecisions: cleanDrafts.reduce(function(sum, draft) { return sum + draft.teDecisions; }, 0),
     byePenaltyDecisions: cleanDrafts.reduce(function(sum, draft) { return sum + draft.byePenaltyDecisions; }, 0),
+    phaseCalibration: phaseCalibration,
     drafts: drafts
   };
 }
@@ -10979,14 +11069,15 @@ function escapeCsvCell(value) {
 }
 
 function recommendationAuditCsv(report) {
-  var headers = ['draft','clean','complete','decisionPick','nextPick','player','position','ecr','adp','predictedSurvival','survived','outcome','pickCoverage','noisy','byeWeek','byePenalty'];
+  var headers = ['draft','clean','complete','decisionPick','nextPick','phase','player','position','ecr','fantasyProsAdp','espnBoardRank','espnAdp','marketSource','marketEstimate','boardWeight','predictedSurvival','survived','outcome','pickCoverage','noisy','byeWeek','byePenalty'];
   var rows = [headers.map(escapeCsvCell).join(',')];
   report.drafts.forEach(function(draft) {
     (draft.decisions || []).forEach(function(entry) {
       rows.push([
         draft.name, draft.auditStatus && draft.auditStatus.clean,
         draft.auditStatus && draft.auditStatus.complete, entry.decisionPick,
-        entry.nextPick, entry.player, entry.position, entry.ecr, entry.adp,
+        entry.nextPick, entry.draftPhase, entry.player, entry.position, entry.ecr, entry.adp,
+        entry.espnBoardRank, entry.espnAdp, entry.marketSource, entry.marketEstimate, entry.boardWeight,
         entry.predictedSurvival, entry.survived, entry.outcome, entry.pickCoverage,
         entry.noisyDraft, entry.byeWeek, entry.byeWeekAdjustment
       ].map(escapeCsvCell).join(','));
@@ -11034,7 +11125,12 @@ function renderMockAudit() {
       '<div class="mock-audit-card"><small>Completed drafts</small><b>' + summary.completedDrafts + '</b></div>' +
       '<div class="mock-audit-card"><small>QB / TE decisions</small><b>' + summary.qbDecisions + ' / ' + summary.teDecisions + '</b></div>' +
       '<div class="mock-audit-card"><small>Bye penalties</small><b>' + summary.byePenaltyDecisions + '</b></div>' +
-    '</div><div class="mock-audit-progress" aria-label="Mock review progress"><span style="width:' + progress + '%"></span></div>' +
+    '</div><div class="mock-audit-grid mock-audit-calibration">' + ['EARLY','MIDDLE','LATE'].map(function(phase) {
+      var row = summary.phaseCalibration[phase];
+      return '<div class="mock-audit-card"><small>' + phase + ' survival</small><b>' +
+        (row.decisions ? row.predicted + '% predicted / ' + row.observed + '% observed' : 'No clean sample') +
+        '</b><span>' + row.decisions + ' decisions</span></div>';
+    }).join('') + '</div><div class="mock-audit-progress" aria-label="Mock review progress"><span style="width:' + progress + '%"></span></div>' +
     '<p class="mock-audit-status' + (summary.reviewReady ? ' ready' : '') + '">' +
       (summary.reviewReady
         ? (summary.strongReviewSample ? 'Strong 20-mock sample reached. Ready for a full scoring review.' : 'Ten clean mocks reached. Ready for an initial evidence review.')
@@ -12351,6 +12447,7 @@ function initApp() {
    * state onto the rebuilt board.
    */
   loadState();
+  renderAutoDraftTeamToggles();
   refreshDraftRowAccessibility();
 
 }
@@ -15558,15 +15655,32 @@ function calculatePositionScarcity(
  * so don't draft one early."
  */
 function getFantasyProsMarketRank(player, context) {
+  return getMarketTimingDetails(player, context).marketRank;
+}
+
+function getMarketTimingDetails(player, context) {
   var espnRank = Number(player && player.espnRank);
   var espnAdp = Number(player && player.espnAdp);
   if (Number.isFinite(espnRank) && espnRank > 0) {
     if (Number.isFinite(espnAdp) && espnAdp > 0) {
       var currentPick = Number(context && context.currentPick) || 1;
       var boardWeight = currentPick <= 36 ? 0.75 : currentPick <= 96 ? 0.65 : 0.5;
-      return espnRank * boardWeight + espnAdp * (1 - boardWeight);
+      var nextPick = Number(context && (context.calculatedNextPick || context.nextPick)) || 0;
+      var draftWindow = getTeamsPickingBeforeMyNextTurn(currentPick, nextPick, Number(context && context.teams) || LEAGUE_SIZE);
+      var totalOpponentPicks = draftWindow.picks.length;
+      var autoOpponentPicks = draftWindow.picks.filter(function(pick) {
+        return autoDraftTeamSlots.indexOf(Number(pick.teamSlot)) >= 0;
+      }).length;
+      var autoPickShare = totalOpponentPicks ? autoOpponentPicks / totalOpponentPicks : 0;
+      boardWeight = boardWeight + autoPickShare * (0.9 - boardWeight);
+      return {
+        marketRank: espnRank * boardWeight + espnAdp * (1 - boardWeight),
+        source: 'ESPN board + ESPN ADP', espnRank: espnRank, espnAdp: espnAdp,
+        boardWeight: boardWeight, adpWeight: 1 - boardWeight,
+        autoOpponentPicks: autoOpponentPicks, totalOpponentPicks: totalOpponentPicks
+      };
     }
-    return espnRank;
+    return {marketRank: espnRank, source: 'ESPN board', espnRank: espnRank, espnAdp: null, boardWeight: 1, adpWeight: 0};
   }
   var candidates = [
     player && player.espnAdp,
@@ -15579,11 +15693,16 @@ function getFantasyProsMarketRank(player, context) {
     var value = Number(candidates[index]);
 
     if (Number.isFinite(value) && value > 0) {
-      return value;
+      return {
+        marketRank: value,
+        source: index === 0 ? 'ESPN ADP' : 'FantasyPros ADP fallback',
+        espnRank: null, espnAdp: index === 0 ? value : null,
+        boardWeight: 0, adpWeight: 1
+      };
     }
   }
 
-  return null;
+  return {marketRank: null, source: 'Unknown market', espnRank: null, espnAdp: null, boardWeight: 0, adpWeight: 0};
 }
 
 function calculateLateAvailability(

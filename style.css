@@ -881,6 +881,13 @@ body.edit-mode tr.draftrow:hover td {
 .recommendation-score-details { margin-top:8px; color:#7f9482; font-size:.61rem; }
 .recommendation-score-details summary { cursor:pointer; }
 .recommendation-score-details div { margin-top:4px; }
+.recommendation-market-details small { display:block; margin-top:4px; color:#8fa494; }
+.auto-draft-settings { margin:10px 0 0; padding:8px; border:1px solid rgba(95,168,124,.28); border-radius:8px; }
+.auto-draft-settings legend { padding:0 5px; color:#d9e9dc; font-size:.68rem; font-weight:700; }
+.auto-draft-settings p { margin:0 0 7px; color:#8fa494; font-size:.6rem; }
+.auto-draft-team-toggles { display:flex; flex-wrap:wrap; gap:5px; }
+.auto-draft-team-toggle { border:1px solid #365c43; border-radius:999px; padding:4px 8px; background:#142b1d; color:#a9b9ac; font-size:.62rem; cursor:pointer; }
+.auto-draft-team-toggle[aria-pressed="true"] { border-color:#e0a83f; background:rgba(224,168,63,.2); color:#ffe39a; }
 .recommendation-turn-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:10px; }
 .recommendation-turn-grid > div { display:grid; gap:2px; padding:8px; border:1px solid rgba(95,168,124,.18); border-radius:7px; background:rgba(95,168,124,.055); }
 .recommendation-turn-grid small,.recommendation-turn-grid span { color:#879b8a; font-size:.57rem; font-weight:850; }
