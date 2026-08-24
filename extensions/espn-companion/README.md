@@ -21,7 +21,7 @@ The extension does **not** read or store ESPN passwords, cookies, or authenticat
 6. Open an ESPN fantasy-football mock or live draft in another Chrome tab.
 7. Open the extension popup. Confirm that both ESPN and The War Room show as connected.
 8. Press **Rescan ESPN** after the draft room finishes loading.
-9. After any extension code update, return to `chrome://extensions` and press **Reload** on the companion card. Version 0.7.0 connects through ESPN's authenticated page context, keeps structured pick numbers and team ownership when available, supplements unresolved data from the visible table, and treats explicit ESPN **DRAFTED** labels as a late-round availability safeguard.
+9. After any extension code update, return to `chrome://extensions` and press **Reload** on the companion card. The popup shows the installed version and warns when the open War Room requires a newer build.
 
 Chrome displays an extension popup over the upper-right corner of the current page. It is not part of ESPN and closes as soon as you click the draft room. Use **Open controls in a tab** if you want status to stay visible without covering ESPN. The extension-icon badge shows the captured-pick count while the popup is closed.
 
@@ -50,7 +50,9 @@ ESPN authenticated page connection (primary) or Pick History/Board DOM (fallback
 
 - Keep manual marking available as a fallback.
 - Verify the Captured, Applied, and Unmatched counts after the first few mock-draft picks.
-- If Captured is greater than Applied, refresh the War Room tab and press **Rescan ESPN**. Version 0.8.1 reinjects stale bridges, reports delivery failures, preserves completed scheduled slots, sends explicit draft-completion metadata, and prevents embedded ESPN frames or a prior mock from leaving completion state out of sync.
+- If Captured is greater than Applied, refresh the War Room tab and press **Rescan ESPN**. Version 0.8.2 reinjects stale bridges, reports delivery failures, preserves completed scheduled slots, sends explicit draft-completion metadata, and prevents embedded ESPN frames or a prior mock from leaving completion state out of sync.
+- Use **Copy diagnostics** to capture the installed/required versions, connection method, sync counts, completion state, and structured API status without exposing ESPN credentials.
+- Follow `LIVE_VALIDATION.md` for the two remaining full-draft checks: Direct mode and forced Board fallback.
 - Prefer a popup status of **Draft detected · Direct**. If it says **Screen**, open ESPN's Board tab once and press Rescan.
 - In Screen mode, the popup compares captured picks with ESPN's on-clock pick and warns when the fallback is behind.
 - The ESPN data connection panel reports the structured endpoint's HTTP status, ESPN role, resolved count, unresolved count, and exact request error. **Hybrid** means Direct owns numbering/team identity while Screen supplies unresolved player names.

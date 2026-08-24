@@ -18,6 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
+      getManifest: () => ({version: '0.8.2'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -241,7 +242,8 @@ test('a passive War Room acknowledgment cannot clear captured picks or overwrite
   context.listeners.message[0]({
     type: 'WAR_ROOM_ACK',
     result: {captured: 1, applied: 1, unmatched: []},
-    settings: {teams: 10, draftSlot: 1, rounds: 16}
+    settings: {teams: 10, draftSlot: 1, rounds: 16},
+    requiredExtensionVersion: '0.8.2'
   }, {tab: {id: 44}}, () => {});
   await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -249,4 +251,5 @@ test('a passive War Room acknowledgment cannot clear captured picks or overwrite
   assert.equal(context.state.config.draftSlot, 11);
   assert.equal(context.getPicks().length, 1);
   assert.equal(context.state.warRoom.reportedSettings.teams, 10);
+  assert.equal(context.state.warRoom.requiredExtensionVersion, '0.8.2');
 });
