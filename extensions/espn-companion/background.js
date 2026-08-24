@@ -598,7 +598,13 @@ chrome.tabs.onRemoved.addListener(function() {
     return Promise.all([queryTabs(ESPN_URLS), queryTabs(WAR_ROOM_URLS)]);
   }).then(function(results) {
     state.espn.connected = results[0].length > 0;
-    state.warRoom.connected = results[1].length > 0;
-    return storageSave();
+    if (!results[1].length) {
+      state.warRoom.connected = false;
+      state.warRoom.deliveryError = null;
+      return storageSave();
+    }
+    // A matching URL is not proof that the content bridge survived an
+    // extension reload or tab lifecycle change. Verify actual delivery.
+    return broadcastWarRoom(false).then(storageSave);
   }).catch(function() {});
 });

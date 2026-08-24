@@ -8091,7 +8091,7 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.8.2';
+var ESPN_COMPANION_MIN_VERSION = '0.8.3';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
 var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0};
@@ -8545,6 +8545,12 @@ function setupDraftBoardInteractions() {
 
   document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
+      var auditModal = document.getElementById('mock-audit-modal');
+      if (auditModal && auditModal.classList.contains('open')) {
+        event.preventDefault();
+        closeMockAudit();
+        return;
+      }
       var modal = document.getElementById('final-summary-modal');
       if (modal && modal.classList.contains('open')) {
         event.preventDefault();
@@ -10850,6 +10856,128 @@ function getRecommendationAuditPortfolioSummary() {
 }
 
 window.getRecommendationAuditPortfolioSummary = getRecommendationAuditPortfolioSummary;
+
+function buildRecommendationAuditExport() {
+  var portfolio = getRecommendationAuditPortfolioSummary();
+  var draftById = {};
+  portfolio.drafts.forEach(function(draft) { draftById[draft.id] = draft; });
+  return {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    scoringAutoAdjusted: false,
+    reviewThresholds: {minimumCleanMocks: 10, strongSampleCleanMocks: 20},
+    summary: portfolio,
+    drafts: readDraftSessionRegistry().map(function(session) {
+      try {
+        var payload = JSON.parse(localStorage.getItem(getDraftSessionStateKey(session.id)) || 'null');
+        if (!payload) return null;
+        return {
+          id: session.id,
+          name: session.name,
+          createdAt: session.createdAt || null,
+          savedAt: payload.savedAt || null,
+          auditStatus: draftById[session.id] || null,
+          decisions: Array.isArray(payload.recommendationAudit) ? payload.recommendationAudit : []
+        };
+      } catch (error) { return null; }
+    }).filter(Boolean)
+  };
+}
+
+function escapeCsvCell(value) {
+  var text = value == null ? '' : String(value);
+  return '"' + text.replace(/"/g, '""') + '"';
+}
+
+function recommendationAuditCsv(report) {
+  var headers = ['draft','clean','complete','decisionPick','nextPick','player','position','ecr','adp','predictedSurvival','survived','outcome','pickCoverage','noisy','byeWeek','byePenalty'];
+  var rows = [headers.map(escapeCsvCell).join(',')];
+  report.drafts.forEach(function(draft) {
+    (draft.decisions || []).forEach(function(entry) {
+      rows.push([
+        draft.name, draft.auditStatus && draft.auditStatus.clean,
+        draft.auditStatus && draft.auditStatus.complete, entry.decisionPick,
+        entry.nextPick, entry.player, entry.position, entry.ecr, entry.adp,
+        entry.predictedSurvival, entry.survived, entry.outcome, entry.pickCoverage,
+        entry.noisyDraft, entry.byeWeek, entry.byeWeekAdjustment
+      ].map(escapeCsvCell).join(','));
+    });
+  });
+  return rows.join('\r\n');
+}
+
+function downloadAuditFile(filename, content, type) {
+  var url = URL.createObjectURL(new Blob([content], {type: type}));
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(function() { URL.revokeObjectURL(url); }, 0);
+}
+
+function exportRecommendationAudit(format) {
+  saveState();
+  var report = buildRecommendationAuditExport();
+  var stamp = new Date().toISOString().slice(0, 10);
+  if (format === 'csv') {
+    downloadAuditFile('war-room-mock-audit-' + stamp + '.csv', recommendationAuditCsv(report), 'text/csv;charset=utf-8');
+  } else {
+    downloadAuditFile('war-room-mock-audit-' + stamp + '.json', JSON.stringify(report, null, 2), 'application/json');
+  }
+}
+
+function renderMockAudit() {
+  var target = document.getElementById('mock-audit-content');
+  if (!target) return;
+  var summary = getRecommendationAuditPortfolioSummary();
+  var progress = Math.min(100, summary.cleanCompletedMocks / 10 * 100);
+  var draftRows = summary.drafts.length ? summary.drafts.map(function(draft) {
+    return '<tr><td>' + escapeSummaryHtml(draft.name) + '</td><td>' +
+      (draft.clean ? 'Clean' : draft.complete ? 'Complete · excluded' : 'Incomplete') + '</td><td>' +
+      draft.numberedPicks + '/' + draft.totalPicks + '</td><td>' + draft.eligibleDecisions + '</td><td>' +
+      draft.qbDecisions + '</td><td>' + draft.teDecisions + '</td><td>' + draft.byePenaltyDecisions + '</td></tr>';
+  }).join('') : '<tr><td colspan="7">No saved mock evidence yet.</td></tr>';
+  target.innerHTML =
+    '<div class="mock-audit-grid">' +
+      '<div class="mock-audit-card"><small>Clean mocks</small><b>' + summary.cleanCompletedMocks + ' / 10</b></div>' +
+      '<div class="mock-audit-card"><small>Completed drafts</small><b>' + summary.completedDrafts + '</b></div>' +
+      '<div class="mock-audit-card"><small>QB / TE decisions</small><b>' + summary.qbDecisions + ' / ' + summary.teDecisions + '</b></div>' +
+      '<div class="mock-audit-card"><small>Bye penalties</small><b>' + summary.byePenaltyDecisions + '</b></div>' +
+    '</div><div class="mock-audit-progress" aria-label="Mock review progress"><span style="width:' + progress + '%"></span></div>' +
+    '<p class="mock-audit-status' + (summary.reviewReady ? ' ready' : '') + '">' +
+      (summary.reviewReady
+        ? (summary.strongReviewSample ? 'Strong 20-mock sample reached. Ready for a full scoring review.' : 'Ten clean mocks reached. Ready for an initial evidence review.')
+        : summary.remainingUntilReview + ' more clean completed mock' + (summary.remainingUntilReview === 1 ? '' : 's') + ' needed before review.') +
+      ' No weights are changed automatically.</p>' +
+    '<div class="mock-audit-table-wrap"><table class="mock-audit-table"><thead><tr><th>Draft</th><th>Status</th><th>Picks</th><th>Eligible</th><th>QB</th><th>TE</th><th>Bye</th></tr></thead><tbody>' + draftRows + '</tbody></table></div>';
+}
+
+function openMockAudit() {
+  saveState();
+  renderMockAudit();
+  var modal = document.getElementById('mock-audit-modal');
+  if (!modal) return;
+  lastFocusedElementBeforeModal = document.activeElement;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('final-summary-open');
+  var dialog = modal.querySelector('.mock-audit-dialog');
+  if (dialog) dialog.focus();
+}
+
+function closeMockAudit() {
+  var modal = document.getElementById('mock-audit-modal');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+  document.body.classList.remove('final-summary-open');
+  if (lastFocusedElementBeforeModal && document.contains(lastFocusedElementBeforeModal)) lastFocusedElementBeforeModal.focus();
+}
+
+window.buildRecommendationAuditExport = buildRecommendationAuditExport;
 
 function updateRecommendedPick(sharedLiveState) {
 

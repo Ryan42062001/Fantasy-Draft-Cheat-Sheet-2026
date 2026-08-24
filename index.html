@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#122619">
 <link rel="icon" href="./favicon.ico" type="image/x-icon">
 <title>The War Room | 2026 Fantasy Draft</title>
-<link rel="stylesheet" href="style.css?v=20260822-10">
+<link rel="stylesheet" href="style.css?v=20260824-1">
 </head>
 <body>
 
@@ -53,6 +53,7 @@
     <kbd class="mark-mode-shortcut" title="Press M to switch Taken and Mine">M</kbd>
   </div>
   <button class="filterbtn" id="autosaveToggle" onclick="toggleAutosave()">Autosave Off</button>
+  <button class="filterbtn audit-button" id="mockAuditBtn" onclick="openMockAudit()">Mock Audit</button>
   <button class="resetbtn" id="editRanksBtn" onclick="toggleEditMode()" style="background:rgba(224,168,63,0.25);border-color:var(--gem);">&#9998; Customize Board</button>
   <button class="resetbtn" onclick="resetRanks()" style="background:rgba(95,168,217,0.2);border-color:var(--value);">&#8634; FantasyPros Order</button>
   <button class="resetbtn" id="resetBtn" onclick="resetBoard()">Reset all</button>
@@ -318,9 +319,24 @@
   </div>
 </div>
 
+<div id="mock-audit-modal" class="final-summary-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="mock-audit-title">
+  <div class="final-summary-dialog mock-audit-dialog" tabindex="-1">
+    <button class="close-btn" onclick="closeMockAudit()" aria-label="Close mock audit">&times;</button>
+    <div class="summary-eyebrow">OBSERVATIONAL EVIDENCE ONLY</div>
+    <h2 id="mock-audit-title">Mock Audit</h2>
+    <p class="mock-audit-intro">Tracks saved draft evidence without changing recommendation weights automatically.</p>
+    <div id="mock-audit-content"></div>
+    <div class="mock-audit-actions">
+      <button type="button" onclick="exportRecommendationAudit('json')">Export JSON</button>
+      <button type="button" onclick="exportRecommendationAudit('csv')">Export CSV</button>
+      <button type="button" class="final-summary-done" onclick="closeMockAudit()">Done</button>
+    </div>
+  </div>
+</div>
+
 <script src="fantasypros-2026-data.js?v=20260823-1"></script>
 <script src="war-room-config.js?v=20260822-2"></script>
-<script src="script.js?v=20260823-46"></script>
+<script src="script.js?v=20260824-1"></script>
 
 </body>
 </html>
