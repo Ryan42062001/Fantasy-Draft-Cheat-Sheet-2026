@@ -92,7 +92,7 @@ AGENTS.md                          Ranking policy, architecture notes, and roadm
 Use **Update Rankings** in The War Room toolbar for the two live-market maintenance paths:
 
 - Import a current FantasyPros Top-20 PPR expert CSV. The import replaces only the primary expert overlay, validates every player against the broader ECR pool, and retains broad ECR for deeper players.
-- Ask Companion 0.8.9 or newer to refresh ESPN PPR board rank and ADP from an open ESPN draft page.
+- Ask Companion 0.8.10 or newer to refresh ESPN PPR board rank and ADP from an open ESPN draft page.
 
 The browser stores a validated FantasyPros overlay locally. **Restore bundled rankings** returns to the repository snapshot. ESPN market data changes survival timing only; it never replaces FantasyPros ECR as player value.
 
