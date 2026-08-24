@@ -8091,6 +8091,7 @@ function triggerAllBoardUpdates(options) {
   timedUpdate('remaining', updateRemaining);
   timedUpdate('bestAvailable', updateBestAvailable);
   timedUpdate('pickCounter', updatePickCounter);
+  timedUpdate('marketValues', refreshDynamicMarketValueCells);
   timedUpdate('nextPickDisplay', updateNextPickDisplay);
   timedUpdate('nextPickMarker', updateNextPickMarker);
   timedUpdate('roundMarkers', addRoundMarkers);
@@ -8377,6 +8378,8 @@ function applyEspnDraftSnapshot(snapshot) {
     if (Number.isFinite(espnAdp) && espnAdp > 0) row.setAttribute('data-espn-adp', String(espnAdp));
     if (Number.isFinite(espnRank) && espnRank > 0) row.setAttribute('data-espn-rank', String(espnRank));
     updateDraftRowMarketCell(row);
+    updateDraftRowNoteCell(row);
+    updateDraftRowValueCell(row);
   });
   var picksByNumber = new Map();
 
@@ -9386,6 +9389,67 @@ function updateDraftRowMarketCell(row) {
   }
 }
 
+function updateDraftRowNoteCell(row) {
+  if (!row) return;
+  var cell = row.querySelector('.notecell');
+  if (!cell) return;
+  var source = row.getAttribute('data-player-source') || '';
+  var ecr = getDraftRowNumber(row, 'data-ecr');
+  var espnRank = getDraftRowNumber(row, 'data-espn-rank');
+  var espnAdp = getDraftRowNumber(row, 'data-espn-adp');
+  var fantasyProsAdp = getDraftRowNumber(row, 'data-adp');
+  var parts = [];
+
+  if (ecr != null) parts.push('FantasyPros PPR ECR #' + ecr.toFixed(0));
+  else if (source === 'ADP_ONLY') parts.push('FantasyPros ADP depth player; no current ECR');
+
+  if (espnRank != null) parts.push('ESPN board #' + espnRank.toFixed(0));
+  if (espnAdp != null) parts.push('live ESPN ADP ' + espnAdp.toFixed(1));
+  else if (espnRank != null) parts.push('live ESPN ADP unavailable');
+  else if (fantasyProsAdp != null) parts.push('FantasyPros ADP fallback ' + fantasyProsAdp.toFixed(1));
+
+  cell.textContent = parts.length ? parts.join(' · ') : 'No current ranking or market data.';
+}
+
+function updateDraftRowValueCell(row) {
+  if (!row || !row.children[5]) return;
+  var cell = row.children[5];
+  var ecr = getDraftRowNumber(row, 'data-ecr');
+  var player = {
+    espnRank: getDraftRowNumber(row, 'data-espn-rank'),
+    espnAdp: getDraftRowNumber(row, 'data-espn-adp'),
+    adp: getDraftRowNumber(row, 'data-adp'),
+    realTimeAdp: getDraftRowNumber(row, 'data-realtime-adp'),
+    adpRank: getDraftRowNumber(row, 'data-adp-rank')
+  };
+  var state = getDraftAssistantState();
+  var market = getMarketTimingDetails(player, {
+    currentPick: state.currentPick,
+    nextPick: state.myNextPick,
+    calculatedNextPick: state.myNextPick,
+    teams: state.teams
+  });
+  var marketRank = Number(market.marketRank);
+  var value = ecr != null && Number.isFinite(marketRank) ? marketRank - ecr : null;
+
+  cell.textContent = value == null
+    ? '—'
+    : (value > 0 ? '+' : '') + value.toFixed(1);
+  cell.className = value == null || value === 0
+    ? 'valzero'
+    : value > 0 ? 'valpos' : 'valneg';
+  cell.setAttribute('data-sortval', value == null ? '0' : String(value));
+  cell.title = value == null
+    ? 'Value unavailable because ECR or market position is missing'
+    : market.source + ' ' + marketRank.toFixed(1) + ' minus FantasyPros ECR ' +
+      ecr.toFixed(0) + ' = ' + (value > 0 ? '+' : '') + value.toFixed(1);
+}
+
+function refreshDynamicMarketValueCells() {
+  document.querySelectorAll('tr.draftrow[data-espn-adp]:not([data-espn-adp=""])')
+    .forEach(updateDraftRowValueCell);
+}
+
 
 function createExpertPlayerRow(player) {
 
@@ -9450,21 +9514,6 @@ function createExpertPlayerRow(player) {
         : 'valneg';
 
 
-  var noteText =
-    player.source === 'ADP_ONLY'
-      ? 'FantasyPros ADP depth player. No current ECR.'
-      : (
-          'FantasyPros 2026 PPR ECR #' +
-          String(player.ecr) +
-          (
-            player.adp != null
-              ? ' · ADP ' +
-                Number(player.adp).toFixed(1)
-              : ''
-          )
-        );
-
-
   row.innerHTML =
     '<td>--</td>' +
 
@@ -9511,10 +9560,12 @@ function createExpertPlayerRow(player) {
     '</td>' +
 
     '<td class="notecell">' +
-      noteText +
+      '' +
     '</td>';
 
   updateDraftRowMarketCell(row);
+  updateDraftRowNoteCell(row);
+  updateDraftRowValueCell(row);
 
 
   return row;
@@ -9757,40 +9808,8 @@ function updateExpertPlayerRowMetadata(
 
 
   updateDraftRowMarketCell(row);
-
-
-  var valueCell =
-    row.children[5];
-
-  if (valueCell) {
-
-    var valueVsAdp =
-      getFantasyProsValueVsAdp(player);
-
-    valueCell.textContent =
-      valueVsAdp == null
-        ? '—'
-        : (
-            valueVsAdp > 0
-              ? '+'
-              : ''
-          ) + valueVsAdp.toFixed(1);
-
-    valueCell.className =
-      valueVsAdp == null || valueVsAdp === 0
-        ? 'valzero'
-        : valueVsAdp > 0
-          ? 'valpos'
-          : 'valneg';
-
-    valueCell.setAttribute(
-      'data-sortval',
-      valueVsAdp == null
-        ? '0'
-        : String(valueVsAdp)
-    );
-
-  }
+  updateDraftRowNoteCell(row);
+  updateDraftRowValueCell(row);
 
 
   var byeCell =
@@ -9803,27 +9822,6 @@ function updateExpertPlayerRowMetadata(
 
   }
 
-
-  var noteCell =
-    row.querySelector('.notecell');
-
-  if (noteCell) {
-
-    noteCell.textContent =
-      player.source === 'ADP_ONLY'
-        ? 'FantasyPros ADP depth player. No current ECR.'
-        : (
-            'FantasyPros 2026 PPR ECR #' +
-            String(player.ecr) +
-            (
-              player.adp != null
-                ? ' · ADP ' +
-                  Number(player.adp).toFixed(1)
-                : ''
-            )
-          );
-
-  }
 
 }
 

@@ -114,6 +114,7 @@ const result = await page.evaluate(() => {
     godwinMarket:getMarketTimingDetails(godwin, godwinState.context),
     godwinThreat:calculateOpponentDraftThreat(godwin, godwinState.context),
     godwinMarketCell:findDraftRowByExpertName('Chris Godwin Jr.').children[4].textContent.trim(),
+    godwinValueCell:findDraftRowByExpertName('Chris Godwin Jr.').children[5].textContent.trim(),
     marketHeader:document.querySelector('#big-table thead th:nth-child(5)').textContent.trim(),
     topTen:godwinState.scored.slice(0, 10).map(compact)
   };
@@ -125,6 +126,7 @@ assert.notEqual(result.pick86.recommendation.name, 'Chris Godwin Jr.', JSON.stri
 assert.equal(result.pick86.godwinMarket.source, 'ESPN board');
 assert.equal(result.pick86.godwinMarket.marketRank, 127);
 assert.equal(result.pick86.godwinMarketCell, '#127');
+assert.equal(result.pick86.godwinValueCell, '+54.0');
 assert.equal(result.pick86.marketHeader, 'ESPN Mkt');
 process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 await browser.close();
