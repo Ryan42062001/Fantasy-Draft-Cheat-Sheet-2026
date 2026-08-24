@@ -254,7 +254,7 @@
 
   function scanDocumentDetailed(documentObject, options) {
     if (!documentObject || !documentObject.querySelectorAll) {
-      return {candidateCount: 0, picks: []};
+      return {candidateCount: 0, rejectedCount: 0, scannedNodeCount: 0, picks: []};
     }
     var selectors = [
       '[data-testid*="pick" i]',
@@ -289,7 +289,7 @@
 
     var byPick = new Map();
     var candidateCount = 0;
-    nodes.slice(0, 8000).forEach(function(node) {
+    nodes.slice(0, 20000).forEach(function(node) {
       var candidate = node;
       for (var depth = 0; candidate && depth < 4; depth++) {
         var text = cleanText(candidate.innerText || candidate.textContent || candidate.getAttribute('aria-label'));
@@ -330,6 +330,8 @@
 
     return {
       candidateCount: candidateCount,
+      rejectedCount: Math.max(0, candidateCount - byPick.size),
+      scannedNodeCount: Math.min(nodes.length, 20000),
       picks: Array.from(byPick.values()).sort(function(a, b) {
         return a.overallPick - b.overallPick;
       })

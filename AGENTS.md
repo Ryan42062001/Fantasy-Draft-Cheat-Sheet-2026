@@ -323,6 +323,7 @@ Recommended Pick verification (2026-08-22):
 - [x] Aggregate saved recommendation audits across fully numbered, low-noise mocks with 10/20-mock review gates
 - [x] Verify War Room bridge delivery after tab lifecycle changes instead of trusting URL presence
 - [x] Add a visible Mock Audit dialog with JSON and CSV evidence exports
+- [x] Reconcile monotonic pick progress across ESPN frames and add frame/rejection/missing-pick diagnostics
 - [x] Document repeatable full-mock Direct and Board-fallback validation; live execution remains required
 - [ ] Split `script.js` into focused modules after draft season, not during the draft-day reliability window
 
@@ -337,7 +338,7 @@ Current verification (2026-08-22):
 - Companion 0.7.2 makes the popup's saved draft settings authoritative during sync and prevents an early War Room acknowledgment from clearing Direct or Board-fallback picks
 - Companion 0.7.3 detects a structured feed lagging behind ESPN's on-clock pick and automatically falls back to the visible PICK / PLAYER / TEAM history table
 - Companion 0.7.4 detects a filled terminal Board slot after the on-clock banner disappears and keeps all completed scheduled slots eligible for Hybrid reconciliation instead of replacing the Board with a partial API result
-- Companion 0.8.3 adds verified post-tab-change bridge health plus a visible Mock Audit dialog and JSON/CSV evidence exports; it retains 0.8.2 version negotiation and diagnostics
+- Companion 0.8.4 keeps the greatest observed pick progress across ESPN frames, accumulates Board/Pick History rescans, and reports frame coverage, rejected candidates, missing pick numbers, API field shape, and acknowledgment lag
 
 ## Post-mock strategy polish
 - [x] Warn at three players sharing a bye, modestly penalize a fourth, and strongly caution against a fifth within the existing strategy budget
@@ -348,7 +349,7 @@ Current verification (2026-08-22):
 
 Verification (2026-08-23):
 - Provisional completion, 11-of-192 partial-sync messaging, WR-heavy construction, fifth-player bye penalty, and final-report insight fixtures pass in browser automation
-- Canonical regressions 165/165; calculation sanity 20/20; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 48/48
+- Canonical regressions 165/165; calculation sanity 20/20; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 49/49
 
 ## User roster recommendation preferences
 - [x] Hard-cap the recommendation pool at one QB

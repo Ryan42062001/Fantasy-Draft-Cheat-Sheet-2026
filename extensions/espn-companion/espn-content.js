@@ -178,6 +178,7 @@
           openSlotCount: snapshot.openSlotCount,
           rawPickNumbers: snapshot.rawPickNumbers,
           unresolved: snapshot.unresolved,
+          pickFields: snapshot.pickFields,
           complete: effectiveComplete,
           url: location.href
         });
@@ -196,6 +197,7 @@
         openSlotCount: snapshot.openSlotCount,
         resolved: snapshot.picks.length,
         unresolved: snapshot.unresolved.length,
+        pickFields: snapshot.pickFields,
         error: !snapshot.feedPresent
           ? 'ESPN response did not contain draftDetail.picks'
           : structuredBehind
@@ -227,7 +229,7 @@
   function scanVisibleDraft(force) {
     var scanResult = parser.scanDocumentDetailed
       ? parser.scanDocumentDetailed(document, config)
-      : {picks: parser.scanDocument(document, config), candidateCount: 0};
+      : {picks: parser.scanDocument(document, config), candidateCount: 0, rejectedCount: 0, scannedNodeCount: 0};
     var picks = scanResult.picks;
     var unavailablePlayers = parser.scanDraftedPlayerLabels
       ? parser.scanDraftedPlayerLabels(document)
@@ -240,6 +242,12 @@
         type: 'ESPN_PICKS_FOUND',
         picks: picks,
         unavailablePlayers: unavailablePlayers,
+        pickCount: picks.length,
+        candidates: scanResult.candidateCount,
+        rejected: scanResult.rejectedCount,
+        scannedNodes: scanResult.scannedNodeCount,
+        currentPick: shape.currentPick,
+        topFrame: topFrame,
         url: location.href
       });
     }
@@ -248,6 +256,7 @@
       draftPage: true,
       captured: picks.length,
       candidates: scanResult.candidateCount,
+      rejected: scanResult.rejectedCount,
       detectedTeams: shape.teams,
       detectedRounds: shape.rounds,
       currentPick: shape.currentPick,

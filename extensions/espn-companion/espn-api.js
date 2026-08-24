@@ -151,6 +151,9 @@
       rawPickNumbers: rawPicks.map(function(pick) {
         return Number(pick.overallPickNumber || pick.overallPick || pick.pickNumber);
       }),
+      pickFields: scheduledPicks.length
+        ? Object.keys(scheduledPicks[0] || {}).sort().slice(0, 20)
+        : [],
       feedPresent: collection.present,
       complete: collection.present && unresolved.length === 0,
       picks: picks,
