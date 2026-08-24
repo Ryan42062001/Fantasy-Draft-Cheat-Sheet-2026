@@ -195,6 +195,7 @@ function broadcastWarRoom(force) {
           picks: picks,
           unavailablePlayers: getUnavailablePlayers(),
           marketAdp: Object.keys(state.marketAdpByName || {}).map(function(key) { return state.marketAdpByName[key]; }),
+          marketUpdatedAt: state.espn.marketAdpAt || null,
           force: Boolean(force),
           config: Object.assign({}, state.config)
         }
@@ -552,9 +553,13 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       (Array.isArray(message.players) ? message.players : []).slice(0, 2000).forEach(function(player) {
         var name = String(player && player.playerName || '').trim();
         var adp = Number(player && player.adp);
-        if (!name || !Number.isFinite(adp) || adp <= 0 || adp > 500) return;
+        var rank = Number(player && player.rank);
+        if (!name || ((!Number.isFinite(adp) || adp <= 0) && (!Number.isFinite(rank) || rank <= 0))) return;
         state.marketAdpByName[name.toLowerCase()] = {
-          playerName: name.slice(0, 100), position: String(player.position || '').slice(0, 4), adp: adp
+          playerName: name.slice(0, 100),
+          position: String(player.position || '').slice(0, 4),
+          adp: Number.isFinite(adp) && adp > 0 && adp <= 500 ? adp : null,
+          rank: Number.isFinite(rank) && rank > 0 && rank <= 2000 ? rank : null
         };
       });
       state.espn.marketAdpCount = Object.keys(state.marketAdpByName).length;
@@ -585,6 +590,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
             picks: getPicks(),
             unavailablePlayers: getUnavailablePlayers(),
             marketAdp: Object.keys(state.marketAdpByName || {}).map(function(key) { return state.marketAdpByName[key]; }),
+            marketUpdatedAt: state.espn.marketAdpAt || null,
             config: Object.assign({}, state.config)
           }
         });
@@ -616,6 +622,12 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.warRoom.requiredExtensionVersion = message.requiredExtensionVersion ||
         state.warRoom.requiredExtensionVersion || null;
       return syncConfigAndReconcile(message.config, sendResponse);
+    }
+
+    if (message.type === 'WAR_ROOM_RANKINGS_REFRESH') {
+      return ensureReadersInOpenEspnTabs(true)
+        .then(function() { return broadcastWarRoom(true); })
+        .then(function() { if (typeof sendResponse === 'function') sendResponse(statusSnapshot()); });
     }
 
     if (message.type === 'GET_STATUS') {

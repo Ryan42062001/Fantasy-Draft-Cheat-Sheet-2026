@@ -61,13 +61,23 @@
         var position = normalizePosition(player && (player.defaultPositionId || player.positionId || player.position));
         var ownership = player && player.ownership || entry && entry.ownership || {};
         var adp = Number(ownership.averageDraftPosition);
-        if (!name || !position || !Number.isFinite(adp) || adp <= 0 || adp > 500) return;
+        var draftRanks = player && player.draftRanksByRankType || entry && entry.draftRanksByRankType || {};
+        var pprRanks = draftRanks.PPR || draftRanks.ppr || {};
+        var rank = Number(pprRanks.rank || pprRanks.overallRank || entry && entry.rank);
+        if (!name || !position || (!Number.isFinite(adp) && !Number.isFinite(rank))) return;
         var key = String(name).trim().toLowerCase();
-        if (!byName[key] || adp < byName[key].adp) byName[key] = {playerName: String(name).trim(), position: position, adp: adp};
+        var candidate = {
+          playerName: String(name).trim(),
+          position: position,
+          adp: Number.isFinite(adp) && adp > 0 && adp <= 500 ? adp : null,
+          rank: Number.isFinite(rank) && rank > 0 && rank <= 2000 ? rank : null
+        };
+        if (candidate.adp == null && candidate.rank == null) return;
+        if (!byName[key] || (candidate.rank || candidate.adp) < (byName[key].rank || byName[key].adp)) byName[key] = candidate;
       });
     });
     return Object.keys(byName).map(function(key) { return byName[key]; })
-      .sort(function(a, b) { return a.adp - b.adp; });
+      .sort(function(a, b) { return (a.rank || a.adp || 9999) - (b.rank || b.adp || 9999); });
   }
 
   function addDirectoryEntry(directory, raw) {

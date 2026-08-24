@@ -638,7 +638,7 @@ function updateDataFreshnessIndicator() {
   var status = ageDays <= 7 ? 'Fresh' : ageDays <= 21 ? 'Review soon' : 'Update recommended';
   var tone = ageDays <= 7 ? 'fresh' : ageDays <= 21 ? 'review' : 'stale';
   element.className = 'data-freshness data-freshness-' + tone;
-  element.textContent = 'FantasyPros PPR · ' + snapshotDate.toLocaleDateString(undefined, {
+  element.textContent = (meta && meta.localOverride ? 'FantasyPros local update · ' : 'FantasyPros PPR · ') + snapshotDate.toLocaleDateString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric'
   }) + ' · ' + status;
 }
@@ -8141,11 +8141,11 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.8.7';
+var ESPN_COMPANION_MIN_VERSION = '0.8.8';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
 var espnSettingsEditedAt = 0;
-var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0, marketAdpCount: 0};
+var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0, marketAdpCount: 0, marketRankCount: 0, marketUpdatedAt: null};
 window.latestEspnSyncMeta = latestEspnSyncMeta;
 
 function normalizeEspnSyncPosition(position) {
@@ -8347,8 +8347,10 @@ function applyEspnDraftSnapshot(snapshot) {
   incomingMarketAdp.forEach(function(player) {
     var row = findDraftRowByExpertName(player && player.playerName);
     var espnAdp = Number(player && player.adp);
-    if (!row || !Number.isFinite(espnAdp) || espnAdp <= 0) return;
-    row.setAttribute('data-espn-adp', String(espnAdp));
+    var espnRank = Number(player && player.rank);
+    if (!row) return;
+    if (Number.isFinite(espnAdp) && espnAdp > 0) row.setAttribute('data-espn-adp', String(espnAdp));
+    if (Number.isFinite(espnRank) && espnRank > 0) row.setAttribute('data-espn-rank', String(espnRank));
   });
   var picksByNumber = new Map();
 
@@ -8367,8 +8369,12 @@ function applyEspnDraftSnapshot(snapshot) {
     expectedCompleted: Number(snapshot.expectedCompleted) || 0,
     numberedPicks: picks.length,
     marketAdpCount: incomingMarketAdp.filter(function(player) {
-      return Boolean(findDraftRowByExpertName(player && player.playerName));
-    }).length
+      return Boolean(findDraftRowByExpertName(player && player.playerName)) && Number(player && player.adp) > 0;
+    }).length,
+    marketRankCount: incomingMarketAdp.filter(function(player) {
+      return Boolean(findDraftRowByExpertName(player && player.playerName)) && Number(player && player.rank) > 0;
+    }).length,
+    marketUpdatedAt: snapshot.marketUpdatedAt || null
   };
   window.latestEspnSyncMeta = latestEspnSyncMeta;
   var signature = JSON.stringify({
@@ -8383,7 +8389,7 @@ function applyEspnDraftSnapshot(snapshot) {
       return [String(player.playerName || ''), normalizeEspnSyncPosition(player.position)];
     }),
     marketAdp: incomingMarketAdp.map(function(player) {
-      return [String(player.playerName || ''), Number(player.adp) || null];
+      return [String(player.playerName || ''), Number(player.rank) || null, Number(player.adp) || null];
     })
   });
 
@@ -8482,6 +8488,7 @@ function applyEspnDraftSnapshot(snapshot) {
 
   triggerAllBoardUpdates({deferIntelligence: true});
   scheduleSave();
+  renderRankingsRefreshStatus();
   publishEspnSyncAck(latestEspnSyncResult);
   return latestEspnSyncResult;
 }
@@ -9187,11 +9194,43 @@ function syncRankData(){
  * =========================================================
  */
 
-var EXPERT_RANKINGS_2026 =
-  typeof FANTASYPROS_2026_DATASET !== 'undefined' &&
-  Array.isArray(FANTASYPROS_2026_DATASET)
-    ? FANTASYPROS_2026_DATASET
+var FANTASYPROS_LOCAL_OVERRIDE_KEY = 'warRoomFantasyProsTop20OverrideV1';
+var EMBEDDED_FANTASYPROS_2026_DATASET =
+  typeof FANTASYPROS_2026_DATASET !== 'undefined' && Array.isArray(FANTASYPROS_2026_DATASET)
+    ? FANTASYPROS_2026_DATASET.slice()
     : [];
+
+function loadFantasyProsLocalOverride() {
+  try {
+    var raw = localStorage.getItem(FANTASYPROS_LOCAL_OVERRIDE_KEY);
+    var parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.players)) return null;
+    if (parsed.players.length !== EMBEDDED_FANTASYPROS_2026_DATASET.length) return null;
+    var names = new Set(parsed.players.map(function(player) {
+      return String(player && player.canonicalName || '').trim();
+    }).filter(Boolean));
+    if (names.size !== parsed.players.length) return null;
+    return parsed;
+  } catch (error) {
+    console.warn('Stored FantasyPros update could not be loaded:', error);
+    return null;
+  }
+}
+
+var activeFantasyProsLocalOverride = loadFantasyProsLocalOverride();
+if (activeFantasyProsLocalOverride && typeof FANTASYPROS_2026_DATASET_META !== 'undefined') {
+  FANTASYPROS_2026_DATASET_META = Object.assign({}, FANTASYPROS_2026_DATASET_META, {
+    sourceSnapshotDate: activeFantasyProsLocalOverride.sourceSnapshotDate,
+    top20EcrPlayers: activeFantasyProsLocalOverride.top20Count,
+    localOverride: true,
+    localOverrideFile: activeFantasyProsLocalOverride.sourceFile,
+    localOverrideImportedAt: activeFantasyProsLocalOverride.importedAt
+  });
+}
+
+var EXPERT_RANKINGS_2026 = activeFantasyProsLocalOverride
+  ? activeFantasyProsLocalOverride.players
+  : EMBEDDED_FANTASYPROS_2026_DATASET;
 
 function normalizeExpertPlayerName(name) {
 
@@ -11181,6 +11220,198 @@ function closeMockAudit() {
 }
 
 window.buildRecommendationAuditExport = buildRecommendationAuditExport;
+
+function parseFantasyProsCsvText(text) {
+  var rows = [];
+  var row = [];
+  var field = '';
+  var quoted = false;
+  String(text || '').split('').forEach(function(char, index, chars) {
+    if (quoted) {
+      if (char === '"' && chars[index + 1] === '"') {
+        field += '"';
+        chars[index + 1] = '';
+      } else if (char === '"') quoted = false;
+      else field += char;
+    } else if (char === '"') quoted = true;
+    else if (char === ',') { row.push(field); field = ''; }
+    else if (char === '\n') { row.push(field.replace(/\r$/, '')); rows.push(row); row = []; field = ''; }
+    else field += char;
+  });
+  if (field || row.length) { row.push(field.replace(/\r$/, '')); rows.push(row); }
+  if (!rows.length) return [];
+  var headers = rows.shift().map(function(header) { return header.replace(/^\uFEFF/, '').trim(); });
+  return rows.filter(function(values) { return values.some(Boolean); }).map(function(values) {
+    var result = {};
+    headers.forEach(function(header, index) { result[header] = values[index] == null ? '' : values[index]; });
+    return result;
+  });
+}
+
+function fantasyProsCsvValue(row, names) {
+  var keys = Object.keys(row || {});
+  var wanted = names.map(function(name) { return String(name).toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+  var key = keys.find(function(candidate) {
+    return wanted.indexOf(String(candidate).toUpperCase().replace(/[^A-Z0-9]/g, '')) >= 0;
+  });
+  return key ? String(row[key] || '').trim() : '';
+}
+
+function fantasyProsTierMapping(rawTier, fallback) {
+  var tier = Number(rawTier);
+  var mappings = [
+    {min:1,max:2,legacy:'Sp',semantic:'ELITE'}, {min:3,max:4,legacy:'S',semantic:'PREMIUM'},
+    {min:5,max:6,legacy:'A',semantic:'CORE'}, {min:7,max:8,legacy:'B',semantic:'VALUE'},
+    {min:9,max:10,legacy:'C',semantic:'UPSIDE'}, {min:11,max:12,legacy:'D',semantic:'DEPTH'},
+    {min:13,max:14,legacy:'E',semantic:'LATE'}, {min:15,max:16,legacy:'F',semantic:'DEEP'}
+  ];
+  return mappings.find(function(mapping) { return tier >= mapping.min && tier <= mapping.max; }) || {
+    legacy: fallback.tier, semantic: fallback.semanticTier || fallback.consensusTier, min: tier, max: tier
+  };
+}
+
+function buildFantasyProsTop20Override(rows, file) {
+  var rankedRows = rows.map(function(row) {
+    var rank = Number(fantasyProsCsvValue(row, ['RK', 'RANK']));
+    var name = fantasyProsCsvValue(row, ['PLAYER NAME', 'PLAYER']);
+    return {row: row, rank: rank, name: name};
+  }).filter(function(item) { return Number.isInteger(item.rank) && item.rank > 0 && item.name; })
+    .sort(function(a, b) { return a.rank - b.rank; });
+  if (rankedRows.length < 100 || rankedRows.length > 600) {
+    throw new Error('Expected a Top-20 experts export with 100–600 ranked players; found ' + rankedRows.length + '.');
+  }
+
+  var baseByName = new Map(EMBEDDED_FANTASYPROS_2026_DATASET.map(function(player) {
+    return [canonicalExpertPlayerName(player.name), player];
+  }));
+  var seen = new Set();
+  var imported = rankedRows.map(function(item) {
+    var key = canonicalExpertPlayerName(item.name);
+    if (seen.has(key)) throw new Error('Duplicate player in the FantasyPros export: ' + item.name);
+    seen.add(key);
+    var existing = baseByName.get(key);
+    if (!existing || existing.ecr == null) throw new Error('Ranked player is not on the broader ECR board: ' + item.name);
+    var rawPosition = fantasyProsCsvValue(item.row, ['POS', 'POSITION']).toUpperCase().replace('D/ST', 'DST');
+    var positionMatch = rawPosition.match(/^([A-Z]+)(\d+)?$/);
+    if (!positionMatch || positionMatch[1] !== existing.pos) {
+      throw new Error('Position mismatch for ' + item.name + ': expected ' + existing.pos + ', received ' + (rawPosition || 'blank') + '.');
+    }
+    var rawTier = Number(fantasyProsCsvValue(item.row, ['TIERS', 'TIER']));
+    var mapping = fantasyProsTierMapping(rawTier, existing);
+    return Object.assign({}, existing, {
+      name: item.name,
+      team: fantasyProsCsvValue(item.row, ['TEAM']) || existing.team,
+      bye: fantasyProsCsvValue(item.row, ['BYE WEEK', 'BYE']) || existing.bye,
+      posRank: positionMatch[2] ? Number(positionMatch[2]) : existing.posRank,
+      fantasyProsTier: Number.isFinite(rawTier) && rawTier > 0 ? rawTier : existing.fantasyProsTier,
+      consensusTier: mapping.semantic,
+      semanticTier: mapping.semantic,
+      tier: mapping.legacy,
+      ecrSource: 'TOP20_EXPERTS',
+      sourceEcrRank: item.rank
+    });
+  });
+
+  var broadFallback = EMBEDDED_FANTASYPROS_2026_DATASET.filter(function(player) {
+    return player.ecr != null && !seen.has(canonicalExpertPlayerName(player.name));
+  }).map(function(player) { return Object.assign({}, player, {ecrSource:'BROAD_ECR_FALLBACK'}); });
+  var adpOnly = EMBEDDED_FANTASYPROS_2026_DATASET.filter(function(player) { return player.ecr == null; })
+    .map(function(player) { return Object.assign({}, player); });
+  var ecrPlayers = imported.concat(broadFallback);
+  var players = ecrPlayers.concat(adpOnly).map(function(player, index) {
+    var ranked = index < ecrPlayers.length;
+    return Object.assign({}, player, {
+      rank: index + 1,
+      boardRank: index + 1,
+      ecr: ranked ? index + 1 : null
+    });
+  });
+  if (players.length !== EMBEDDED_FANTASYPROS_2026_DATASET.length) throw new Error('The merged board did not preserve all players.');
+
+  var modified = new Date(file && file.lastModified || Date.now());
+  var sourceSnapshotDate = [modified.getFullYear(), String(modified.getMonth() + 1).padStart(2, '0'), String(modified.getDate()).padStart(2, '0')].join('-');
+  return {
+    version: 1,
+    importedAt: new Date().toISOString(),
+    sourceSnapshotDate: sourceSnapshotDate,
+    sourceFile: String(file && file.name || 'FantasyPros Top-20 PPR CSV').slice(0, 160),
+    top20Count: imported.length,
+    players: players
+  };
+}
+
+function setRankingsRefreshMessage(message, tone) {
+  var target = document.getElementById('rankings-refresh-message');
+  if (!target) return;
+  target.className = 'rankings-refresh-message' + (tone ? ' ' + tone : '');
+  target.textContent = message || '';
+}
+
+function renderRankingsRefreshStatus() {
+  var fantasyPros = document.getElementById('fantasypros-refresh-status');
+  var espn = document.getElementById('espn-rankings-refresh-status');
+  if (fantasyPros) {
+    var meta = typeof FANTASYPROS_2026_DATASET_META !== 'undefined' ? FANTASYPROS_2026_DATASET_META : {};
+    fantasyPros.textContent = meta.localOverride
+      ? 'Local update active · ' + (meta.top20EcrPlayers || 0) + ' Top-20 ranked players · ' + (meta.sourceSnapshotDate || 'date unknown')
+      : 'Embedded baseline · ' + (meta.top20EcrPlayers || 0) + ' Top-20 ranked players · ' + (meta.sourceSnapshotDate || 'date unknown');
+  }
+  if (espn) {
+    var updated = latestEspnSyncMeta.marketUpdatedAt ? new Date(latestEspnSyncMeta.marketUpdatedAt).toLocaleString() : 'not refreshed this session';
+    espn.textContent = 'ESPN board ' + (latestEspnSyncMeta.marketRankCount || 0) + ' players · ADP ' +
+      (latestEspnSyncMeta.marketAdpCount || 0) + ' players · ' + updated;
+  }
+}
+
+function openRankingsRefresh() {
+  renderRankingsRefreshStatus();
+  setRankingsRefreshMessage('', '');
+  var modal = document.getElementById('rankings-refresh-modal');
+  if (!modal) return;
+  lastFocusedElementBeforeModal = document.activeElement;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('final-summary-open');
+  var dialog = modal.querySelector('.rankings-refresh-dialog');
+  if (dialog) dialog.focus();
+}
+
+function closeRankingsRefresh() {
+  var modal = document.getElementById('rankings-refresh-modal');
+  if (modal) { modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); }
+  document.body.classList.remove('final-summary-open');
+  if (lastFocusedElementBeforeModal && document.contains(lastFocusedElementBeforeModal)) lastFocusedElementBeforeModal.focus();
+}
+
+function importFantasyProsTop20File() {
+  var input = document.getElementById('fantasyprosTop20File');
+  var file = input && input.files && input.files[0];
+  if (!file) { setRankingsRefreshMessage('Choose the official FantasyPros Top-20 PPR experts CSV first.', 'error'); return; }
+  setRankingsRefreshMessage('Validating ' + file.name + '…', 'working');
+  file.text().then(function(text) {
+    var override = buildFantasyProsTop20Override(parseFantasyProsCsvText(text), file);
+    saveState();
+    localStorage.setItem(FANTASYPROS_LOCAL_OVERRIDE_KEY, JSON.stringify(override));
+    setRankingsRefreshMessage('Validated ' + override.top20Count + ' Top-20 ECR players. Reloading the authoritative board…', 'success');
+    setTimeout(function() { window.location.reload(); }, 500);
+  }).catch(function(error) {
+    setRankingsRefreshMessage(error && error.message ? error.message : String(error), 'error');
+  });
+}
+
+function resetFantasyProsRankingOverride() {
+  if (!activeFantasyProsLocalOverride) { setRankingsRefreshMessage('The embedded FantasyPros baseline is already active.', ''); return; }
+  saveState();
+  localStorage.removeItem(FANTASYPROS_LOCAL_OVERRIDE_KEY);
+  setRankingsRefreshMessage('Restoring the checked-in FantasyPros baseline…', 'success');
+  setTimeout(function() { window.location.reload(); }, 350);
+}
+
+function requestEspnRankingsRefresh() {
+  var targetOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
+  window.postMessage({channel: ESPN_SYNC_CHANNEL, type: 'RANKINGS_REFRESH_REQUEST'}, targetOrigin);
+  setRankingsRefreshMessage('Refresh requested. Keep the ESPN draft tab open while the companion reads board rank and PPR ADP.', 'working');
+}
 
 function updateRecommendedPick(sharedLiveState) {
 

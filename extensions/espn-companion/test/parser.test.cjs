@@ -67,6 +67,15 @@ test('parses the live ESPN central pick-history row format', () => {
   assert.equal(result.position, 'WR');
 });
 
+test('parses a dense ESPN history grid row without including rank, team, or status', () => {
+  const healthy = parser.parsePickText('1 Jahmyr Gibbs DET RB The Ex- Commissioner 366.9 364.9 1', {teams:12});
+  const questionable = parser.parsePickText('2 Puka Nacua Q LAR WR My Kupp Runneth Over 375 356.3 4', {teams:12});
+  assert.equal(healthy.playerName, 'Jahmyr Gibbs');
+  assert.equal(healthy.position, 'RB');
+  assert.equal(questionable.playerName, 'Puka Nacua');
+  assert.equal(questionable.position, 'WR');
+});
+
 test('does not mistake the on-clock autopick suggestion for a completed pick', () => {
   assert.equal(
     parser.parsePickText('ON THE CLOCK: PICK 14\nYour autopick would be: James Cook II / BUF RB', {teams: 12}),

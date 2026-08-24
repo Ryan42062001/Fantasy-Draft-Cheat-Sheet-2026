@@ -18,16 +18,23 @@ test('builds the narrowly scoped ESPN draft-detail request', () => {
 test('extracts ESPN PPR average draft position from player ownership data', () => {
   const market = api.extractMarketAdp([
     {player: {id: 1, fullName: 'Justin Jefferson', defaultPositionId: 3,
-      ownership: {averageDraftPosition: 10.7}}},
+      ownership: {averageDraftPosition: 10.7}, draftRanksByRankType: {PPR: {rank: 8}}}},
     {player: {id: 2, fullName: 'Chase Brown', defaultPositionId: 2,
       ownership: {averageDraftPosition: 22.4}}},
     {player: {id: 3, fullName: 'Missing Market', defaultPositionId: 3, ownership: {}}}
   ]);
   assert.deepEqual(market, [
-    {playerName: 'Justin Jefferson', position: 'WR', adp: 10.7},
-    {playerName: 'Chase Brown', position: 'RB', adp: 22.4}
+    {playerName: 'Justin Jefferson', position: 'WR', adp: 10.7, rank: 8},
+    {playerName: 'Chase Brown', position: 'RB', adp: 22.4, rank: null}
   ]);
   assert.equal(api.buildMarketFilter().players.sortDraftRanks.value, 'PPR');
+});
+
+test('extracts an ESPN PPR board rank even when ADP is unavailable', () => {
+  const market = api.extractMarketAdp([
+    {player: {fullName: 'Brock Bowers', defaultPositionId: 4, draftRanksByRankType: {PPR: {rank: 24}}}}
+  ]);
+  assert.deepEqual(market, [{playerName:'Brock Bowers', position:'TE', adp:null, rank:24}]);
 });
 
 test('uses ESPN teamId instead of inferred snake position for Mine', () => {

@@ -9,7 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
-  assert.equal(manifest.version, '0.8.7');
+  assert.equal(manifest.version, '0.8.8');
 });
 
 test('popup exposes version and copyable connection diagnostics', () => {
@@ -28,6 +28,12 @@ test('War Room bridge forwards explicit website draft-setting edits', () => {
   const script = fs.readFileSync(path.join(root, 'war-room-content.js'), 'utf8');
   assert.match(script, /SETTINGS_UPDATE/);
   assert.match(script, /WAR_ROOM_SETTINGS_UPDATE/);
+});
+
+test('War Room bridge forwards an explicit ESPN rankings refresh request', () => {
+  const script = fs.readFileSync(path.join(root, 'war-room-content.js'), 'utf8');
+  assert.match(script, /RANKINGS_REFRESH_REQUEST/);
+  assert.match(script, /WAR_ROOM_RANKINGS_REFRESH/);
 });
 
 test('requests only storage and host-restricted reinjection permission', () => {

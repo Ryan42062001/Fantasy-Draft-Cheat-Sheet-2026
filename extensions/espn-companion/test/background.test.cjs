@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.8.7'}),
+      getManifest: () => ({version: '0.8.8'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -298,7 +298,7 @@ test('an explicit War Room settings update becomes authoritative and preserves s
   context.listeners.message[0]({
     type: 'WAR_ROOM_SETTINGS_UPDATE',
     config: {teams: 12, draftSlot: 11, rounds: 18},
-    requiredExtensionVersion: '0.8.7'
+    requiredExtensionVersion: '0.8.8'
   }, {tab: {id: 44}}, () => {});
   await new Promise(resolve => setTimeout(resolve, 0));
   await new Promise(resolve => setTimeout(resolve, 0));
@@ -306,5 +306,5 @@ test('an explicit War Room settings update becomes authoritative and preserves s
   assert.equal(context.state.config.draftSlot, 11);
   assert.equal(context.state.config.rounds, 18);
   assert.equal(context.getPicks().length, 1);
-  assert.equal(context.state.warRoom.requiredExtensionVersion, '0.8.7');
+  assert.equal(context.state.warRoom.requiredExtensionVersion, '0.8.8');
 });
