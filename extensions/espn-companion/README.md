@@ -50,7 +50,7 @@ ESPN authenticated page connection (primary) or Pick History/Board DOM (fallback
 
 - Keep manual marking available as a fallback.
 - Verify the Captured, Applied, and Unmatched counts after the first few mock-draft picks.
-- If Captured is greater than Applied, refresh the War Room tab and press **Rescan ESPN**. Version 0.8.2 reinjects stale bridges, reports delivery failures, preserves completed scheduled slots, sends explicit draft-completion metadata, and prevents embedded ESPN frames or a prior mock from leaving completion state out of sync.
+- If Captured is greater than Applied, refresh the War Room tab and press **Rescan ESPN**. Version 0.8.3 verifies the bridge after tab changes, reinjects stale bridges, reports delivery failures, preserves completed scheduled slots, and keeps completion state synchronized.
 - Use **Copy diagnostics** to capture the installed/required versions, connection method, sync counts, completion state, and structured API status without exposing ESPN credentials.
 - Follow `LIVE_VALIDATION.md` for the two remaining full-draft checks: Direct mode and forced Board fallback.
 - Prefer a popup status of **Draft detected · Direct**. If it says **Screen**, open ESPN's Board tab once and press Rescan.

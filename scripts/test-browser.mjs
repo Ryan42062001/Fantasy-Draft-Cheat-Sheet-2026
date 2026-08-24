@@ -169,6 +169,17 @@ const auditPortfolio = await page.evaluate(() => getRecommendationAuditPortfolio
 assert.equal(typeof auditPortfolio.reviewReady, 'boolean');
 assert.equal(typeof auditPortfolio.strongReviewSample, 'boolean');
 assert.equal(auditPortfolio.reviewReady, false);
+await page.getByRole('button', {name:'Mock Audit'}).click();
+assert.equal(await page.locator('#mock-audit-modal').getAttribute('aria-hidden'), 'false');
+assert.match(await page.locator('#mock-audit-content').innerText(), /CLEAN MOCKS/);
+assert.match(await page.locator('#mock-audit-content').innerText(), /No weights are changed automatically/);
+assert.equal(await page.getByRole('button', {name:'Export JSON'}).count(), 1);
+assert.equal(await page.getByRole('button', {name:'Export CSV'}).count(), 1);
+const auditExport = await page.evaluate(() => buildRecommendationAuditExport());
+assert.equal(auditExport.scoringAutoAdjusted, false);
+assert.deepEqual(auditExport.reviewThresholds, {minimumCleanMocks:10, strongSampleCleanMocks:20});
+await page.getByRole('button', {name:'Done'}).click();
+assert.equal(await page.locator('#mock-audit-modal').getAttribute('aria-hidden'), 'true');
 
 await page.getByRole('button', {name:/My Draft/}).click();
 assert.equal(await page.locator('#myteam-panel').getAttribute('aria-hidden'), 'false');

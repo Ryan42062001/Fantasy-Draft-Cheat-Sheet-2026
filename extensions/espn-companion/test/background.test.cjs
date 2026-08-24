@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.8.2'}),
+      getManifest: () => ({version: '0.8.3'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -226,6 +226,22 @@ test('does not report a matching War Room tab as connected when delivery fails',
 
   const deliveries = await context.broadcastWarRoom(true);
   assert.deepEqual(Array.from(deliveries), [false]);
+  assert.equal(context.state.warRoom.connected, false);
+  assert.match(context.state.warRoom.deliveryError, /Refresh the War Room tab/);
+});
+
+test('tab removal rechecks bridge delivery instead of trusting a matching URL', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  context.state.warRoom.connected = true;
+  context.chrome.tabs.query = async query => Array.from(query.url).some(url => url.includes('github.io'))
+    ? [{id: 46}]
+    : [];
+  context.chrome.tabs.sendMessage = async () => { throw new Error('No receiver'); };
+  context.chrome.scripting.executeScript = async () => { throw new Error('Injection blocked'); };
+  context.listeners.removed[0]();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(context.state.warRoom.connected, false);
   assert.match(context.state.warRoom.deliveryError, /Refresh the War Room tab/);
 });

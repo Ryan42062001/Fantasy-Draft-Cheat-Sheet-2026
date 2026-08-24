@@ -1472,6 +1472,29 @@ body.final-summary-open {
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
 }
 
+.audit-button { border-color: rgba(95,168,217,.7); color: #b9ddf5; }
+.mock-audit-dialog { width: min(900px, 100%); }
+.mock-audit-intro { margin: 5px 34px 18px 0; color: #a9c2ab; }
+.mock-audit-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin: 18px 0; }
+.mock-audit-card { padding: 13px; border: 1px solid var(--hash); border-radius: 11px; background: rgba(255,255,255,.025); }
+.mock-audit-card small { display: block; color: #a9c2ab; font-size: .65rem; font-weight: 800; text-transform: uppercase; }
+.mock-audit-card b { display: block; margin-top: 4px; color: var(--chalk); font-size: 1.35rem; }
+.mock-audit-progress { height: 8px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.08); }
+.mock-audit-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,var(--value),var(--b-tier)); }
+.mock-audit-status { margin: 9px 0 18px; color: #a9c2ab; }
+.mock-audit-status.ready { color: #8fd4a0; font-weight: 800; }
+.mock-audit-table-wrap { max-height: 280px; overflow: auto; border: 1px solid var(--hash); border-radius: 10px; }
+.mock-audit-table { width: 100%; border-collapse: collapse; font-size: .75rem; }
+.mock-audit-table th, .mock-audit-table td { padding: 9px; border-bottom: 1px solid var(--hash); text-align: left; }
+.mock-audit-table th { position: sticky; top: 0; color: var(--gem); background: var(--field-green); }
+.mock-audit-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 16px; }
+.mock-audit-actions button { padding: 9px 13px; border: 1px solid var(--hash); border-radius: 8px; color: var(--chalk); background: rgba(255,255,255,.05); font-weight: 800; cursor: pointer; }
+
+@media (max-width: 680px) {
+  .mock-audit-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .mock-audit-actions { flex-wrap: wrap; }
+}
+
 .final-summary-kicker {
   color: var(--gem);
   font-size: 0.64rem;
