@@ -149,8 +149,12 @@ assert.match(waiverBalance.html, /RB depth/);
 assert.match(waiverBalance.html, /WR upside/);
 const espnMarketTiming = await page.evaluate(() => {
   const row = findDraftRowByExpertName('Justin Jefferson');
+  const originalRank = row.getAttribute('data-espn-rank');
+  const originalAdp = row.getAttribute('data-espn-adp');
   applyEspnDraftSnapshot({force:true, marketAdp:[{playerName:'Justin Jefferson', position:'WR', rank:8, adp:10.7}], picks:[]});
   const player = getDraftAssistantPlayers().find(item => item.name === 'Justin Jefferson');
+  const valueCell = row.children[5].textContent.trim();
+  const valueTitle = row.children[5].title;
   toggleAutoDraftTeam(2);
   const autoWeighted = getMarketTimingDetails(player, {currentPick:1, nextPick:20, teams:10});
   const autoPressed = document.querySelector('.auto-draft-team-toggle[data-team-slot="2"]').getAttribute('aria-pressed');
@@ -161,16 +165,31 @@ const espnMarketTiming = await page.evaluate(() => {
     middle:getFantasyProsMarketRank(player, {currentPick:60}),
     late:getFantasyProsMarketRank(player, {currentPick:120}),
     fantasyPros:player.adp,
+    marketCell:row.children[4].textContent.trim(),
+    valueCell,
+    valueTitle,
+    note:row.querySelector('.notecell').textContent,
     status:document.getElementById('espn-sync-status').textContent,
     autoWeighted:autoWeighted.boardWeight, autoPressed
   };
-  row.removeAttribute('data-espn-adp');
-  row.removeAttribute('data-espn-rank');
+  if (originalAdp == null) row.removeAttribute('data-espn-adp');
+  else row.setAttribute('data-espn-adp', originalAdp);
+  if (originalRank == null) row.removeAttribute('data-espn-rank');
+  else row.setAttribute('data-espn-rank', originalRank);
+  updateDraftRowMarketCell(row);
+  updateDraftRowNoteCell(row);
+  updateDraftRowValueCell(row);
   return result;
 });
 assert.equal(espnMarketTiming.attribute, '10.7');
 assert.equal(espnMarketTiming.liveBoardRank, '8');
 assert.equal(espnMarketTiming.boardRank, 8);
+assert.equal(espnMarketTiming.marketCell, '#8 / 10.7');
+assert.equal(espnMarketTiming.valueCell, '+0.7');
+assert.match(espnMarketTiming.valueTitle, /ESPN board \+ ESPN ADP 8\.7 minus FantasyPros ECR 8 = \+0\.7/);
+assert.match(espnMarketTiming.note, /FantasyPros PPR ECR #8/);
+assert.match(espnMarketTiming.note, /ESPN board #8/);
+assert.match(espnMarketTiming.note, /live ESPN ADP 10\.7/);
 assert.ok(Math.abs(espnMarketTiming.early - 8.675) < 0.001);
 assert.ok(Math.abs(espnMarketTiming.middle - 8.945) < 0.001);
 assert.ok(Math.abs(espnMarketTiming.late - 9.35) < 0.001);

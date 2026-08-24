@@ -37,7 +37,7 @@ The generated dataset currently contains 717 searchable players. ADP-only player
 3. Open **My Draft** to check lineup construction, pick history, value, and bye-week concentration.
 4. Expand **Recommended Pick** or **Board Pressure** when you want the supporting detail.
 
-The **ESPN Mkt** column shows ESPN's default board rank (`#127`, for example). If the companion supplies live ESPN ADP, the cell shows both as `#127 / 118.4`. Players missing from ESPN's market data fall back to FantasyPros ADP and say so in the cell tooltip.
+The **ESPN Mkt** column shows ESPN's default board rank (`#127`, for example). If the companion supplies live ESPN ADP, the cell shows both as `#127 / 118.4`. Players missing from ESPN's market data fall back to FantasyPros ADP and say so in the cell tooltip. **Val** is the active ESPN market position minus FantasyPros ECR, so a positive number means ESPN may let that player fall later than expert consensus.
 
 Everything is stored locally in the browser. **New Draft** creates an isolated session, and **Delete Draft** removes only the selected session after confirmation.
 

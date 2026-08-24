@@ -374,6 +374,7 @@ Current verification (2026-08-22):
 - [x] Preserve ESPN rank and ADP on scored recommendation objects instead of dropping them before market-priority sorting
 - [x] Add live-mock regression fixtures for the pick-38 zero-RB decision and pick-86 Chris Godwin market-timing decision
 - [x] Label the board market column explicitly and show ESPN board rank/live ESPN ADP with an honest FantasyPros fallback
+- [x] Make player notes and the visible value column source-aware: ESPN market minus FantasyPros ECR, with live updates when ESPN ADP or selected autodraft opponents change the blend
 - [x] Exclude final-round K/DST picks from ECR-reach criticism and grade their timing instead
 
 Verification (2026-08-23):
