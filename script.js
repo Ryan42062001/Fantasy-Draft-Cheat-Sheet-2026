@@ -1078,7 +1078,7 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
     '<div class="final-summary-kicker">' + (completion.provisional ? 'PROVISIONAL FINAL REPORT' : 'DRAFT COMPLETE') + '</div>' +
     '<div class="final-summary-title-row">' +
       '<div><h2 id="final-summary-title">&#127942; ' + headline + '</h2>' +
-        '<p>Measured against FantasyPros 2026 PPR ECR for value and PPR ADP for timing.</p></div>' +
+        '<p>Measured against FantasyPros 2026 PPR ECR for value and ESPN PPR ADP for timing when connected, with FantasyPros ADP fallback.</p></div>' +
       '<div class="final-grade"><span>VALUE<br>GRADE</span><strong>' + grade + '</strong></div>' +
     '</div>' +
     '<div class="final-summary-stats">' +
@@ -8137,7 +8137,7 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.8.5';
+var ESPN_COMPANION_MIN_VERSION = '0.8.6';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
 var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0};
@@ -8287,6 +8287,13 @@ function applyEspnDraftSnapshot(snapshot) {
   var incomingUnavailable = Array.isArray(snapshot.unavailablePlayers)
     ? snapshot.unavailablePlayers
     : [];
+  var incomingMarketAdp = Array.isArray(snapshot.marketAdp) ? snapshot.marketAdp : [];
+  incomingMarketAdp.forEach(function(player) {
+    var row = findDraftRowByExpertName(player && player.playerName);
+    var espnAdp = Number(player && player.adp);
+    if (!row || !Number.isFinite(espnAdp) || espnAdp <= 0) return;
+    row.setAttribute('data-espn-adp', String(espnAdp));
+  });
   var picksByNumber = new Map();
 
   incoming.forEach(function(rawPick) {
@@ -8315,6 +8322,9 @@ function applyEspnDraftSnapshot(snapshot) {
     }),
     unavailablePlayers: incomingUnavailable.map(function(player) {
       return [String(player.playerName || ''), normalizeEspnSyncPosition(player.position)];
+    }),
+    marketAdp: incomingMarketAdp.map(function(player) {
+      return [String(player.playerName || ''), Number(player.adp) || null];
     })
   });
 
@@ -9100,7 +9110,8 @@ function syncRankData(){
    FANTASYPROS 2026 AUTHORITATIVE BOARD
 
    PPR ECR supplies rank/value/tier inputs.
-   PPR ADP supplies market timing and survival inputs.
+   ESPN PPR ADP supplies live market timing when available; FantasyPros PPR
+   ADP remains the player-level fallback.
    ========================================================= */
 
 /*
@@ -13302,6 +13313,7 @@ var ecr = getDraftRowNumber(row, 'data-ecr');
 var adp = getDraftRowNumber(row, 'data-adp');
 var adpRank = getDraftRowNumber(row, 'data-adp-rank');
 var realTimeAdp = getDraftRowNumber(row, 'data-realtime-adp');
+var espnAdp = getDraftRowNumber(row, 'data-espn-adp');
 var rank = ecr != null ? ecr : boardRank;
 
     /*
@@ -13325,6 +13337,7 @@ var rank = ecr != null ? ecr : boardRank;
       adp: adp,
       adpRank: adpRank,
       realTimeAdp: realTimeAdp,
+      espnAdp: espnAdp,
       bye: String(row.getAttribute('data-bye') || '').trim(),
       fantasyProsTier: getDraftRowNumber(row, 'data-fantasypros-tier'),
       semanticTier: row.getAttribute('data-semantic-tier') ||
@@ -15512,6 +15525,7 @@ function calculatePositionScarcity(
  */
 function getFantasyProsMarketRank(player) {
   var candidates = [
+    player && player.espnAdp,
     player && player.adp,
     player && player.realTimeAdp,
     player && player.adpRank
@@ -19628,7 +19642,7 @@ if (picksBetween <= 0) {
 var rank =
   getFantasyProsMarketRank(candidate);
 
-/* No FantasyPros ADP means market survival is unknown. */
+/* No ESPN or FantasyPros ADP means market survival is unknown. */
 if (!Number.isFinite(rank)) {
   return 50;
 }
@@ -19697,7 +19711,8 @@ if (
 }
   
 /*
- * FantasyPros ADP is the center of the market distribution.
+ * ESPN ADP is the center of the market distribution when the companion has
+ * supplied it; otherwise FantasyPros ADP is the player-level fallback.
  * A candidate with ADP equal to our next pick starts at 50%
  * survival; each ADP step later raises survival smoothly.
  */

@@ -15,6 +15,21 @@ test('builds the narrowly scoped ESPN draft-detail request', () => {
   assert.match(url, /view=mDraftDetail/);
 });
 
+test('extracts ESPN PPR average draft position from player ownership data', () => {
+  const market = api.extractMarketAdp([
+    {player: {id: 1, fullName: 'Justin Jefferson', defaultPositionId: 3,
+      ownership: {averageDraftPosition: 10.7}}},
+    {player: {id: 2, fullName: 'Chase Brown', defaultPositionId: 2,
+      ownership: {averageDraftPosition: 22.4}}},
+    {player: {id: 3, fullName: 'Missing Market', defaultPositionId: 3, ownership: {}}}
+  ]);
+  assert.deepEqual(market, [
+    {playerName: 'Justin Jefferson', position: 'WR', adp: 10.7},
+    {playerName: 'Chase Brown', position: 'RB', adp: 22.4}
+  ]);
+  assert.equal(api.buildMarketFilter().players.sortDraftRanks.value, 'PPR');
+});
+
 test('uses ESPN teamId instead of inferred snake position for Mine', () => {
   const snapshot = api.extractDraftSnapshot({
     draftDetail: {

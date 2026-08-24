@@ -50,7 +50,7 @@ ESPN authenticated page connection (primary) or Pick History/Board DOM (fallback
 
 - Keep manual marking available as a fallback.
 - Verify the Captured, Applied, and Unmatched counts after the first few mock-draft picks.
-- If Captured is greater than Applied, refresh the War Room tab and press **Rescan ESPN**. Version 0.8.5 reconciles progress across ESPN frames, retains the most complete Board scan, reports missing pick numbers plus representative unresolved rows, and distinguishes acknowledgment delay from name-matching failures.
+- If Captured is greater than Applied, refresh the War Room tab and press **Rescan ESPN**. Version 0.8.6 also imports ESPN PPR ADP for platform-specific survival timing while preserving FantasyPros ECR as the value authority.
 - Use **Copy diagnostics** to capture the installed/required versions, connection method, sync counts, completion state, and structured API status without exposing ESPN credentials.
 - Follow `LIVE_VALIDATION.md` for the two remaining full-draft checks: Direct mode and forced Board fallback.
 - Prefer a popup status of **Draft detected · Direct**. If it says **Screen**, open ESPN's Board tab once and press Rescan.

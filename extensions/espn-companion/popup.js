@@ -150,6 +150,7 @@ function buildDiagnostics(status) {
     'API available/complete: ' + Boolean(espn.apiAvailable) + '/' + Boolean(espn.apiComplete),
     'API HTTP/transport/role: ' + (espn.apiHttpStatus || 'none') + '/' + (espn.apiTransport || 'none') + '/' + (espn.apiRole || 'none'),
     'API resolved/raw/unresolved: ' + (Number(espn.apiResolved) || 0) + '/' + (Number(espn.apiRawCount) || 0) + '/' + (Number(espn.apiUnresolved) || 0),
+    'ESPN market ADP players: ' + (Number(espn.marketAdpCount) || 0),
     'API scheduled/open slots: ' + (Number(espn.apiScheduledCount) || 0) + '/' + (Number(espn.apiOpenSlots) || 0),
     'API pick fields: ' + (Array.isArray(espn.apiPickFields) && espn.apiPickFields.length ? espn.apiPickFields.join(',') : 'none'),
     'Acknowledgment lag: ' + Math.max(0, picks.length - (Number(warRoom.applied) || 0)) + ' pick(s)',

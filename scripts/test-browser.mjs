@@ -91,6 +91,17 @@ assert.ok(waiverBalance.positions.filter(position => position === 'RB').length >
 assert.ok(waiverBalance.positions.filter(position => position === 'WR').length >= 2);
 assert.match(waiverBalance.html, /RB depth/);
 assert.match(waiverBalance.html, /WR upside/);
+const espnMarketTiming = await page.evaluate(() => {
+  const row = findDraftRowByExpertName('Justin Jefferson');
+  applyEspnDraftSnapshot({force:true, marketAdp:[{playerName:'Justin Jefferson', position:'WR', adp:10.7}], picks:[]});
+  const player = getDraftAssistantPlayers().find(item => item.name === 'Justin Jefferson');
+  const result = {attribute:row.getAttribute('data-espn-adp'), preferred:getFantasyProsMarketRank(player), fantasyPros:player.adp};
+  row.removeAttribute('data-espn-adp');
+  return result;
+});
+assert.equal(espnMarketTiming.attribute, '10.7');
+assert.equal(espnMarketTiming.preferred, 10.7);
+assert.notEqual(espnMarketTiming.preferred, espnMarketTiming.fantasyPros);
 await page.locator('.recommendation-card-summary').click();
 assert.equal(await recommendationCard.getAttribute('open'), '');
 assert.equal(await page.locator('.recommendation-factor').count(), 4);
