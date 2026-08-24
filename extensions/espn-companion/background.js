@@ -11,6 +11,10 @@ var ESPN_URLS = [
   'https://www.espn.com/fantasy/*'
 ];
 
+function getExtensionVersion() {
+  return chrome.runtime.getManifest().version;
+}
+
 var state = {
   config: {teams: 10, draftSlot: 1, rounds: 16},
   draftKey: null,
@@ -182,6 +186,7 @@ function broadcastWarRoom(force) {
         type: 'WAR_ROOM_SNAPSHOT',
         snapshot: {
           version: 1,
+          extensionVersion: getExtensionVersion(),
           draftKey: state.draftKey,
           draftComplete: Boolean(state.espn.draftComplete),
           expectedCompleted: Number(state.espn.expectedCompleted) || 0,
@@ -375,6 +380,7 @@ function syncConfigAndReconcile(config, sendResponse) {
 
 function statusSnapshot() {
   return {
+    extensionVersion: getExtensionVersion(),
     config: state.config,
     picks: getPicks(),
     espn: state.espn,
@@ -504,12 +510,14 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
           status: state.espn.draftPage ? 'connected' : 'scanning',
           detail: state.espn.draftPage
             ? 'ESPN Sync · ' + getPicks().length + ' picks'
-            : 'ESPN companion connected'
+            : 'ESPN companion connected',
+          extensionVersion: getExtensionVersion()
         });
         sendTabQuiet(sender.tab.id, {
           type: 'WAR_ROOM_SNAPSHOT',
           snapshot: {
             version: 1,
+            extensionVersion: getExtensionVersion(),
             draftKey: state.draftKey,
             draftComplete: Boolean(state.espn.draftComplete),
             expectedCompleted: Number(state.espn.expectedCompleted) || 0,
@@ -528,6 +536,8 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.warRoom.applied = Number(result.applied) || 0;
       state.warRoom.unmatched = Array.isArray(result.unmatched) ? result.unmatched.length : 0;
       state.warRoom.lastSeenAt = new Date().toISOString();
+      state.warRoom.requiredExtensionVersion = message.requiredExtensionVersion ||
+        state.warRoom.requiredExtensionVersion || null;
       // The popup's saved settings are authoritative. A passive page ACK can
       // arrive before its persisted draft settings finish loading; accepting
       // those transient values here used to clear both Direct and Board picks.

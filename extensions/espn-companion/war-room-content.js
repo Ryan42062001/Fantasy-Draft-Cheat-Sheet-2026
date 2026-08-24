@@ -3,6 +3,7 @@
 
   if (!globalThis.chrome || !chrome.runtime) return;
   var CHANNEL = 'the-war-room:espn-sync:v1';
+  var EXTENSION_VERSION = chrome.runtime.getManifest().version;
 
   function sendRuntime(message) {
     try {
@@ -24,7 +25,8 @@
       postToWarRoom({
         type: 'EXTENSION_STATUS',
         status: message.status,
-        detail: message.detail
+        detail: message.detail,
+        extensionVersion: message.extensionVersion || EXTENSION_VERSION
       });
     }
   });
@@ -36,6 +38,7 @@
         type: 'WAR_ROOM_ACK',
         result: event.data.result,
         settings: event.data.settings,
+        requiredExtensionVersion: event.data.requiredExtensionVersion,
         url: location.href
       });
     }
@@ -44,7 +47,8 @@
   postToWarRoom({
     type: 'EXTENSION_STATUS',
     status: 'connected',
-    detail: 'ESPN companion connected'
+    detail: 'ESPN companion connected',
+    extensionVersion: EXTENSION_VERSION
   });
   sendRuntime({type: 'WAR_ROOM_READY', url: location.href});
 })();

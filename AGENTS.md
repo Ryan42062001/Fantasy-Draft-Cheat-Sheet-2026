@@ -318,6 +318,11 @@ Recommended Pick verification (2026-08-22):
 - [x] Route structured draft-detail and player lookups through ESPN's authenticated page context before using extension-request or Board fallbacks
 - [x] Reinject stale War Room content bridges and report delivery failures instead of treating a matching tab URL as connected
 - [ ] Validate structured Direct mode and the Board fallback in a live 2026 ESPN football mock draft
+- [x] Add installed/required extension version negotiation and an outdated-version warning
+- [x] Add copyable connection diagnostics without credentials or automatic scoring changes
+- [x] Aggregate saved recommendation audits across fully numbered, low-noise mocks with 10/20-mock review gates
+- [x] Document repeatable full-mock Direct and Board-fallback validation; live execution remains required
+- [ ] Split `script.js` into focused modules after draft season, not during the draft-day reliability window
 
 Current verification (2026-08-22):
 - Existing War Room regressions: 165/165
@@ -330,7 +335,7 @@ Current verification (2026-08-22):
 - Companion 0.7.2 makes the popup's saved draft settings authoritative during sync and prevents an early War Room acknowledgment from clearing Direct or Board-fallback picks
 - Companion 0.7.3 detects a structured feed lagging behind ESPN's on-clock pick and automatically falls back to the visible PICK / PLAYER / TEAM history table
 - Companion 0.7.4 detects a filled terminal Board slot after the on-clock banner disappears and keeps all completed scheduled slots eligible for Hybrid reconciliation instead of replacing the Board with a partial API result
-- Companion 0.8.1 sends completion metadata to the War Room, prevents embedded frames and prior mocks from corrupting completion state, and keeps partial sync labeled honestly so a known 16-player roster can receive a provisional final report
+- Companion 0.8.2 adds installed/required version negotiation, visible stale-build warnings, copyable diagnostics, and the 0.8.1 completion-state protections
 
 ## Post-mock strategy polish
 - [x] Warn at three players sharing a bye, modestly penalize a fourth, and strongly caution against a fifth within the existing strategy budget
@@ -341,7 +346,7 @@ Current verification (2026-08-22):
 
 Verification (2026-08-23):
 - Provisional completion, 11-of-192 partial-sync messaging, WR-heavy construction, fifth-player bye penalty, and final-report insight fixtures pass in browser automation
-- Canonical regressions 165/165; calculation sanity 20/20; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 46/46
+- Canonical regressions 165/165; calculation sanity 20/20; thresholds 8/8; roadmap 4/4; ESPN website 12/12; extension 47/47
 
 ## User roster recommendation preferences
 - [x] Hard-cap the recommendation pool at one QB

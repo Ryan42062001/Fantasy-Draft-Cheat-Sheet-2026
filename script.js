@@ -8091,6 +8091,7 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
+var ESPN_COMPANION_MIN_VERSION = '0.8.2';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
 var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0};
@@ -8226,7 +8227,8 @@ function publishEspnSyncAck(result) {
     channel: ESPN_SYNC_CHANNEL,
     type: 'SYNC_ACK',
     result: result || latestEspnSyncResult,
-    settings: getEspnSyncSettings()
+    settings: getEspnSyncSettings(),
+    requiredExtensionVersion: ESPN_COMPANION_MIN_VERSION
   }, targetOrigin);
 }
 
@@ -8372,9 +8374,23 @@ window.addEventListener('message', function(event) {
   if (event.source !== window || !event.data || event.data.channel !== ESPN_SYNC_CHANNEL) return;
 
   if (event.data.type === 'EXTENSION_STATUS') {
+    var installedVersion = String(event.data.extensionVersion || '').trim();
+    var versionParts = function(value) {
+      return String(value || '').split('.').map(function(part) { return parseInt(part, 10) || 0; });
+    };
+    var installedParts = versionParts(installedVersion);
+    var requiredParts = versionParts(ESPN_COMPANION_MIN_VERSION);
+    var outdated = false;
+    for (var versionIndex = 0; versionIndex < Math.max(installedParts.length, requiredParts.length); versionIndex++) {
+      if ((installedParts[versionIndex] || 0) === (requiredParts[versionIndex] || 0)) continue;
+      outdated = (installedParts[versionIndex] || 0) < (requiredParts[versionIndex] || 0);
+      break;
+    }
     updateEspnSyncStatus(
-      event.data.status === 'scanning' ? 'syncing' : 'connected',
-      event.data.detail || 'ESPN companion connected'
+      outdated ? 'error' : event.data.status === 'scanning' ? 'syncing' : 'connected',
+      outdated
+        ? 'ESPN Companion ' + (installedVersion || 'unknown') + ' is outdated · reload version ' + ESPN_COMPANION_MIN_VERSION
+        : (event.data.detail || 'ESPN companion connected') + (installedVersion ? ' · v' + installedVersion : '')
     );
     publishEspnSyncAck(latestEspnSyncResult);
   }
@@ -10759,6 +10775,8 @@ function updateRecommendationAudit(recommendation, primary, state) {
       baseScore: Number(primary.baseScore) || 0,
       strategyAdjustment: Number(primary.cappedStrategyAdjustment) || 0,
       guardrailAdjustment: Number(primary.guardrailAdjustment) || 0,
+      byeWeek: primary.bye || null,
+      byeWeekAdjustment: Number(primary.byeWeekCongestionAdjustment) || 0,
       resolved: false
     });
     if (recommendationAudit.length > 200) recommendationAudit = recommendationAudit.slice(-200);
@@ -10784,6 +10802,54 @@ function getRecommendationAuditSummary() {
     entries: recommendationAudit.slice()
   };
 }
+
+function getRecommendationAuditPortfolioSummary() {
+  var drafts = readDraftSessionRegistry().map(function(session) {
+    try {
+      var payload = JSON.parse(localStorage.getItem(getDraftSessionStateKey(session.id)) || 'null');
+      if (!payload) return null;
+      var totalPicks = Math.max(2, Number(payload.teams) || 10) * Math.max(1, Number(payload.rounds) || 16);
+      var numberedPicks = Object.keys(payload.draftMeta || {}).filter(function(name) {
+        return Number(payload.draftMeta[name] && payload.draftMeta[name].pick) > 0;
+      }).length;
+      var resolved = (Array.isArray(payload.recommendationAudit) ? payload.recommendationAudit : [])
+        .filter(function(entry) { return entry && entry.resolved; });
+      var eligible = resolved.filter(function(entry) { return entry.calibrationEligible; });
+      var noisy = resolved.filter(function(entry) { return entry.noisyDraft; }).length;
+      var noiseRate = resolved.length ? noisy / resolved.length : 0;
+      var complete = numberedPicks >= totalPicks;
+      var clean = complete && eligible.length > 0 && noiseRate < 0.35;
+      return {
+        id: session.id,
+        name: session.name,
+        complete: complete,
+        clean: clean,
+        numberedPicks: numberedPicks,
+        totalPicks: totalPicks,
+        eligibleDecisions: eligible.length,
+        noisyDecisions: noisy,
+        qbDecisions: eligible.filter(function(entry) { return entry.position === 'QB'; }).length,
+        teDecisions: eligible.filter(function(entry) { return entry.position === 'TE'; }).length,
+        byePenaltyDecisions: eligible.filter(function(entry) { return Number(entry.byeWeekAdjustment) < 0; }).length
+      };
+    } catch (error) { return null; }
+  }).filter(Boolean);
+  var cleanDrafts = drafts.filter(function(draft) { return draft.clean; });
+  return {
+    savedDrafts: drafts.length,
+    completedDrafts: drafts.filter(function(draft) { return draft.complete; }).length,
+    cleanCompletedMocks: cleanDrafts.length,
+    reviewReady: cleanDrafts.length >= 10,
+    strongReviewSample: cleanDrafts.length >= 20,
+    remainingUntilReview: Math.max(0, 10 - cleanDrafts.length),
+    qbDecisions: cleanDrafts.reduce(function(sum, draft) { return sum + draft.qbDecisions; }, 0),
+    teDecisions: cleanDrafts.reduce(function(sum, draft) { return sum + draft.teDecisions; }, 0),
+    byePenaltyDecisions: cleanDrafts.reduce(function(sum, draft) { return sum + draft.byePenaltyDecisions; }, 0),
+    drafts: drafts
+  };
+}
+
+window.getRecommendationAuditPortfolioSummary = getRecommendationAuditPortfolioSummary;
 
 function updateRecommendedPick(sharedLiveState) {
 
