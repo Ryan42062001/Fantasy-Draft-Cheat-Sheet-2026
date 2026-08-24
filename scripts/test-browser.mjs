@@ -33,6 +33,64 @@ const recommendationCard = page.locator('.recommendation-card');
 assert.equal(await recommendationCard.getAttribute('open'), null);
 assert.equal(await page.locator('.recommendation-card-summary .recommendation-player b').count(), 1);
 assert.equal(await page.locator('.recommendation-one-line').count(), 1);
+
+const jeffersonTurnFixture = await page.evaluate(() => {
+  const original = {teams:LEAGUE_SIZE, slot:MY_DRAFT_SLOT, rounds:TOTAL_ROUNDS};
+  const picks = [
+    'Bijan Robinson', "Ja'Marr Chase", 'Jahmyr Gibbs', 'Christian McCaffrey',
+    'Puka Nacua', 'Jaxon Smith-Njigba', 'Jonathan Taylor', 'James Cook III',
+    'Amon-Ra St. Brown', 'Ashton Jeanty', 'CeeDee Lamb', 'Drake London', 'Trey McBride'
+  ];
+  document.getElementById('pcTeams').value = '12';
+  document.getElementById('pcSlot').value = '11';
+  document.getElementById('pcRounds').value = '16';
+  LEAGUE_SIZE = 12;
+  MY_DRAFT_SLOT = 11;
+  TOTAL_ROUNDS = 16;
+  picks.forEach((name, index) => {
+    const row = findDraftRowByExpertName(name);
+    if (!row) throw new Error('Missing turn fixture player: ' + name);
+    row.classList.add(index === 10 ? 'drafted-mine' : 'drafted-other');
+    row.setAttribute('data-pick', String(index + 1));
+  });
+  const state = buildLiveDraftDebugState();
+  const jefferson = state.scored.find(player => player.name === 'Justin Jefferson');
+  const brown = state.scored.find(player => player.name === 'Chase Brown');
+  const result = {
+    leader: state.scored[0] && state.scored[0].name,
+    jefferson: jefferson && {ecr:jefferson.ecr, final:jefferson.finalScore, priority:jefferson.recommendationPriorityScore, survival:jefferson.recommendationSurvival},
+    brown: brown && {ecr:brown.ecr, final:brown.finalScore, priority:brown.recommendationPriorityScore, survival:brown.recommendationSurvival}
+  };
+  picks.forEach(name => {
+    const row = findDraftRowByExpertName(name);
+    row.classList.remove('drafted-mine', 'drafted-other');
+    row.removeAttribute('data-pick');
+  });
+  document.getElementById('pcTeams').value = String(original.teams);
+  document.getElementById('pcSlot').value = String(original.slot);
+  document.getElementById('pcRounds').value = String(original.rounds);
+  LEAGUE_SIZE = original.teams;
+  MY_DRAFT_SLOT = original.slot;
+  TOTAL_ROUNDS = original.rounds;
+  return result;
+});
+assert.equal(jeffersonTurnFixture.leader, 'Justin Jefferson', JSON.stringify(jeffersonTurnFixture));
+const waiverBalance = await page.evaluate(() => {
+  const quarterback = findDraftRowByExpertName('Josh Allen');
+  quarterback.classList.add('drafted-mine');
+  quarterback.setAttribute('data-pick', '39');
+  const watch = getFinalWaiverWatch(6);
+  const positions = watch.map(player => player.position);
+  const html = buildWaiverWatchHtml(watch, false);
+  quarterback.classList.remove('drafted-mine');
+  quarterback.removeAttribute('data-pick');
+  return {positions, html};
+});
+assert.equal(waiverBalance.positions.includes('QB'), false, JSON.stringify(waiverBalance.positions));
+assert.ok(waiverBalance.positions.filter(position => position === 'RB').length >= 2);
+assert.ok(waiverBalance.positions.filter(position => position === 'WR').length >= 2);
+assert.match(waiverBalance.html, /RB depth/);
+assert.match(waiverBalance.html, /WR upside/);
 await page.locator('.recommendation-card-summary').click();
 assert.equal(await recommendationCard.getAttribute('open'), '');
 assert.equal(await page.locator('.recommendation-factor').count(), 4);
