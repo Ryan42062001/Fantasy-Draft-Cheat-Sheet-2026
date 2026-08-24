@@ -949,7 +949,9 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
     ? knownMarket.reduce(function(total, player) { return total + player.marketValue; }, 0) / knownMarket.length
     : null;
   var bestValue = knownValues.slice().sort(function(a, b) { return b.ecrValue - a.ecrValue; })[0] || null;
-  var materialReaches = knownValues.filter(function(player) { return player.ecrValue <= -5; })
+  var materialReaches = knownValues.filter(function(player) {
+    return player.ecrValue <= -5 && player.position !== 'K' && player.position !== 'DST';
+  })
     .sort(function(a, b) { return a.ecrValue - b.ecrValue; });
   var strengths = [];
   var improvements = [];
@@ -1046,14 +1048,19 @@ function buildFinalDraftSummaryHtml(picks, positionCounts, startersFilled, avera
   }
 
   ['K', 'DST'].forEach(function(position) {
-    var earlyPick = picks.find(function(player) {
-      return player.position === position && player.pick != null &&
-        Math.ceil(player.pick / Math.max(1, LEAGUE_SIZE)) < Math.max(1, TOTAL_ROUNDS - 2);
+    var selection = picks.find(function(player) {
+      return player.position === position && player.pick != null;
     });
-    if (earlyPick) {
+    var selectedRound = selection
+      ? Math.ceil(selection.pick / Math.max(1, LEAGUE_SIZE))
+      : null;
+    if (selection && selectedRound < Math.max(1, TOTAL_ROUNDS - 1)) {
       improvements.push('<b>' + position + ' was selected in Round ' +
-        Math.ceil(earlyPick.pick / Math.max(1, LEAGUE_SIZE)) +
+        selectedRound +
         '.</b> Waiting until the final two rounds usually preserves more upside at RB/WR.');
+    } else if (selection) {
+      strengths.push('You reserved <b>' + position + ' for Round ' + selectedRound +
+        '</b>, preserving earlier selections for skill-position value.');
     }
   });
 
@@ -4011,9 +4018,21 @@ function applyMarketAwareRecommendationPriority(scoredPlayers, context) {
   scoredPlayers.forEach(function(player) {
     var survival = calculateNextPickSurvival(player, context);
     var timingAdjustment = Math.max(-6, Math.min(6, (50 - survival) * 0.12));
+    var round = Math.ceil(
+      (Number(context.currentPick) || 1) /
+      Math.max(1, Number(context.teams) || 10)
+    );
+    var zeroRbStarterBuild = round >= 4 &&
+      Number(context.rosterCounts && context.rosterCounts.RB) === 0 &&
+      Number(context.rosterCounts && context.rosterCounts.WR) >= 2;
+    var rosterPriorityAdjustment = zeroRbStarterBuild
+      ? player.position === 'RB' ? 3 : player.position === 'WR' ? -3 : 0
+      : 0;
     player.recommendationSurvival = survival;
     player.marketPriorityAdjustment = Number(timingAdjustment.toFixed(2));
-    player.recommendationPriorityScore = Number(player.finalScore || 0) + timingAdjustment;
+    player.rosterPriorityAdjustment = rosterPriorityAdjustment;
+    player.recommendationPriorityScore = Number(player.finalScore || 0) +
+      timingAdjustment + rosterPriorityAdjustment;
     player.marketEcrGuardrail = false;
   });
 
@@ -4025,6 +4044,12 @@ function applyMarketAwareRecommendationPriority(scoredPlayers, context) {
       if (!player || player === bestEcrPlayer || !corePositions.includes(player.position)) return;
       var ecrRank = Number(player.ecr || player.rank);
       if (!Number.isFinite(ecrRank) || ecrRank - bestEcrRank < protectionGap) return;
+      var fillsOpenStarter = Number(context.rosterNeeds && context.rosterNeeds[player.position]) > 0 &&
+        Number(context.rosterNeeds && context.rosterNeeds[bestEcrPlayer.position]) <= 0;
+      var materiallyBetterForRoster = bestEcrRank > 12 && fillsOpenStarter &&
+        Number(player.recommendationPriorityScore || 0) >=
+          Number(bestEcrPlayer.recommendationPriorityScore || 0) + 2;
+      if (materiallyBetterForRoster) return;
       // Positional value may break close ECR ties, but another urgent player
       // cannot use the same market signal to jump a materially better,
       // already-overdue ECR value.
@@ -8351,6 +8376,7 @@ function applyEspnDraftSnapshot(snapshot) {
     if (!row) return;
     if (Number.isFinite(espnAdp) && espnAdp > 0) row.setAttribute('data-espn-adp', String(espnAdp));
     if (Number.isFinite(espnRank) && espnRank > 0) row.setAttribute('data-espn-rank', String(espnRank));
+    updateDraftRowMarketCell(row);
   });
   var picksByNumber = new Map();
 
@@ -9336,6 +9362,30 @@ function getFantasyProsValueVsAdp(player) {
 
 }
 
+function updateDraftRowMarketCell(row) {
+  if (!row || !row.children[4]) return;
+  var cell = row.children[4];
+  var espnRank = getDraftRowNumber(row, 'data-espn-rank');
+  var espnAdp = getDraftRowNumber(row, 'data-espn-adp');
+  var fantasyProsAdp = getDraftRowNumber(row, 'data-adp');
+
+  if (espnRank != null && espnAdp != null) {
+    cell.textContent = '#' + espnRank.toFixed(0) + ' / ' + espnAdp.toFixed(1);
+    cell.title = 'ESPN default board rank / live ESPN PPR ADP';
+  } else if (espnRank != null) {
+    cell.textContent = '#' + espnRank.toFixed(0);
+    cell.title = 'ESPN default PPR board rank; live ESPN ADP is not available';
+  } else if (espnAdp != null) {
+    cell.textContent = espnAdp.toFixed(1);
+    cell.title = 'Live ESPN PPR ADP';
+  } else {
+    cell.textContent = fantasyProsAdp != null ? fantasyProsAdp.toFixed(1) : '--';
+    cell.title = fantasyProsAdp != null
+      ? 'FantasyPros PPR ADP fallback; ESPN market rank is unavailable'
+      : 'No market rank available';
+  }
+}
+
 
 function createExpertPlayerRow(player) {
 
@@ -9463,6 +9513,8 @@ function createExpertPlayerRow(player) {
     '<td class="notecell">' +
       noteText +
     '</td>';
+
+  updateDraftRowMarketCell(row);
 
 
   return row;
@@ -9704,17 +9756,7 @@ function updateExpertPlayerRowMetadata(
   }
 
 
-  var adpCell =
-    row.children[4];
-
-  if (adpCell) {
-
-    adpCell.textContent =
-      player.adp != null
-        ? Number(player.adp).toFixed(1)
-        : '--';
-
-  }
+  updateDraftRowMarketCell(row);
 
 
   var valueCell =
@@ -18754,6 +18796,12 @@ if (DEBUG_DRAFT_SCORING) {
     realTimeAdp:
       player.realTimeAdp == null ? null : Number(player.realTimeAdp),
 
+    espnRank:
+      player.espnRank == null ? null : Number(player.espnRank),
+
+    espnAdp:
+      player.espnAdp == null ? null : Number(player.espnAdp),
+
     team:
       player.team || null,
 
@@ -22091,6 +22139,19 @@ function calculateRosterConstructionValue(
 
   }
 
+  /* Once the starter-build phase begins, a zero-RB roster with an already
+   * filled WR requirement needs a modest tie-breaker. This remains bounded
+   * support: it cannot erase a meaningful ECR/value gap by itself. */
+  var counts = context.rosterCounts || {};
+  var round = Math.ceil(
+    (Number(context.currentPick) || 1) /
+    Math.max(1, Number(context.teams) || 10)
+  );
+  if (round >= 4 && Number(counts.RB) === 0 && Number(counts.WR) >= 2) {
+    if (position === 'RB') value += 2;
+    if (position === 'WR') value -= 2;
+  }
+
 
   /*
    * -------------------------------------------------------
@@ -22124,14 +22185,14 @@ function calculateByeWeekCongestionAdjustment(player, context) {
   var existing = Number(byeCounts[bye]) || 0;
   if (existing < 3) return 0;
 
-  var adjustment = existing === 3 ? -2 : existing === 4 ? -6 : -10;
+  var adjustment = existing === 3 ? -2 : existing === 4 ? -9 : -12;
   var round = Math.ceil((Number(context.currentPick) || 1) / Math.max(1, Number(context.teams) || 10));
   if (round <= 4) adjustment *= 0.5;
   else if (round <= 7) adjustment *= 0.75;
 
   var position = player.position || player.pos;
   if (existing >= 4 && (position === 'QB' || position === 'TE')) adjustment -= 1;
-  return Math.max(-10, Number(adjustment.toFixed(2)));
+  return Math.max(-12, Number(adjustment.toFixed(2)));
 }
 
 function calculateRosterSaturationPenalty(

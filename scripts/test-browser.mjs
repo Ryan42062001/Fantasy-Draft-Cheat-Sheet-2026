@@ -283,8 +283,10 @@ const strategyPolish = await page.evaluate(() => {
     {name:'RB Two',position:'RB',pick:62,ecr:60,adp:50,bye:'11',ecrValue:2,marketValue:-12},
     {name:'TE One',position:'TE',pick:83,ecr:72,adp:73,bye:'10',ecrValue:11,marketValue:-10},
     {name:'RB Three',position:'RB',pick:86,ecr:70,adp:73,bye:'11',ecrValue:16,marketValue:-13},
-    {name:'WR Four',position:'WR',pick:110,ecr:73,adp:100,bye:'10',ecrValue:37,marketValue:-10}
-  ], {QB:1,RB:3,WR:4,TE:1,K:0,DST:0}, 7, 11.2, 'A+');
+    {name:'WR Four',position:'WR',pick:110,ecr:73,adp:100,bye:'10',ecrValue:37,marketValue:-10},
+    {name:'Late K',position:'K',pick:180,ecr:240,adp:210,bye:'8',ecrValue:-60,marketValue:-30},
+    {name:'Late DST',position:'DST',pick:191,ecr:250,adp:220,bye:'9',ecrValue:-59,marketValue:-29}
+  ], {QB:1,RB:3,WR:4,TE:1,K:1,DST:1}, 9, 11.2, 'A+');
   rows.forEach(row => {
     row.classList.remove('drafted-mine');
     row.removeAttribute('data-pick');
@@ -299,7 +301,7 @@ const strategyPolish = await page.evaluate(() => {
   TOTAL_ROUNDS = originalSettings.rounds;
   return {byeAdjustment, completion, counter, report};
 });
-assert.equal(strategyPolish.byeAdjustment, -6);
+assert.equal(strategyPolish.byeAdjustment, -9);
 assert.equal(strategyPolish.completion.provisional, true);
 assert.match(strategyPolish.counter, /Draft appears complete/);
 assert.match(strategyPolish.counter, /11 of 192 numbered picks synced/);
@@ -307,6 +309,10 @@ assert.match(strategyPolish.report, /PROVISIONAL FINAL REPORT/);
 assert.match(strategyPolish.report, /WR foundation/);
 assert.match(strategyPolish.report, /Bye-week concentration/);
 assert.match(strategyPolish.report, /first RB to <b>Round 5/);
+assert.match(strategyPolish.report, /reserved <b>K for Round 15/);
+assert.match(strategyPolish.report, /reserved <b>DST for Round 16/);
+assert.doesNotMatch(strategyPolish.report, /Late K at #180/);
+assert.doesNotMatch(strategyPolish.report, /Late DST at #191/);
 
 const completedCounter = await page.evaluate(() => {
   const rows = Array.from(document.querySelectorAll('tr.draftrow')).slice(0, 160);
