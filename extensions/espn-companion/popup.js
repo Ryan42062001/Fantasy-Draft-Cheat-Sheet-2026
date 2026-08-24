@@ -2,6 +2,9 @@
 
 var settingsDirty = false;
 var latestStatus = null;
+var PACKAGED_WEBSITE_REQUIREMENT = '0.8.10';
+var reportedRequiredVersion = null;
+var requiredVersion = PACKAGED_WEBSITE_REQUIREMENT;
 
 function compareVersions(left, right) {
   var a = String(left || '').split('.').map(function(part) { return parseInt(part, 10) || 0; });
@@ -30,11 +33,10 @@ function render(status) {
   var warRoom = status.warRoom || {};
   var picks = Array.isArray(status.picks) ? status.picks : [];
   var extensionVersion = status.extensionVersion || chrome.runtime.getManifest().version;
-  var PACKAGED_WEBSITE_REQUIREMENT = '0.8.9';
-var reportedRequiredVersion = warRoom.requiredExtensionVersion || null;
-var requiredVersion = compareVersions(reportedRequiredVersion, PACKAGED_WEBSITE_REQUIREMENT) >= 0
-  ? reportedRequiredVersion
-  : PACKAGED_WEBSITE_REQUIREMENT;
+  reportedRequiredVersion = warRoom.requiredExtensionVersion || null;
+  requiredVersion = compareVersions(reportedRequiredVersion, PACKAGED_WEBSITE_REQUIREMENT) >= 0
+    ? reportedRequiredVersion
+    : PACKAGED_WEBSITE_REQUIREMENT;
   document.getElementById('extension-version').textContent = 'Installed v' + extensionVersion;
   var versionWarning = document.getElementById('version-warning');
   var outdated = requiredVersion && compareVersions(extensionVersion, requiredVersion) < 0;
@@ -218,7 +220,22 @@ document.getElementById('reset').addEventListener('click', function(event) {
 
 document.getElementById('copy-diagnostics').addEventListener('click', function(event) {
   var button = event.currentTarget;
-  navigator.clipboard.writeText(buildDiagnostics(latestStatus)).then(function() {
+  var diagnostics = buildDiagnostics(latestStatus);
+  var copyPromise = navigator.clipboard && navigator.clipboard.writeText
+    ? navigator.clipboard.writeText(diagnostics)
+    : Promise.reject(new Error('Clipboard API unavailable'));
+  copyPromise.catch(function() {
+    var textarea = document.createElement('textarea');
+    textarea.value = diagnostics;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    var copied = document.execCommand('copy');
+    textarea.remove();
+    if (!copied) throw new Error('Clipboard fallback failed');
+  }).then(function() {
     button.textContent = 'Diagnostics copied';
     setTimeout(function() { button.textContent = 'Copy diagnostics'; }, 1800);
   }).catch(function() {

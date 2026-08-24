@@ -62,7 +62,7 @@ const websiteSettingsSync = await page.evaluate(async () => {
 });
 assert.equal(websiteSettingsSync.type, 'SETTINGS_UPDATE');
 assert.deepEqual(websiteSettingsSync.settings, {teams:12, rounds:18, draftSlot:11, totalPicks:216});
-assert.equal(websiteSettingsSync.minVersion, '0.8.9');
+assert.equal(websiteSettingsSync.minVersion, '0.8.10');
 
 const rankingRefreshCenter = await page.evaluate(() => {
   openRankingsRefresh();
