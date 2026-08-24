@@ -59,6 +59,11 @@
     match = text.match(/^\s*#?(\d{1,3})\s*(?:[.):-]|\n)/m);
     if (match) return Number(match[1]);
 
+    // FixedDataTable can flatten a history row into one space-delimited line.
+    // scanDocumentDetailed already requires history context before calling here.
+    match = text.match(/^\s*#?(\d{1,3})\s+(?=[A-Za-z])/m);
+    if (match) return Number(match[1]);
+
     return null;
   }
 
@@ -82,6 +87,11 @@
       attrs.playerName || attrs['data-player-name'] || attrs['data-athlete-name']
     );
     if (preferred) return preferred;
+
+    var espnGrid = cleanText(text).match(
+      /^\s*#?\d{1,3}\s+(.+?)\s+(?:(?:Q|O|D|IR|SUSP|PUP)\s+)?[A-Z]{2,4}\s+(?:QB|RB|WR|TE|K|D\s*\/\s*ST|DST|DEF)\b/im
+    );
+    if (espnGrid && looksLikeName(espnGrid[1])) return cleanText(espnGrid[1]);
 
     var classic = cleanText(text).match(
       /^\s*#?\d{1,3}\s*[.)-]\s*(?:\(\d{1,3}\)\s*)?(.+?)\s*\([A-Z]{2,4}\s*[-–—·]\s*(?:QB|RB|WR|TE|K|D\s*\/\s*ST|DST|DEF)\)/im

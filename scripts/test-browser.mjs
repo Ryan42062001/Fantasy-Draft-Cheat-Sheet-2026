@@ -62,7 +62,33 @@ const websiteSettingsSync = await page.evaluate(async () => {
 });
 assert.equal(websiteSettingsSync.type, 'SETTINGS_UPDATE');
 assert.deepEqual(websiteSettingsSync.settings, {teams:12, rounds:18, draftSlot:11, totalPicks:216});
-assert.equal(websiteSettingsSync.minVersion, '0.8.7');
+assert.equal(websiteSettingsSync.minVersion, '0.8.8');
+
+const rankingRefreshCenter = await page.evaluate(() => {
+  openRankingsRefresh();
+  const topRows = EMBEDDED_FANTASYPROS_2026_DATASET.filter(player => player.ecr != null).slice(0, 100).map((player, index) => ({
+    RK: String(index + 1),
+    'PLAYER NAME': player.name,
+    TEAM: player.team,
+    POS: player.pos + (player.posRank || ''),
+    'BYE WEEK': player.bye,
+    TIERS: String(player.fantasyProsTier || 1)
+  }));
+  const override = buildFantasyProsTop20Override(topRows, {name:'FantasyPros_Test.csv', lastModified:Date.now()});
+  const result = {
+    modalOpen: document.getElementById('rankings-refresh-modal').classList.contains('open'),
+    players: override.players.length,
+    top20: override.top20Count,
+    first: override.players[0].name,
+    ecrPlayers: override.players.filter(player => player.ecr != null).length,
+    adpOnly: override.players.filter(player => player.ecr == null).length
+  };
+  closeRankingsRefresh();
+  return result;
+});
+assert.deepEqual(rankingRefreshCenter, {
+  modalOpen:true, players:717, top20:100, first:"Ja'Marr Chase", ecrPlayers:520, adpOnly:197
+});
 
 const jeffersonTurnFixture = await page.evaluate(() => {
   const original = {teams:LEAGUE_SIZE, slot:MY_DRAFT_SLOT, rounds:TOTAL_ROUNDS};
@@ -123,14 +149,14 @@ assert.match(waiverBalance.html, /RB depth/);
 assert.match(waiverBalance.html, /WR upside/);
 const espnMarketTiming = await page.evaluate(() => {
   const row = findDraftRowByExpertName('Justin Jefferson');
-  applyEspnDraftSnapshot({force:true, marketAdp:[{playerName:'Justin Jefferson', position:'WR', adp:10.7}], picks:[]});
+  applyEspnDraftSnapshot({force:true, marketAdp:[{playerName:'Justin Jefferson', position:'WR', rank:8, adp:10.7}], picks:[]});
   const player = getDraftAssistantPlayers().find(item => item.name === 'Justin Jefferson');
   toggleAutoDraftTeam(2);
   const autoWeighted = getMarketTimingDetails(player, {currentPick:1, nextPick:20, teams:10});
   const autoPressed = document.querySelector('.auto-draft-team-toggle[data-team-slot="2"]').getAttribute('aria-pressed');
   toggleAutoDraftTeam(2);
   const result = {
-    attribute:row.getAttribute('data-espn-adp'), boardRank:player.espnRank,
+    attribute:row.getAttribute('data-espn-adp'), liveBoardRank:row.getAttribute('data-espn-rank'), boardRank:player.espnRank,
     early:getFantasyProsMarketRank(player, {currentPick:14}),
     middle:getFantasyProsMarketRank(player, {currentPick:60}),
     late:getFantasyProsMarketRank(player, {currentPick:120}),
@@ -139,13 +165,15 @@ const espnMarketTiming = await page.evaluate(() => {
     autoWeighted:autoWeighted.boardWeight, autoPressed
   };
   row.removeAttribute('data-espn-adp');
+  row.removeAttribute('data-espn-rank');
   return result;
 });
 assert.equal(espnMarketTiming.attribute, '10.7');
-assert.equal(espnMarketTiming.boardRank, 11);
-assert.ok(Math.abs(espnMarketTiming.early - 10.925) < 0.001);
-assert.ok(Math.abs(espnMarketTiming.middle - 10.895) < 0.001);
-assert.ok(Math.abs(espnMarketTiming.late - 10.85) < 0.001);
+assert.equal(espnMarketTiming.liveBoardRank, '8');
+assert.equal(espnMarketTiming.boardRank, 8);
+assert.ok(Math.abs(espnMarketTiming.early - 8.675) < 0.001);
+assert.ok(Math.abs(espnMarketTiming.middle - 8.945) < 0.001);
+assert.ok(Math.abs(espnMarketTiming.late - 9.35) < 0.001);
 assert.notEqual(espnMarketTiming.early, espnMarketTiming.fantasyPros);
 assert.match(espnMarketTiming.status, /Market 300\/1/);
 assert.equal(espnMarketTiming.autoPressed, 'true');

@@ -50,6 +50,9 @@
         url: location.href
       });
     }
+    if (event.data.type === 'RANKINGS_REFRESH_REQUEST') {
+      sendRuntime({type: 'WAR_ROOM_RANKINGS_REFRESH', url: location.href});
+    }
   });
 
   postToWarRoom({

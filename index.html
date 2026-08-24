@@ -58,6 +58,7 @@
   </div>
   <button class="filterbtn" id="autosaveToggle" onclick="toggleAutosave()">Autosave Off</button>
   <button class="filterbtn audit-button" id="mockAuditBtn" onclick="openMockAudit()">Mock Audit</button>
+  <button class="filterbtn rankings-refresh-button" id="rankingsRefreshBtn" onclick="openRankingsRefresh()">Update Rankings</button>
   <button class="resetbtn" id="editRanksBtn" onclick="toggleEditMode()">Customize Board</button>
   <button class="resetbtn fantasypros-order-btn" onclick="resetRanks()">FantasyPros Order</button>
   <button class="resetbtn" id="resetBtn" onclick="resetBoard()">Reset all</button>
@@ -344,10 +345,47 @@
   </div>
 </div>
 
+<div id="rankings-refresh-modal" class="final-summary-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="rankings-refresh-title">
+  <div class="final-summary-dialog rankings-refresh-dialog" tabindex="-1">
+    <button class="close-btn" onclick="closeRankingsRefresh()" aria-label="Close rankings update center">&times;</button>
+    <div class="summary-eyebrow">RANKING SOURCE CONTROL</div>
+    <h2 id="rankings-refresh-title">Update Rankings</h2>
+    <p class="rankings-refresh-intro">FantasyPros controls player value. ESPN controls live draft-room timing. Updating one never silently replaces the other.</p>
+
+    <div class="rankings-refresh-grid">
+      <section class="rankings-source-card">
+        <div class="rankings-source-heading"><span>VALUE</span><h3>FantasyPros Top-20 PPR ECR</h3></div>
+        <p>Download the Top-20 Draft Experts PPR CSV from FantasyPros, then import it here. Players outside that export keep the broader ECR fallback.</p>
+        <div id="fantasypros-refresh-status" class="rankings-source-status"></div>
+        <label class="ranking-file-label" for="fantasyprosTop20File">Choose FantasyPros CSV</label>
+        <input id="fantasyprosTop20File" type="file" accept=".csv,text/csv">
+        <div class="rankings-source-actions">
+          <a href="https://www.fantasypros.com/nfl/rankings/ppr-cheatsheets.php" target="_blank" rel="noopener noreferrer">Open FantasyPros PPR rankings</a>
+          <button type="button" onclick="importFantasyProsTop20File()">Import selected CSV</button>
+          <button type="button" class="secondary" onclick="resetFantasyProsRankingOverride()">Use embedded baseline</button>
+        </div>
+      </section>
+
+      <section class="rankings-source-card">
+        <div class="rankings-source-heading"><span>MARKET</span><h3>ESPN Board Rank + PPR ADP</h3></div>
+        <p>Uses the authenticated ESPN tab already connected through the companion. Refresh before a draft for the best survival estimates.</p>
+        <div id="espn-rankings-refresh-status" class="rankings-source-status"></div>
+        <div class="rankings-source-actions">
+          <button type="button" onclick="requestEspnRankingsRefresh()">Refresh from ESPN</button>
+        </div>
+        <small>Requires an open ESPN fantasy draft page and Companion 0.8.8 or newer.</small>
+      </section>
+    </div>
+
+    <div id="rankings-refresh-message" class="rankings-refresh-message" aria-live="polite"></div>
+    <button type="button" class="final-summary-done" onclick="closeRankingsRefresh()">Done</button>
+  </div>
+</div>
+
 <script src="fantasypros-2026-data.js?v=20260823-1"></script>
 <script src="espn-2026-board-data.js?v=20260824-1"></script>
 <script src="war-room-config.js?v=20260822-2"></script>
-<script src="script.js?v=20260824-2"></script>
+<script src="script.js?v=20260824-3"></script>
 
 </body>
 </html>

@@ -230,7 +230,8 @@ Do not call the migration complete until all of these are true:
 - [x] Centralize league, roster, tier, FLEX, and recommendation-cap configuration in `war-room-config.js`
 - [x] Commit a hash/count-protected FantasyPros dataset baseline with explicit `baseline:accept` workflow
 - [x] Add root syntax/dataset/extension/browser test entry points and GitHub Actions coverage
-- [ ] Validate structured Direct mode and Board fallback in a live 2026 ESPN football mock draft
+- [ ] Validate structured Direct mode in a live 2026 ESPN football mock draft
+- [x] Validate Board/Pick History fallback in a live 2026 ESPN football mock draft
 
 Verification (2026-08-22):
 - Board/runtime audit: 717 dataset players, 717 rows, 0 duplicate canonical names, and 0 normal-startup rank-control sets
@@ -319,7 +320,8 @@ Recommended Pick verification (2026-08-22):
 - [x] Add the live ESPN display formats and Board selectors observed during mock-draft testing
 - [x] Route structured draft-detail and player lookups through ESPN's authenticated page context before using extension-request or Board fallbacks
 - [x] Reinject stale War Room content bridges and report delivery failures instead of treating a matching tab URL as connected
-- [ ] Validate structured Direct mode and the Board fallback in a live 2026 ESPN football mock draft
+- [ ] Validate structured Direct mode in a live 2026 ESPN football mock draft
+- [x] Validate Board/Pick History fallback in a live 2026 ESPN football mock draft
 - [x] Add installed/required extension version negotiation and an outdated-version warning
 - [x] Add copyable connection diagnostics without credentials or automatic scoring changes
 - [x] Aggregate saved recommendation audits across fully numbered, low-noise mocks with 10/20-mock review gates
@@ -347,9 +349,11 @@ Current verification (2026-08-22):
 - Opponent position demand uses exact ESPN team-slot ownership when supplied, and Mock Audit records ESPN market inputs plus predicted-vs-observed survival by draft phase without auto-tuning
 - Draft Settings provides session-persisted, user-controlled Team Auto toggles; no team is marked automatically, and only selected upcoming Auto picks increase ESPN-board weighting toward 90%
 - Companion 0.8.7 makes draft settings explicitly editable from either The War Room or the extension popup, with two-way persistence and stale-snapshot protection
+- Companion 0.8.8 adds a War Room ranking-refresh center: validated local FantasyPros Top-20 PPR CSV overlays preserve broad-ECR depth, while an explicit companion refresh updates ESPN PPR board rank and ADP without changing FantasyPros value authority
 - The ESPN board generator stores a SHA-256 source version and reports the largest rank changes when a replacement PDF is processed
 - Recommendation priority protects an already-overdue top-12 ECR value from being jumped by a materially later player sharing the same urgent market signal; the pick-14 Justin Jefferson fixture is covered by browser regression
 - Final waiver watch is roster-aware and position-balanced, suppressing quarterback clutter when the roster already has a top-36 ECR QB
+- Live 2026 ESPN fallback validation (2026-08-24): a 12-team, slot-5, 16-round mock synchronized 192/192 numbered picks, 16 Mine, and zero final unmatched players through DOM/Pick History; completion and the final report passed. Structured Direct did not become authoritative and remains unvalidated.
 
 ## Professional interface refresh
 - [x] Replace the field-green presentation with a steel, charcoal, and gold command-center visual system

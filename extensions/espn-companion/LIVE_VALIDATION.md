@@ -2,9 +2,11 @@
 
 Run these checks in disposable ESPN mock drafts. Do not use a real league draft for initial validation.
 
+ESPN's mock clock is 30 seconds. Make the user-slot pick before it expires. A timeout both selects a player and leaves the team in Autopick mode; manually disable Autopick immediately before continuing any ownership or recommendation validation.
+
 ## Direct-mode full mock
 
-1. Reload extension version 0.8.7 and refresh ESPN plus The War Room.
+1. Reload extension version 0.8.8 and refresh ESPN plus The War Room.
 2. Start a mock with the same teams, slot, and rounds configured in the popup.
 3. Confirm the popup says `Draft detected · Direct` after the first completed pick.
 4. At picks 1, 10, the first turn, midpoint, your final pick, and draft end, record copied diagnostics.
@@ -23,3 +25,16 @@ Run these checks in disposable ESPN mock drafts. Do not use a real league draft 
 ## Pass record
 
 Record the date, ESPN mock URL identifiers (league and season only), teams/slot/rounds, extension version, mode, final counts, unmatched names, and copied diagnostics. Remove any personal league or team names before sharing a report.
+
+### 2026-08-24 — Board/Pick History fallback passed
+
+- ESPN mock: league `819737502`, season `2026`
+- Settings: 12 teams, slot 5, 16 rounds
+- Installed companion: 0.8.7
+- Connection observed by the website: DOM/Pick History fallback for every synchronized row; structured Direct never became authoritative
+- Early state: one temporary unmatched player was recovered by accumulated rescans
+- Midpoint: 140/140 applied, zero unmatched
+- Final state: 192/192 numbered picks synchronized, 16 Mine, zero unmatched
+- Completion: `Draft complete · 192 picks` rendered and the final report opened
+
+Result: Board/Pick History fallback is live-validated. Structured Direct remains open and must not be reported as passed.
