@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.8.3'}),
+      getManifest: () => ({version: '0.8.4'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -103,6 +103,22 @@ test('an embedded ESPN frame cannot clear a completed-draft heartbeat', async ()
   listener({type: 'ESPN_HEARTBEAT', topFrame: false, draftPage: true, draftComplete: false}, {}, () => {});
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(context.state.espn.draftComplete, true);
+});
+
+test('smaller frame heartbeats cannot lower shared pick progress', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const listener = context.listeners.message[0];
+  listener({type: 'ESPN_HEARTBEAT', topFrame: true, draftPage: true, currentPick: 142, captured: 132, candidates: 150}, {frameId: 0}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  listener({type: 'ESPN_HEARTBEAT', topFrame: false, draftPage: true, currentPick: 66, captured: 65, candidates: 70}, {frameId: 3}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(context.state.espn.currentPick, 142);
+  assert.equal(context.state.espn.expectedCompleted, 141);
+  assert.equal(context.state.espn.visibleCaptured, 132);
+  assert.equal(context.state.espn.visibleCandidates, 150);
+  assert.equal(context.state.espn.screenFrames['0'].picks, 132);
+  assert.equal(context.state.espn.screenFrames['3'].picks, 65);
 });
 
 test('clearing captured picks also clears completion progress', async () => {

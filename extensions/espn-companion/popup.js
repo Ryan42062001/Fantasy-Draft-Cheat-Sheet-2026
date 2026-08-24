@@ -117,6 +117,18 @@ function buildDiagnostics(status) {
   var espn = status.espn || {};
   var warRoom = status.warRoom || {};
   var picks = Array.isArray(status.picks) ? status.picks : [];
+  var expectedCompleted = Number(espn.expectedCompleted) || 0;
+  var capturedNumbers = new Set(picks.map(function(pick) { return Number(pick.overallPick); }));
+  var missingNumbers = [];
+  for (var pickNumber = 1; pickNumber <= expectedCompleted; pickNumber++) {
+    if (!capturedNumbers.has(pickNumber)) missingNumbers.push(pickNumber);
+  }
+  var frameSummary = Object.keys(espn.screenFrames || {}).map(function(key) {
+    var frame = espn.screenFrames[key] || {};
+    return 'frame ' + frame.frameId + (frame.topFrame ? ' top' : '') +
+      ': picks ' + (Number(frame.picks) || 0) + ', candidates ' + (Number(frame.candidates) || 0) +
+      ', rejected ' + (Number(frame.rejected) || 0) + ', current ' + (Number(frame.currentPick) || 0);
+  }).join(' | ');
   return [
     'The War Room ESPN Companion diagnostics',
     'Generated: ' + new Date().toISOString(),
@@ -127,10 +139,16 @@ function buildDiagnostics(status) {
     'War Room connected: ' + Boolean(warRoom.connected),
     'Captured/applied/unmatched: ' + picks.length + '/' + (Number(warRoom.applied) || 0) + '/' + (Number(warRoom.unmatched) || 0),
     'Draft complete: ' + Boolean(espn.draftComplete),
-    'Current/expected completed: ' + (espn.currentPick || 'unknown') + '/' + (Number(espn.expectedCompleted) || 0),
+    'Current/expected completed: ' + (espn.currentPick || 'unknown') + '/' + expectedCompleted,
+    'Missing numbered picks: ' + (missingNumbers.length ? missingNumbers.slice(0, 80).join(',') + (missingNumbers.length > 80 ? '…' : '') : 'none'),
+    'Screen frames: ' + (frameSummary || 'none reported'),
+    'Visible candidates/rejected: ' + (Number(espn.visibleCandidates) || 0) + '/' + (Number(espn.visibleRejected) || 0),
     'API available/complete: ' + Boolean(espn.apiAvailable) + '/' + Boolean(espn.apiComplete),
     'API HTTP/transport/role: ' + (espn.apiHttpStatus || 'none') + '/' + (espn.apiTransport || 'none') + '/' + (espn.apiRole || 'none'),
     'API resolved/raw/unresolved: ' + (Number(espn.apiResolved) || 0) + '/' + (Number(espn.apiRawCount) || 0) + '/' + (Number(espn.apiUnresolved) || 0),
+    'API scheduled/open slots: ' + (Number(espn.apiScheduledCount) || 0) + '/' + (Number(espn.apiOpenSlots) || 0),
+    'API pick fields: ' + (Array.isArray(espn.apiPickFields) && espn.apiPickFields.length ? espn.apiPickFields.join(',') : 'none'),
+    'Acknowledgment lag: ' + Math.max(0, picks.length - (Number(warRoom.applied) || 0)) + ' pick(s)',
     'API error: ' + (espn.apiError || 'none'),
     'Delivery error: ' + (warRoom.deliveryError || 'none')
   ].join('\n');

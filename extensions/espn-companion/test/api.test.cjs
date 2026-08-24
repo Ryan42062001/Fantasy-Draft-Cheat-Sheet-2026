@@ -72,6 +72,7 @@ test('ignores preloaded future draft slots and resolves only completed picks', (
     {}
   );
   assert.equal(snapshot.scheduledCount, 192);
+  assert.deepEqual(snapshot.pickFields, ['overallPickNumber', 'playerId', 'teamId']);
   assert.equal(snapshot.openSlotCount, 182);
   assert.equal(snapshot.rawCount, 10);
   assert.equal(snapshot.picks.length, 10);

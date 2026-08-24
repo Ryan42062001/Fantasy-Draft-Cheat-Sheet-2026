@@ -77,6 +77,8 @@ test('does not mistake the on-clock autopick suggestion for a completed pick', (
 test('detailed scan returns diagnostics for an unavailable document', () => {
   assert.deepEqual(parser.scanDocumentDetailed(null, {teams: 10}), {
     candidateCount: 0,
+    rejectedCount: 0,
+    scannedNodeCount: 0,
     picks: []
   });
 });
@@ -154,6 +156,8 @@ test('screen fallback recognizes ESPN PICK PLAYER TEAM table rows', () => {
   const document = {querySelectorAll: () => [node]};
   const result = parser.scanDocumentDetailed(document, {teams: 12});
   assert.equal(result.candidateCount, 1);
+  assert.equal(result.rejectedCount, 0);
+  assert.equal(result.scannedNodeCount, 1);
   assert.deepEqual(result.picks.map(pick => [pick.overallPick, pick.playerName, pick.position]), [
     [1, 'Bijan Robinson', 'RB']
   ]);
