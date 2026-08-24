@@ -2,7 +2,7 @@
 
 var settingsDirty = false;
 var latestStatus = null;
-var PACKAGED_WEBSITE_REQUIREMENT = '0.8.10';
+var PACKAGED_WEBSITE_REQUIREMENT = '0.8.11';
 var reportedRequiredVersion = null;
 var requiredVersion = PACKAGED_WEBSITE_REQUIREMENT;
 
@@ -150,6 +150,7 @@ function buildDiagnostics(status) {
     'ESPN connected/draft page: ' + Boolean(espn.connected) + '/' + Boolean(espn.draftPage),
     'War Room connected: ' + Boolean(warRoom.connected),
     'Captured/applied/unmatched: ' + picks.length + '/' + (Number(warRoom.applied) || 0) + '/' + (Number(warRoom.unmatched) || 0),
+    'Acknowledged snapshot size: ' + (Number(warRoom.acknowledgedCaptured) || 0),
     'Draft complete: ' + Boolean(espn.draftComplete),
     'Current/expected completed: ' + (espn.currentPick || 'unknown') + '/' + expectedCompleted,
     'Missing numbered picks: ' + (missingNumbers.length ? missingNumbers.slice(0, 80).join(',') + (missingNumbers.length > 80 ? '…' : '') : 'none'),
