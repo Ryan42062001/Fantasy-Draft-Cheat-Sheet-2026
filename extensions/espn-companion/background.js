@@ -222,10 +222,11 @@ function sendConfigToEspn() {
 }
 
 function mergePicks(picks) {
+  var totalPicks = Math.max(1, Number(state.config.teams) * Number(state.config.rounds));
   (Array.isArray(picks) ? picks : []).forEach(function(pick) {
     var overallPick = Number(pick && pick.overallPick);
     var playerName = String(pick && pick.playerName || '').trim();
-    if (!Number.isInteger(overallPick) || overallPick < 1 || overallPick > 400 || !playerName) return;
+    if (!Number.isInteger(overallPick) || overallPick < 1 || overallPick > totalPicks || !playerName) return;
     state.picksByNumber[String(overallPick)] = {
       overallPick: overallPick,
       playerName: playerName.slice(0, 100),
@@ -327,7 +328,10 @@ function reconcileStructuredPicks(picks, rawPickNumbers, unresolved, complete) {
   });
   var rawNumbers = (Array.isArray(rawPickNumbers) ? rawPickNumbers : [])
     .map(Number)
-    .filter(function(number) { return Number.isInteger(number) && number > 0; });
+    .filter(function(number) {
+      return Number.isInteger(number) && number > 0 &&
+        number <= Number(state.config.teams) * Number(state.config.rounds);
+    });
   var next = {};
   rawNumbers.forEach(function(number) {
     var key = String(number);
@@ -458,6 +462,11 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       // top frame or another frame that can see the terminal board slot.
       if (message.topFrame || message.draftComplete) {
         state.espn.draftComplete = Boolean(message.draftComplete);
+        if (message.draftComplete) {
+          var terminalPickCount = Number(state.config.teams) * Number(state.config.rounds);
+          state.espn.currentPick = Math.max(Number(state.espn.currentPick) || 0, terminalPickCount);
+          state.espn.expectedCompleted = Math.max(Number(state.espn.expectedCompleted) || 0, terminalPickCount);
+        }
       }
       var detectedRounds = Number(message.detectedRounds);
       var shouldUpdateRounds = Number.isInteger(detectedRounds) && detectedRounds >= 1 &&
@@ -510,11 +519,26 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.espn.apiRawCount = Number(message.rawCount) || getPicks().length;
       state.espn.apiScheduledCount = Number(message.scheduledCount) || state.espn.apiRawCount;
       state.espn.apiOpenSlots = Number(message.openSlotCount) || 0;
+      state.espn.lastSuccessfulApiAt = new Date().toISOString();
+      state.espn.lastSuccessfulApiResolved = getPicks().length;
+      state.espn.lastSuccessfulApiRawCount = state.espn.apiRawCount;
+      state.espn.lastSuccessfulApiHttpStatus = Number(message.httpStatus) || state.espn.apiHttpStatus || 200;
       state.espn.lastSeenAt = new Date().toISOString();
       return storageSave().then(function() { return broadcastWarRoom(true); });
     }
 
     if (message.type === 'ESPN_API_STATUS') {
+      var terminalNotFound = !message.available && Number(message.httpStatus) === 404 &&
+        Boolean(state.espn.draftComplete) && Boolean(state.espn.lastSuccessfulApiAt);
+      state.espn.lastApiAttemptAt = new Date().toISOString();
+      state.espn.lastApiAttemptHttpStatus = Number(message.httpStatus) || null;
+      state.espn.lastApiAttemptError = message.error ? String(message.error).slice(0, 160) : null;
+      if (terminalNotFound) {
+        state.espn.apiPostDraftUnavailable = true;
+        state.espn.apiError = 'ESPN closed the temporary draft feed after completion; retained the last successful structured snapshot.';
+        return storageSave();
+      }
+      state.espn.apiPostDraftUnavailable = false;
       state.espn.apiAvailable = Boolean(message.available);
       state.espn.apiComplete = Boolean(message.complete);
       state.espn.apiHttpStatus = Number(message.httpStatus) || null;
@@ -541,6 +565,12 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         ? message.pickFields.slice(0, 20).map(String)
         : [];
       state.espn.apiError = message.error ? String(message.error).slice(0, 160) : null;
+      if (message.available) {
+        state.espn.lastSuccessfulApiAt = new Date().toISOString();
+        state.espn.lastSuccessfulApiResolved = Number(message.resolved) || 0;
+        state.espn.lastSuccessfulApiRawCount = Number(message.rawCount) || 0;
+        state.espn.lastSuccessfulApiHttpStatus = Number(message.httpStatus) || 200;
+      }
       if (message.behind) {
         state.espn.structuredAt = null;
         state.espn.method = 'dom';

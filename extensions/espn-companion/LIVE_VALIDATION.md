@@ -6,7 +6,7 @@ ESPN's mock clock is 30 seconds. Make the user-slot pick before it expires. A ti
 
 ## Direct-mode full mock
 
-1. Reload extension version 0.8.8 and refresh ESPN plus The War Room.
+1. Reload extension version 0.8.9 and refresh ESPN plus The War Room.
 2. Start a mock with the same teams, slot, and rounds configured in the popup.
 3. Confirm the popup says `Draft detected · Direct` after the first completed pick.
 4. At picks 1, 10, the first turn, midpoint, your final pick, and draft end, record copied diagnostics.

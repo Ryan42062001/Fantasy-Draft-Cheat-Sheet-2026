@@ -30,7 +30,11 @@ function render(status) {
   var warRoom = status.warRoom || {};
   var picks = Array.isArray(status.picks) ? status.picks : [];
   var extensionVersion = status.extensionVersion || chrome.runtime.getManifest().version;
-  var requiredVersion = warRoom.requiredExtensionVersion || null;
+  var PACKAGED_WEBSITE_REQUIREMENT = '0.8.9';
+var reportedRequiredVersion = warRoom.requiredExtensionVersion || null;
+var requiredVersion = compareVersions(reportedRequiredVersion, PACKAGED_WEBSITE_REQUIREMENT) >= 0
+  ? reportedRequiredVersion
+  : PACKAGED_WEBSITE_REQUIREMENT;
   document.getElementById('extension-version').textContent = 'Installed v' + extensionVersion;
   var versionWarning = document.getElementById('version-warning');
   var outdated = requiredVersion && compareVersions(extensionVersion, requiredVersion) < 0;
@@ -136,7 +140,10 @@ function buildDiagnostics(status) {
     'The War Room ESPN Companion diagnostics',
     'Generated: ' + new Date().toISOString(),
     'Extension: ' + (status.extensionVersion || chrome.runtime.getManifest().version),
-    'War Room requires: ' + (warRoom.requiredExtensionVersion || 'not reported'),
+    'War Room requires: ' + (requiredVersion || 'not reported') +
+      (reportedRequiredVersion && reportedRequiredVersion !== requiredVersion
+        ? ' (page reported stale ' + reportedRequiredVersion + ')'
+        : ''),
     'Connection method: ' + (espn.method || 'none'),
     'ESPN connected/draft page: ' + Boolean(espn.connected) + '/' + Boolean(espn.draftPage),
     'War Room connected: ' + Boolean(warRoom.connected),
@@ -149,6 +156,9 @@ function buildDiagnostics(status) {
     'Unparseable row samples: ' + (parseFailures.length ? parseFailures.join(' || ') : 'none'),
     'API available/complete: ' + Boolean(espn.apiAvailable) + '/' + Boolean(espn.apiComplete),
     'API HTTP/transport/role: ' + (espn.apiHttpStatus || 'none') + '/' + (espn.apiTransport || 'none') + '/' + (espn.apiRole || 'none'),
+    'API last successful/status: ' + (espn.lastSuccessfulApiAt || 'none') + '/' +
+      (espn.lastSuccessfulApiHttpStatus || 'none') + ' · ' +
+      (Number(espn.lastSuccessfulApiResolved) || 0) + ' resolved',
     'API resolved/raw/unresolved: ' + (Number(espn.apiResolved) || 0) + '/' + (Number(espn.apiRawCount) || 0) + '/' + (Number(espn.apiUnresolved) || 0),
     'ESPN market ADP players: ' + (Number(espn.marketAdpCount) || 0),
     'API scheduled/open slots: ' + (Number(espn.apiScheduledCount) || 0) + '/' + (Number(espn.apiOpenSlots) || 0),
