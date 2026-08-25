@@ -11462,7 +11462,7 @@ function importFantasyProsTop20File() {
 
 function requestFantasyProsApiRefresh() {
   window.postMessage({channel:ESPN_SYNC_CHANNEL, type:'FANTASYPROS_REFRESH_REQUEST'}, window.location.origin === 'null' ? '*' : window.location.origin);
-  setRankingsRefreshMessage('Requesting the official Top-20 PPR expert update…', 'working');
+  setRankingsRefreshMessage('Requesting 2025 Draft Accuracy · Top 20 Overall PPR rankings…', 'working');
   setTimeout(function() {
     var target = document.getElementById('rankings-refresh-message');
     if (target && target.classList.contains('working')) {
