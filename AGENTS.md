@@ -363,6 +363,7 @@ Current verification (2026-08-22):
 - Companion 0.8.9 rejects DOM picks beyond the configured terminal pick, reconciles completed progress to the full draft size, retains the last successful structured snapshot when ESPN closes a temporary mock API with HTTP 404, and reports an effective packaged website requirement when a cached page advertises an older version
 - Companion 0.8.10 fixes diagnostics version scope and falls back to a hidden selection copy when the popup Clipboard API is unavailable
 - Companion 0.8.11 makes War Room acknowledgments monotonic per draft and performs one forced snapshot resend when the acknowledged snapshot trails the captured ledger; diagnostics expose acknowledged snapshot size
+- Companion 0.9.10 records a credential-safe FantasyPros refresh trace for every attempt: failed stage, request count, cache use, per-endpoint HTTP/timing/shape metadata, expert matching, player rejection and duplicate counts, War Room delivery, and a recommended next step. API keys, request headers, cookies, and authorization values are never included.
 - The ESPN board generator stores a SHA-256 source version and reports the largest rank changes when a replacement PDF is processed
 - Recommendation priority protects an already-overdue top-12 ECR value from being jumped by a materially later player sharing the same urgent market signal; the pick-14 Justin Jefferson fixture is covered by browser regression
 - Final waiver watch is roster-aware and position-balanced, suppressing quarterback clutter when the roster already has a top-36 ECR QB

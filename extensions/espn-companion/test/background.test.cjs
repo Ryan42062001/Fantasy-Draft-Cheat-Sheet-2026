@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function loadBackground(storedState) {
+function loadBackground(storedState, overrides = {}) {
   const listeners = {message: [], installed: [], startup: [], removed: []};
   const chrome = {
     storage: {
@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.9.9'}),
+      getManifest: () => ({version: '0.9.10'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -30,7 +30,11 @@ function loadBackground(storedState) {
     },
     scripting: {executeScript: async () => {}}
   };
-  const context = vm.createContext({chrome, console, Date, Promise, Object, Number, String, Boolean, Math, URL});
+  const context = vm.createContext({
+    chrome, console, Date, Promise, Object, Number, String, Boolean, Math, URL,
+    fetch: overrides.fetch,
+    setTimeout, clearTimeout, AbortController
+  });
   const captureSource = fs.readFileSync(path.resolve(__dirname, '..', 'espn-live-capture.js'), 'utf8');
   vm.runInContext(captureSource, context);
   const source = fs.readFileSync(path.resolve(__dirname, '..', 'background.js'), 'utf8');
@@ -90,6 +94,71 @@ test('preserves expert IDs supplied as object keys in the live directory shape',
   assert.deepEqual(Array.from(selected, expert => [expert.id, expert.rank]), [
     ['2743', 1], ['5626', 3], ['3585', 7]
   ]);
+});
+
+test('records credential-safe expert-directory parsing diagnostics', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const diagnostics = context.newFantasyProsDiagnostics();
+  const payload = {
+    accuracy_draft_season: 2025,
+    experts: {
+      2743: {name: 'Seth Miller'},
+      5626: {expert_display_name: 'Michael Bobal - The 33rd Team'},
+      4160: {name: 'Kyle Senra'}
+    }
+  };
+  const selected = context.extractFantasyProsTop20Experts(payload, diagnostics.expertDirectory);
+  assert.equal(selected.length, 2);
+  assert.equal(diagnostics.expertDirectory.directoryCount, 3);
+  assert.equal(diagnostics.expertDirectory.nameMatches, 2);
+  assert.equal(diagnostics.expertDirectory.selectedCount, 2);
+  assert.deepEqual(Array.from(diagnostics.expertDirectory.selectedExperts, expert => expert.id), ['2743', '5626']);
+  assert.doesNotMatch(JSON.stringify(diagnostics), /x-api-key|authorization|cookie/i);
+});
+
+test('failed refresh diagnostics identify the stage and actionable next step', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const diagnostics = context.newFantasyProsDiagnostics();
+  diagnostics.stage = 'consensus-validation';
+  diagnostics.requestsUsed = 2;
+  context.finishFantasyProsDiagnostics(diagnostics, new Error('No active experts returned'));
+  assert.equal(diagnostics.status, 'error');
+  assert.equal(diagnostics.result.updated, false);
+  assert.match(diagnostics.result.nextStep, /selected expert and player counts/i);
+  assert.equal(context.statusSnapshot().fantasyPros.attemptId, diagnostics.attemptId);
+});
+
+test('request telemetry records safe HTTP metadata without exposing the API key', async () => {
+  const secret = 'fp_test_super_secret_key_123456';
+  const context = loadBackground(null, {
+    fetch: async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({last_updated:'2026-08-24', players:[]})
+    })
+  });
+  await context.ready;
+  const telemetry = {};
+  const payload = await context.fantasyProsFetchJson(
+    'nfl/2026/consensus-rankings', secret, {position:'ALL', scoring:'PPR'}, telemetry
+  );
+  assert.equal(payload.last_updated, '2026-08-24');
+  assert.equal(telemetry.endpoint, '/public/v2/json/nfl/2026/consensus-rankings');
+  assert.equal(telemetry.httpStatus, 200);
+  assert.equal(telemetry.responseShape, 'object');
+  assert.deepEqual(Array.from(telemetry.topLevelKeys), ['last_updated', 'players']);
+  assert.doesNotMatch(JSON.stringify(telemetry), new RegExp(secret));
+  assert.doesNotMatch(JSON.stringify(telemetry), /x-api-key/i);
+});
+
+test('diagnostic errors redact credential-like values', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const safe = context.fantasyProsSafeError(new Error('api_key=secret-value token:another-secret HTTP 401'));
+  assert.doesNotMatch(safe, /secret-value|another-secret/);
+  assert.match(safe, /\[redacted\]/);
 });
 
 test('rejects an expert response from the wrong draft-accuracy season', async () => {

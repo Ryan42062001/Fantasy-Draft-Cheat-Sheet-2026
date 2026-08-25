@@ -101,6 +101,10 @@ Chrome documents that MAIN-world scripts can share the page's JavaScript environ
 
 Sources: [Chrome content scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts), [MDN WebSocket `binaryType`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/binaryType)
 
+### FantasyPros failure diagnostics in 0.9.10
+
+Every FantasyPros refresh now leaves one bounded, credential-safe attempt record in extension state. It distinguishes API-key, expert-directory request/parse, consensus request/validation, player validation, and War Room delivery failures. The report includes requests consumed, preset-cache use, HTTP status and timing, payload shape and top-level field names, selected experts, rejected and duplicate player counts, delivery acknowledgments, and a stage-specific next action. It never contains the API key, request headers, cookies, authorization values, or raw API payloads. The extension's existing **Copy diagnostics** action includes the report; the War Room ranking center also offers **Copy FantasyPros diagnostics** after a response reaches the page.
+
 ## Remaining limitations
 
 - ESPN does not publish a stable public draft-room event contract. Live validation remains necessary after material ESPN frontend changes.

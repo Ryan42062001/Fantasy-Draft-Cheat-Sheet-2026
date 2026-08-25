@@ -2,7 +2,7 @@
 
 var settingsDirty = false;
 var latestStatus = null;
-var PACKAGED_WEBSITE_REQUIREMENT = '0.9.9';
+var PACKAGED_WEBSITE_REQUIREMENT = '0.9.10';
 var reportedRequiredVersion = null;
 var requiredVersion = PACKAGED_WEBSITE_REQUIREMENT;
 
@@ -137,6 +137,53 @@ function render(status) {
   }
 }
 
+function buildFantasyProsDiagnosticsLines(diagnostics) {
+  if (!diagnostics) return ['FantasyPros refresh diagnostics: no refresh attempt recorded'];
+  var directory = diagnostics.expertDirectory || {};
+  var consensus = diagnostics.consensus || {};
+  var cache = diagnostics.cache || {};
+  var delivery = diagnostics.delivery || {};
+  var result = diagnostics.result || {};
+  function requestLine(label, request) {
+    request = request || {};
+    return label + ': endpoint=' + (request.endpoint || 'not requested') +
+      ', HTTP=' + (request.httpStatus == null ? 'none' : request.httpStatus) +
+      ', duration=' + (request.durationMs == null ? 'none' : request.durationMs + ' ms') +
+      ', shape=' + (request.responseShape || 'none') +
+      ', bytes=' + (Number(request.responseSizeBytes) || 0) +
+      ', error=' + (request.error || 'none');
+  }
+  var selected = Array.isArray(directory.selectedExperts) ? directory.selectedExperts.map(function(expert) {
+    return '#' + (expert.rank || '?') + ' ' + (expert.name || 'name unavailable') + ' [id ' + (expert.id || '?') + ']';
+  }).join(' | ') : '';
+  var rejected = consensus.rejected || {};
+  return [
+    '',
+    'FantasyPros ranking refresh diagnostics (API key and headers excluded)',
+    'Attempt/status/stage: ' + (diagnostics.attemptId || 'unknown') + '/' + (diagnostics.status || 'unknown') + '/' + (diagnostics.stage || 'unknown'),
+    'Started/completed/duration: ' + (diagnostics.startedAt || 'unknown') + '/' + (diagnostics.completedAt || 'not complete') + '/' + (diagnostics.durationMs == null ? 'unknown' : diagnostics.durationMs + ' ms'),
+    'Requests used this attempt: ' + (Number(diagnostics.requestsUsed) || 0),
+    'Credential configured: ' + Boolean(diagnostics.credentialConfigured) + ' (credential value never included)',
+    'Top-20 cache: used=' + Boolean(cache.used) + ', age=' + (cache.ageMinutes == null ? 'unknown' : cache.ageMinutes + ' min') + ', experts=' + (Number(cache.presetSize) || 0),
+    requestLine('Expert directory request', directory.request),
+    'Expert directory season/shape/entries: ' + (directory.accuracySeason == null ? 'unknown' : directory.accuracySeason) + '/' + (directory.payloadShape || 'unknown') + '/' + (Number(directory.directoryCount) || 0),
+    'Expert directory name/rank/selected matches: ' + (Number(directory.nameMatches) || 0) + '/' + (Number(directory.rankMatches) || 0) + '/' + (Number(directory.selectedCount) || 0),
+    'Expert directory top-level keys: ' + (Array.isArray(directory.topLevelKeys) && directory.topLevelKeys.length ? directory.topLevelKeys.join(',') : 'none'),
+    'Selected experts: ' + (selected || 'none'),
+    'Missing finalized Top-20 names: ' + (Array.isArray(directory.missingPresetNames) && directory.missingPresetNames.length ? directory.missingPresetNames.join(', ') : 'none'),
+    requestLine('Consensus request', consensus.request),
+    'Consensus shape/keys: ' + (consensus.payloadShape || 'unknown') + '/' + (Array.isArray(consensus.topLevelKeys) && consensus.topLevelKeys.length ? consensus.topLevelKeys.join(',') : 'none'),
+    'Consensus reported/active experts: ' + (Number(consensus.reportedExperts) || 0) + '/' + (Number(consensus.activeExpertCount) || 0),
+    'Consensus raw/valid players: ' + (Number(consensus.rawPlayerCount) || 0) + '/' + (Number(consensus.validPlayerCount) || 0),
+    'Rejected players rank/name/position: ' + (Number(rejected.invalidRank) || 0) + '/' + (Number(rejected.missingName) || 0) + '/' + (Number(rejected.unsupportedPosition) || 0),
+    'Duplicate players: ' + (Number(consensus.duplicateCount) || 0) + (Array.isArray(consensus.duplicateSamples) && consensus.duplicateSamples.length ? ' · ' + consensus.duplicateSamples.join(', ') : ''),
+    'Consensus last updated: ' + (consensus.lastUpdated || 'unknown'),
+    'War Room tabs/attempted/delivered: ' + (Number(delivery.warRoomTabs) || 0) + '/' + (Number(delivery.attempted) || 0) + '/' + (Number(delivery.delivered) || 0),
+    'Refresh error: ' + (result.error || 'none'),
+    'Recommended next step: ' + (result.nextStep || 'Refresh has not completed yet.')
+  ];
+}
+
 function buildDiagnostics(status) {
   status = status || {};
   var espn = status.espn || {};
@@ -160,7 +207,7 @@ function buildDiagnostics(status) {
   var parseFailures = Object.keys(espn.screenFrames || {}).reduce(function(samples, key) {
     return samples.concat((espn.screenFrames[key] && espn.screenFrames[key].parseFailureSamples) || []);
   }, []).slice(0, 8);
-  return [
+  var lines = [
     'The War Room ESPN Companion diagnostics',
     'Generated: ' + new Date().toISOString(),
     'Extension: ' + (status.extensionVersion || chrome.runtime.getManifest().version),
@@ -204,7 +251,8 @@ function buildDiagnostics(status) {
     'Acknowledgment lag: ' + Math.max(0, picks.length - (Number(warRoom.applied) || 0)) + ' pick(s)',
     'API error: ' + (espn.apiError || 'none'),
     'Delivery error: ' + (warRoom.deliveryError || 'none')
-  ].join('\n');
+  ];
+  return lines.concat(buildFantasyProsDiagnosticsLines(status.fantasyPros)).join('\n');
 }
 
 function refresh() {

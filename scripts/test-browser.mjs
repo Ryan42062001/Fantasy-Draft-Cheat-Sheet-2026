@@ -62,7 +62,7 @@ const websiteSettingsSync = await page.evaluate(async () => {
 });
 assert.equal(websiteSettingsSync.type, 'SETTINGS_UPDATE');
 assert.deepEqual(websiteSettingsSync.settings, {teams:12, rounds:18, draftSlot:11, totalPicks:216});
-assert.equal(websiteSettingsSync.minVersion, '0.9.9');
+assert.equal(websiteSettingsSync.minVersion, '0.9.10');
 
 const rankingRefreshCenter = await page.evaluate(() => {
   openRankingsRefresh();
@@ -77,6 +77,10 @@ const rankingRefreshCenter = await page.evaluate(() => {
   const override = buildFantasyProsTop20Override(topRows, {name:'FantasyPros_Test.csv', lastModified:Date.now()});
   const result = {
     modalOpen: document.getElementById('rankings-refresh-modal').classList.contains('open'),
+    diagnosticsButton: Boolean(document.getElementById('copy-fantasypros-diagnostics')),
+    diagnosticsSafe: /API key, request headers, cookies, and authorization values are excluded/.test(formatFantasyProsRefreshDiagnostics({
+      extensionVersion:'0.9.10', status:'error', stage:'consensus-validation', result:{error:'fixture', nextStep:'copy diagnostics'}
+    })),
     players: override.players.length,
     top20: override.top20Count,
     first: override.players[0].name,
@@ -87,7 +91,7 @@ const rankingRefreshCenter = await page.evaluate(() => {
   return result;
 });
 assert.deepEqual(rankingRefreshCenter, {
-  modalOpen:true, players:717, top20:100, first:"Ja'Marr Chase", ecrPlayers:520, adpOnly:197
+  modalOpen:true, diagnosticsButton:true, diagnosticsSafe:true, players:717, top20:100, first:"Ja'Marr Chase", ecrPlayers:520, adpOnly:197
 });
 
 const jeffersonTurnFixture = await page.evaluate(() => {

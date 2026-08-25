@@ -9,7 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
-  assert.equal(manifest.version, '0.9.9');
+  assert.equal(manifest.version, '0.9.10');
 });
 
 test('popup exposes version and copyable connection diagnostics', () => {
@@ -30,6 +30,10 @@ test('popup exposes version and copyable connection diagnostics', () => {
   assert.match(script, /Acknowledged snapshot size/);
   assert.match(script, /Live sources active/);
   assert.match(script, /Ledger confirmed\/conflicts\/unresolved IDs/);
+  assert.match(script, /FantasyPros ranking refresh diagnostics/);
+  assert.match(script, /Requests used this attempt/);
+  assert.match(script, /API key and headers excluded/);
+  assert.match(script, /Recommended next step/);
   assert.match(script, /document\.execCommand\('copy'\)/);
 });
 
@@ -82,6 +86,9 @@ test('FantasyPros refresh discovers and caches the documented draft-accuracy Top
   assert.match(script, /experts:'show'/);
   assert.match(script, /nfl\/2026\/rankings\/experts/);
   assert.doesNotMatch(script, /FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS/);
+  assert.match(script, /fantasyProsDiagnostics/);
+  assert.match(script, /responseSizeBytes/);
+  assert.match(script, /requestsUsed/);
 });
 
 test('read-only live observer runs in the page main world at document start', () => {
