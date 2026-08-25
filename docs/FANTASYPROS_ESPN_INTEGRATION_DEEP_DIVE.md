@@ -107,6 +107,50 @@ Sources: [Chrome content scripts](https://developer.chrome.com/docs/extensions/d
 - If ESPN moves draft events into an opaque worker transport or encrypted/proprietary binary protocol, passive page hooks may still need source-specific decoding.
 - DOM fallback remains necessary and should not be presented as Direct.
 
+## Broader FantasyPros API opportunity audit
+
+The remaining documented endpoints were evaluated against draft-day usefulness, request cost, overlap with existing signals, and implementation risk.
+
+### Highest value: player directory with ESPN external IDs
+
+`GET /public/v2/json/nfl/players?ecr=included&external_ids=espn&show=pos_rank`
+
+This is the strongest next addition. One cached request can provide FantasyPros player IDs, current names/teams/positions, PPR rank metadata, and ESPN external IDs. Joining those IDs to the existing 717-player board would reduce suffix/name ambiguity and allow ESPN structured picks to resolve by ID before canonical-name fallback. It should be refreshed sparingly—such as once per day or only on explicit request—because the full directory is much more stable than ECR.
+
+Source: [FantasyPros Public API 2.0 — Players](https://api.fantasypros.com/public/v2/docs/)
+
+### Useful but secondary: injuries and breaking news
+
+- `GET /nfl/injuries?year=2026&week=0` can provide status, injury type, update date, and probability fields when supplied.
+- `GET /nfl/news?category=injury&limit=100&order_by=updated` can provide recent injury reports and FantasyPros impact summaries.
+
+These should appear as compact warnings or expanded player context, not automatically override ECR. Current ECR already incorporates expert reactions to news, and injury feeds can be incomplete or preseason-specific. A manual, daily-cached “Refresh Draft Alerts” action is preferable to spending requests on every ranking update.
+
+Source: [FantasyPros Public API 2.0 — News and Injuries](https://api.fantasypros.com/public/v2/docs/)
+
+### Potentially useful later: preseason PPR projections
+
+`GET /nfl/2026/projections?positions=QB:RB:WR:TE:K:DST&week=0`
+
+Projections could explain *why* similarly ranked players differ—volume, receptions, touchdowns—but should not become a second hidden ranking system. They are better suited to expanded player details or tie-break explanations after the ranking refresh is reliable.
+
+Source: [FantasyPros Public API 2.0 — NFL Projections](https://api.fantasypros.com/public/v2/docs/)
+
+### Low priority or rejected for draft day
+
+- **Compare Players:** redundant with the War Room's existing recommendation comparison and costs additional requests for only 2–4 players.
+- **Historical player points:** useful for post-season analysis, but less predictive and less relevant than current ECR/projections on draft day.
+- **Articles:** useful reading, but too noisy for the live command center and duplicates links available on FantasyPros.
+- **Unfiltered news polling:** too request-heavy and distracting under a 50-request daily allowance.
+
+### Recommended quota budget
+
+- Ranking refresh with valid cached expert preset: 1 request.
+- Expert preset rediscovery: 1 additional request no more than once every seven days.
+- Player directory / ESPN ID bridge: 1 request, cached for 24 hours.
+- Draft alerts: 1 injury request only when explicitly requested, cached for the session/day.
+- Keep a reserve of at least 40 requests; do not poll any FantasyPros endpoint automatically.
+
 ## Claim-to-source ledger
 
 | Claim | Primary source | Access note |
@@ -117,4 +161,3 @@ Sources: [Chrome content scripts](https://developer.chrome.com/docs/extensions/d
 | MAIN-world `document_start` scripts can run in page context before page scripts | Chrome for Developers, Content scripts | Official Chrome documentation, accessed 2026-08-24 |
 | WebSocket binary data may be Blob or ArrayBuffer | MDN, WebSocket `binaryType` | Standards-oriented web platform documentation, accessed 2026-08-24 |
 | Debugger access requires a powerful extension permission | Chrome for Developers, Debugger and permissions | Official Chrome documentation, accessed 2026-08-24 |
-
