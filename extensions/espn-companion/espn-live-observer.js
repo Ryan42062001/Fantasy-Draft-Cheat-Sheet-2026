@@ -13,7 +13,8 @@
   var installed = false;
   var reactTimer = null;
   var lastReactSignature = '';
-  var counters = {sockets:0, socketMessages:0, fetchResponses:0, xhrResponses:0, reactScans:0};
+  var counters = {sockets:0, socketMessages:0, binarySocketMessages:0, eventSources:0,
+    eventSourceMessages:0, fetchResponses:0, xhrResponses:0, reactScans:0};
 
   function relevantUrl(value) {
     try {
@@ -52,6 +53,32 @@
     if (payload) emit(root, source, detail, payload);
   }
 
+  function inspectSocketData(root, detail, data) {
+    if (typeof data === 'string') {
+      inspectText(root, 'websocket', detail, data);
+      return;
+    }
+    counters.binarySocketMessages++;
+    if (root.Blob && data instanceof root.Blob && typeof data.text === 'function') {
+      data.text().then(function(text) { inspectText(root, 'websocket', detail, text); }).catch(function() {});
+      return;
+    }
+    var buffer = null;
+    if (root.ArrayBuffer && data instanceof root.ArrayBuffer) buffer = data;
+    else if (root.ArrayBuffer && root.ArrayBuffer.isView && root.ArrayBuffer.isView(data)) {
+      buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    }
+    if (buffer && root.TextDecoder) {
+      try { inspectText(root, 'websocket', detail, new root.TextDecoder('utf-8').decode(buffer)); return; } catch (error) {}
+    }
+    root.postMessage({
+      channel:CHANNEL, type:'TELEMETRY', source:'websocket',
+      telemetry:{source:'websocket', sourceDetail:detail, fields:[], candidateCount:0,
+        observedAt:new Date().toISOString()},
+      counters:Object.assign({}, counters), detail:{binaryIgnored:true}
+    }, '*');
+  }
+
   function installWebSocket(root) {
     var NativeWebSocket = root.WebSocket;
     if (typeof NativeWebSocket !== 'function' || typeof Proxy !== 'function') return;
@@ -62,18 +89,29 @@
         var detail = capture ? capture.safeUrl(args && args[0]) : '';
         socket.addEventListener('message', function(event) {
           counters.socketMessages++;
-          if (typeof event.data === 'string') inspectText(root, 'websocket', detail, event.data);
-          else root.postMessage({
-            channel:CHANNEL, type:'TELEMETRY', source:'websocket',
-            telemetry:{source:'websocket', sourceDetail:detail, fields:[], candidateCount:0,
-              observedAt:new Date().toISOString()},
-            counters:Object.assign({}, counters), detail:{binaryIgnored:true}
-          }, '*');
+          inspectSocketData(root, detail, event.data);
         });
         return socket;
       }
     });
     root.WebSocket = Wrapped;
+  }
+
+  function installEventSource(root) {
+    var NativeEventSource = root.EventSource;
+    if (typeof NativeEventSource !== 'function' || typeof Proxy !== 'function') return;
+    root.EventSource = new Proxy(NativeEventSource, {
+      construct:function(Target, args, NewTarget) {
+        var stream = Reflect.construct(Target, args, NewTarget);
+        counters.eventSources++;
+        var detail = capture ? capture.safeUrl(args && args[0]) : '';
+        stream.addEventListener('message', function(event) {
+          counters.eventSourceMessages++;
+          inspectText(root, 'eventsource', detail, event && event.data);
+        });
+        return stream;
+      }
+    });
   }
 
   function installFetch(root) {
@@ -181,6 +219,7 @@
     if (installed || !root || !capture) return false;
     installed = true;
     installWebSocket(root);
+    installEventSource(root);
     installFetch(root);
     installXhr(root);
     root.addEventListener('message', function(event) {
@@ -201,6 +240,7 @@
     install:install,
     relevantUrl:relevantUrl,
     inspectText:inspectText,
+    inspectSocketData:inspectSocketData,
     reactValues:reactValues,
     scanReact:scanReact
   };

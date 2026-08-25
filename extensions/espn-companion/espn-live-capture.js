@@ -7,7 +7,7 @@
   'use strict';
 
   var POSITION_BY_ID = {1:'QB', 2:'RB', 3:'WR', 4:'TE', 5:'K', 16:'DST'};
-  var SOURCE_CONFIDENCE = {react:90, websocket:90, fetch:85, xhr:85, rest:80, dom:60, name:40};
+  var SOURCE_CONFIDENCE = {react:90, websocket:90, eventsource:88, fetch:85, xhr:85, rest:80, dom:60, name:40};
   var BLOCKED_KEYS = /cookie|authorization|espn_s2|swid|credential|token|secret|session/i;
 
   function normalizePosition(value) {

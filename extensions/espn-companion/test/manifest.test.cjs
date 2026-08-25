@@ -9,7 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
-  assert.equal(manifest.version, '0.9.5');
+  assert.equal(manifest.version, '0.9.6');
 });
 
 test('popup exposes version and copyable connection diagnostics', () => {
@@ -73,13 +73,15 @@ test('War Room bridge forwards FantasyPros API updates without credentials', () 
   assert.doesNotMatch(script, /x-api-key/i);
 });
 
-test('FantasyPros refresh uses one guarded request for the active Top-20 contributors', () => {
+test('FantasyPros refresh discovers and caches the documented draft-accuracy Top 20', () => {
   const script = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
   assert.match(script, /presetSize:20/);
-  assert.match(script, /FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS/);
+  assert.match(script, /accuracy_draft_season/);
+  assert.match(script, /accuracy_draft/);
+  assert.match(script, /fantasyProsTop20Preset/);
   assert.match(script, /experts:'show'/);
-  assert.match(script, /filters:FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS\.join\('\:'\)/);
-  assert.doesNotMatch(script, /nfl\/2025\/rankings\/experts/);
+  assert.match(script, /nfl\/2026\/rankings\/experts/);
+  assert.doesNotMatch(script, /FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS/);
 });
 
 test('read-only live observer runs in the page main world at document start', () => {
@@ -87,6 +89,14 @@ test('read-only live observer runs in the page main world at document start', ()
   assert.equal(observer.world, 'MAIN');
   assert.equal(observer.run_at, 'document_start');
   assert.equal(observer.js.indexOf('espn-live-capture.js') < observer.js.indexOf('espn-live-observer.js'), true);
+});
+
+test('live observer decodes binary WebSocket frames and observes event streams', () => {
+  const script = fs.readFileSync(path.join(root, 'espn-live-observer.js'), 'utf8');
+  assert.match(script, /data instanceof root\.Blob/);
+  assert.match(script, /root\.TextDecoder/);
+  assert.match(script, /installEventSource/);
+  assert.match(script, /eventSourceMessages/);
 });
 
 test('all declared extension files exist', () => {

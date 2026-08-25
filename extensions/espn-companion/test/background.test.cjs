@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.9.5'}),
+      getManifest: () => ({version: '0.9.6'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -38,6 +38,36 @@ function loadBackground(storedState) {
   context.listeners = listeners;
   return context;
 }
+
+test('extracts the documented 2025 draft-accuracy Top 20 from the 2026 expert response', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const experts = Array.from({length: 23}, (_, index) => ({
+    expert_id: String(9000 + index),
+    name: `Expert ${index + 1}`,
+    accuracy_draft: {ALL: index + 1}
+  })).reverse();
+  const selected = context.extractFantasyProsTop20Experts({accuracy_draft_season: 2025, experts});
+  assert.equal(selected.length, 20);
+  assert.equal(selected[0].rank, 1);
+  assert.equal(selected[19].rank, 20);
+});
+
+test('rejects an expert response from the wrong draft-accuracy season', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  assert.throws(
+    () => context.extractFantasyProsTop20Experts({accuracy_draft_season: 2024, experts: []}),
+    /expected 2025/
+  );
+});
+
+test('counts only requested experts included in a consensus response', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const requested = [{id: '11'}, {id: '22'}, {id: '33'}];
+  assert.equal(context.fantasyProsActiveExpertCount({experts_available: {included: [11, 33, 99]}}, requested), 2);
+});
 
 test('discards a legacy pick ledger whose league-size provenance is unknown', async () => {
   const context = loadBackground({

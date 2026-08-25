@@ -5,10 +5,7 @@ var liveCapture = globalThis.WarRoomEspnLiveCapture;
 
 var STORAGE_KEY = 'warRoomEspnCompanionStateV2';
 var FANTASYPROS_KEY_STORAGE = 'warRoomFantasyProsApiKeyV1';
-// Active 2026 contributors observed in FantasyPros' 2025 Draft Accuracy
-// "Top 20 Overall" PPR preset on 2026-08-24. The historical preset has 20
-// members, but FantasyPros currently includes only these nine in 2026 ECR.
-var FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS = ['3585','2598','4179','2743','690','1080','381','4404','4224'];
+var FANTASYPROS_PRESET_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 var WAR_ROOM_URLS = [
   'http://127.0.0.1/*',
   'http://localhost/*',
@@ -549,26 +546,86 @@ function fantasyProsFetchJson(path, key, params) {
 
 function fantasyProsObjectList(value) {
   if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object' && (value.expert_id || value.expertId || value.id)) return [value];
   if (value && typeof value === 'object') return Object.keys(value).map(function(key) { return value[key]; });
   return [];
 }
 
+function fantasyProsDraftAccuracyRank(expert) {
+  var draft = expert && (expert.accuracy_draft || expert.accuracyDraft) || {};
+  var rank = Number(draft.ALL || draft.all || expert && (expert.accuracy_draft_rank || expert.draft_rank));
+  return Number.isFinite(rank) && rank > 0 ? rank : null;
+}
+
+function extractFantasyProsTop20Experts(payload) {
+  var accuracySeason = Number(payload && (payload.accuracy_draft_season || payload.accuracyDraftSeason));
+  if (accuracySeason !== 2025) {
+    throw new Error('FantasyPros returned draft-accuracy season ' + (accuracySeason || 'unknown') + '; expected 2025. No rankings were changed.');
+  }
+  var experts = fantasyProsObjectList(payload && payload.experts).map(function(expert) {
+    return {
+      id:String(expert && (expert.expert_id || expert.expertId || expert.id) || '').trim(),
+      name:String(expert && (expert.name || expert.expert_name || expert.expertName) || '').trim(),
+      rank:fantasyProsDraftAccuracyRank(expert)
+    };
+  }).filter(function(expert) { return expert.id && expert.rank !== null; })
+    .sort(function(a, b) { return a.rank - b.rank || Number(a.id) - Number(b.id); })
+    .slice(0, 20);
+  if (experts.length !== 20 || experts[0].rank !== 1 || experts[19].rank > 20) {
+    throw new Error('FantasyPros did not return a complete 2025 Draft Accuracy Top-20 expert set; no rankings were changed.');
+  }
+  return experts;
+}
+
+function cachedFantasyProsTop20Experts() {
+  var cache = state.fantasyProsTop20Preset;
+  var age = Date.now() - Number(cache && cache.observedAt || 0);
+  if (!cache || Number(cache.accuracySeason) !== 2025 || !Array.isArray(cache.experts) || cache.experts.length !== 20 || age < 0 || age > FANTASYPROS_PRESET_CACHE_MS) return null;
+  return cache.experts;
+}
+
+function fantasyProsActiveExpertCount(rankings, requestedExperts) {
+  var requested = {};
+  requestedExperts.forEach(function(expert) { requested[String(expert.id)] = true; });
+  var included = rankings && rankings.experts_available && Array.isArray(rankings.experts_available.included)
+    ? rankings.experts_available.included : [];
+  var includedCount = included.filter(function(id) { return requested[String(id)]; }).length;
+  var namedCount = rankings && rankings.expert_name && typeof rankings.expert_name === 'object'
+    ? Object.keys(rankings.expert_name).filter(function(id) { return requested[String(id)]; }).length : 0;
+  var reported = Number(rankings && rankings.total_experts);
+  return includedCount || namedCount || (Number.isFinite(reported) ? reported : 0);
+}
+
 function refreshFantasyProsRankings() {
   var key;
+  var selectedExperts;
   return chrome.storage.local.get(FANTASYPROS_KEY_STORAGE).then(function(result) {
     key = String(result && result[FANTASYPROS_KEY_STORAGE] || '').trim();
     if (!key) throw new Error('Save your FantasyPros API key first.');
+    selectedExperts = cachedFantasyProsTop20Experts();
+    if (selectedExperts) return null;
+    return fantasyProsFetchJson('nfl/2026/rankings/experts', key, {
+      position:'ALL', type:'DRAFT', scoring:'PPR', include_overall:'true'
+    });
+  }).then(function(expertPayload) {
+    if (expertPayload) {
+      selectedExperts = extractFantasyProsTop20Experts(expertPayload);
+      state.fantasyProsTop20Preset = {
+        accuracySeason:2025,
+        observedAt:Date.now(),
+        experts:selectedExperts
+      };
+      return storageSave();
+    }
+    return null;
+  }).then(function() {
     return fantasyProsFetchJson('nfl/2026/consensus-rankings', key, {
       position:'ALL', scoring:'PPR', type:'DRAFT', week:'0', experts:'show',
-      filters:FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS.join(':')
+      filters:selectedExperts.map(function(expert) { return expert.id; }).join(':')
     });
   }).then(function(rankings) {
-    var namedExperts = rankings.expert_name && typeof rankings.expert_name === 'object'
-      ? Object.keys(rankings.expert_name).filter(function(id) { return FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS.indexOf(String(id)) >= 0; }).length
-      : 0;
-    var reportedExperts = Number(rankings.total_experts);
-    var expertCount = namedExperts || (Number.isFinite(reportedExperts) ? reportedExperts : 0);
-    if (expertCount < 1 || expertCount > FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS.length) {
+    var expertCount = fantasyProsActiveExpertCount(rankings, selectedExperts);
+    if (expertCount < 1 || expertCount > 20) {
       throw new Error('FantasyPros did not return the active experts in the 2025 Draft Accuracy Top-20 preset; no rankings were changed.');
     }
     return {expertCount:expertCount, rankings:rankings};
