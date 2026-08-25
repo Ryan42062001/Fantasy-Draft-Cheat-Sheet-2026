@@ -2,7 +2,7 @@
 
 var settingsDirty = false;
 var latestStatus = null;
-var PACKAGED_WEBSITE_REQUIREMENT = '0.9.10';
+var PACKAGED_WEBSITE_REQUIREMENT = '0.9.11';
 var reportedRequiredVersion = null;
 var requiredVersion = PACKAGED_WEBSITE_REQUIREMENT;
 
@@ -168,6 +168,8 @@ function buildFantasyProsDiagnosticsLines(diagnostics) {
     requestLine('Expert directory request', directory.request),
     'Expert directory season/shape/entries: ' + (directory.accuracySeason == null ? 'unknown' : directory.accuracySeason) + '/' + (directory.payloadShape || 'unknown') + '/' + (Number(directory.directoryCount) || 0),
     'Expert directory name/rank/selected matches: ' + (Number(directory.nameMatches) || 0) + '/' + (Number(directory.rankMatches) || 0) + '/' + (Number(directory.selectedCount) || 0),
+    'Expert directory limited/fallback: ' + Boolean(directory.limitedTier) + '/' + Boolean(directory.fallbackUsed),
+    'Expert fallback reason: ' + (directory.fallbackReason || 'none'),
     'Expert directory top-level keys: ' + (Array.isArray(directory.topLevelKeys) && directory.topLevelKeys.length ? directory.topLevelKeys.join(',') : 'none'),
     'Selected experts: ' + (selected || 'none'),
     'Missing finalized Top-20 names: ' + (Array.isArray(directory.missingPresetNames) && directory.missingPresetNames.length ? directory.missingPresetNames.join(', ') : 'none'),

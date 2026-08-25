@@ -12,6 +12,15 @@ var FANTASYPROS_2025_DRAFT_ACCURACY_TOP20 = [
   'Todd D Clark', 'Adam Stark', 'Sean Koerner', 'Mason Riney', 'Shane Hallam',
   'Justin Weigal', 'Nick Mariano', 'Jared Smola', 'Nic Bodiford', 'Trevor Land'
 ];
+// FantasyPros' limited public tier can return an empty expert directory even
+// though filtered consensus rankings remain available. These nine IDs were
+// confirmed by the 2026 consensus response for the user's finalized 2025
+// Draft Accuracy Top-20 preset on 2026-08-24. They are used only when the API
+// explicitly marks the empty directory as limited, and the resulting
+// consensus response must independently confirm active experts before use.
+var FANTASYPROS_TOP20_LIMITED_TIER_FALLBACK_IDS = [
+  '3585', '2598', '4179', '2743', '690', '1080', '381', '4404', '4224'
+];
 var WAR_ROOM_URLS = [
   'http://127.0.0.1/*',
   'http://localhost/*',
@@ -566,7 +575,7 @@ function newFantasyProsDiagnostics() {
     requestsUsed:0,
     credentialConfigured:false,
     cache:{used:false, ageMinutes:null, presetSize:0},
-    expertDirectory:{request:null, accuracySeason:null, payloadShape:null, topLevelKeys:[], directoryCount:0, nameMatches:0, rankMatches:0, selectedCount:0, selectedExperts:[], missingPresetNames:[]},
+    expertDirectory:{request:null, accuracySeason:null, payloadShape:null, topLevelKeys:[], directoryCount:0, nameMatches:0, rankMatches:0, selectedCount:0, selectedExperts:[], missingPresetNames:[], limitedTier:false, fallbackUsed:false, fallbackReason:null},
     consensus:{request:null, payloadShape:null, topLevelKeys:[], reportedExperts:0, activeExpertCount:0, rawPlayerCount:0, validPlayerCount:0, rejected:{invalidRank:0, missingName:0, unsupportedPosition:0}, duplicateCount:0, duplicateSamples:[], lastUpdated:null},
     delivery:{warRoomTabs:0, attempted:0, delivered:0},
     result:{updated:false, error:null, nextStep:null}
@@ -726,6 +735,32 @@ function extractFantasyProsTop20Experts(payload, diagnostics) {
   return experts;
 }
 
+function fantasyProsLimitedTierFallbackExperts(payload, diagnostics) {
+  var directory = fantasyProsExpertList(payload && payload.experts);
+  var limited = Boolean(payload && payload.public_api_limited);
+  var accuracySeason = Number(payload && (payload.accuracy_draft_season || payload.accuracyDraftSeason));
+  if (diagnostics) diagnostics.limitedTier = limited;
+  if (!limited || directory.length) return null;
+  if (accuracySeason !== 2025) {
+    throw new Error('FantasyPros limited the expert directory and returned draft-accuracy season ' + (accuracySeason || 'unknown') + '; expected 2025. No rankings were changed.');
+  }
+  var experts = FANTASYPROS_TOP20_LIMITED_TIER_FALLBACK_IDS.map(function(id) {
+    return {id:id, name:'Verified Top-20 contributor', rank:null};
+  });
+  if (diagnostics) {
+    diagnostics.accuracySeason = accuracySeason;
+    diagnostics.payloadShape = fantasyProsPayloadShape(payload);
+    diagnostics.topLevelKeys = payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 25) : [];
+    diagnostics.directoryCount = 0;
+    diagnostics.selectedCount = experts.length;
+    diagnostics.selectedExperts = experts.map(function(expert) { return Object.assign({}, expert); });
+    diagnostics.missingPresetNames = FANTASYPROS_2025_DRAFT_ACCURACY_TOP20.slice();
+    diagnostics.fallbackUsed = true;
+    diagnostics.fallbackReason = 'FantasyPros returned an empty expert directory with public_api_limited=true; using the nine active preset IDs verified on 2026-08-24, subject to consensus validation.';
+  }
+  return experts;
+}
+
 function cachedFantasyProsTop20Experts() {
   var cache = state.fantasyProsTop20Preset;
   var age = Date.now() - Number(cache && cache.observedAt || 0);
@@ -777,7 +812,8 @@ async function refreshFantasyProsRankings() {
         position:'ALL', type:'DRAFT', scoring:'PPR', include_overall:'true'
       }, diagnostics.expertDirectory.request);
       diagnostics.stage = 'expert-directory-parse';
-      selectedExperts = extractFantasyProsTop20Experts(expertPayload, diagnostics.expertDirectory);
+      selectedExperts = fantasyProsLimitedTierFallbackExperts(expertPayload, diagnostics.expertDirectory) ||
+        extractFantasyProsTop20Experts(expertPayload, diagnostics.expertDirectory);
       state.fantasyProsTop20Preset = {
         accuracySeason:2025,
         observedAt:Date.now(),
@@ -798,6 +834,15 @@ async function refreshFantasyProsRankings() {
     diagnostics.consensus.topLevelKeys = rankings && typeof rankings === 'object' ? Object.keys(rankings).slice(0, 25) : [];
     diagnostics.consensus.reportedExperts = Number(rankings && rankings.total_experts) || 0;
     diagnostics.consensus.lastUpdated = String(rankings && (rankings.last_updated || rankings.lastUpdated) || '').slice(0, 60) || null;
+    var consensusExpertNames = rankings && rankings.expert_name && typeof rankings.expert_name === 'object'
+      ? rankings.expert_name : {};
+    selectedExperts.forEach(function(expert) {
+      var liveName = String(consensusExpertNames[String(expert.id)] || '').trim();
+      if (liveName) expert.name = liveName;
+    });
+    diagnostics.expertDirectory.selectedExperts = selectedExperts.map(function(expert) {
+      return {id:String(expert.id), name:String(expert.name || 'name unavailable'), rank:Number(expert.rank) || null};
+    });
 
     diagnostics.stage = 'consensus-validation';
     var expertCount = fantasyProsActiveExpertCount(rankings, selectedExperts);

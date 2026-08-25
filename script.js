@@ -8167,7 +8167,7 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.9.10';
+var ESPN_COMPANION_MIN_VERSION = '0.9.11';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
 var latestFantasyProsRefreshDiagnostics = null;
@@ -11503,6 +11503,8 @@ function formatFantasyProsRefreshDiagnostics(diagnostics) {
     requestLine('Expert directory request', directory.request),
     'Expert directory season/shape/entries: ' + (directory.accuracySeason == null ? 'unknown' : directory.accuracySeason) + '/' + (directory.payloadShape || 'unknown') + '/' + (Number(directory.directoryCount) || 0),
     'Expert directory name/rank/selected matches: ' + (Number(directory.nameMatches) || 0) + '/' + (Number(directory.rankMatches) || 0) + '/' + (Number(directory.selectedCount) || 0),
+    'Expert directory limited/fallback: ' + Boolean(directory.limitedTier) + '/' + Boolean(directory.fallbackUsed),
+    'Expert fallback reason: ' + (directory.fallbackReason || 'none'),
     'Expert directory top-level keys: ' + (Array.isArray(directory.topLevelKeys) && directory.topLevelKeys.length ? directory.topLevelKeys.join(',') : 'none'),
     'Selected experts: ' + (selected || 'none'),
     'Missing finalized Top-20 names: ' + (Array.isArray(directory.missingPresetNames) && directory.missingPresetNames.length ? directory.missingPresetNames.join(', ') : 'none'),
@@ -11551,7 +11553,7 @@ function requestFantasyProsApiRefresh() {
   setTimeout(function() {
     var target = document.getElementById('rankings-refresh-message');
     if (target && target.classList.contains('working')) {
-      setRankingsRefreshMessage('No response from the companion after 15 seconds. Reload extension 0.9.10, refresh this page, and copy diagnostics from the extension popup.', 'error');
+      setRankingsRefreshMessage('No response from the companion after 15 seconds. Reload extension 0.9.11, refresh this page, and copy diagnostics from the extension popup.', 'error');
     }
   }, 15000);
 }

@@ -62,7 +62,7 @@ const websiteSettingsSync = await page.evaluate(async () => {
 });
 assert.equal(websiteSettingsSync.type, 'SETTINGS_UPDATE');
 assert.deepEqual(websiteSettingsSync.settings, {teams:12, rounds:18, draftSlot:11, totalPicks:216});
-assert.equal(websiteSettingsSync.minVersion, '0.9.10');
+assert.equal(websiteSettingsSync.minVersion, '0.9.11');
 
 const rankingRefreshCenter = await page.evaluate(() => {
   openRankingsRefresh();
@@ -79,7 +79,7 @@ const rankingRefreshCenter = await page.evaluate(() => {
     modalOpen: document.getElementById('rankings-refresh-modal').classList.contains('open'),
     diagnosticsButton: Boolean(document.getElementById('copy-fantasypros-diagnostics')),
     diagnosticsSafe: /API key, request headers, cookies, and authorization values are excluded/.test(formatFantasyProsRefreshDiagnostics({
-      extensionVersion:'0.9.10', status:'error', stage:'consensus-validation', result:{error:'fixture', nextStep:'copy diagnostics'}
+      extensionVersion:'0.9.11', status:'error', stage:'consensus-validation', result:{error:'fixture', nextStep:'copy diagnostics'}
     })),
     players: override.players.length,
     top20: override.top20Count,

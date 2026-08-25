@@ -18,7 +18,7 @@ function loadBackground(storedState, overrides = {}) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.9.10'}),
+      getManifest: () => ({version: '0.9.11'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -115,6 +115,35 @@ test('records credential-safe expert-directory parsing diagnostics', async () =>
   assert.equal(diagnostics.expertDirectory.selectedCount, 2);
   assert.deepEqual(Array.from(diagnostics.expertDirectory.selectedExperts, expert => expert.id), ['2743', '5626']);
   assert.doesNotMatch(JSON.stringify(diagnostics), /x-api-key|authorization|cookie/i);
+});
+
+test('uses the verified preset IDs only for an explicitly limited empty expert directory', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const diagnostics = context.newFantasyProsDiagnostics();
+  const selected = context.fantasyProsLimitedTierFallbackExperts({
+    accuracy_draft_season: 2025,
+    public_api_limited: true,
+    experts: {},
+    count: 0
+  }, diagnostics.expertDirectory);
+  assert.equal(selected.length, 9);
+  assert.deepEqual(Array.from(selected, expert => expert.id), ['3585','2598','4179','2743','690','1080','381','4404','4224']);
+  assert.equal(diagnostics.expertDirectory.limitedTier, true);
+  assert.equal(diagnostics.expertDirectory.fallbackUsed, true);
+  assert.match(diagnostics.expertDirectory.fallbackReason, /public_api_limited=true/);
+});
+
+test('does not use the limited-tier fallback for an ordinary empty directory', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const diagnostics = context.newFantasyProsDiagnostics();
+  assert.equal(context.fantasyProsLimitedTierFallbackExperts({
+    accuracy_draft_season: 2025,
+    public_api_limited: false,
+    experts: {}
+  }, diagnostics.expertDirectory), null);
+  assert.equal(diagnostics.expertDirectory.fallbackUsed, false);
 });
 
 test('failed refresh diagnostics identify the stage and actionable next step', async () => {
