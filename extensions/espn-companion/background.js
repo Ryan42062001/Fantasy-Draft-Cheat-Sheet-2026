@@ -557,6 +557,19 @@ function fantasyProsObjectList(value) {
   return [];
 }
 
+function fantasyProsExpertList(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object' && (value.expert_id || value.expertId || value.expertID || value.id)) return [value];
+  if (!value || typeof value !== 'object') return [];
+  return Object.keys(value).map(function(key) {
+    var expert = value[key];
+    if (typeof expert === 'string') return {expert_id:key, name:expert};
+    if (!expert || typeof expert !== 'object') return null;
+    if (expert.expert_id || expert.expertId || expert.expertID || expert.id) return expert;
+    return Object.assign({expert_id:key}, expert);
+  }).filter(Boolean);
+}
+
 function fantasyProsDraftAccuracyRank(expert) {
   var draft = expert && (expert.accuracy_draft || expert.accuracyDraft) || {};
   var rank = Number(draft.ALL || draft.all || expert && (expert.accuracy_draft_rank || expert.draft_rank));
@@ -581,12 +594,13 @@ function extractFantasyProsTop20Experts(payload) {
   if (accuracySeason !== 2025) {
     throw new Error('FantasyPros returned draft-accuracy season ' + (accuracySeason || 'unknown') + '; expected 2025. No rankings were changed.');
   }
-  var experts = fantasyProsObjectList(payload && payload.experts).map(function(expert) {
-    var name = String(expert && (expert.name || expert.expert_name || expert.expertName) || '').trim();
+  var directory = fantasyProsExpertList(payload && payload.experts);
+  var experts = directory.map(function(expert) {
+    var name = String(expert && (expert.name || expert.expert_name || expert.expertName || expert.expert_display_name || expert.display_name) || '').trim();
     var accuracyRank = fantasyProsDraftAccuracyRank(expert);
     var presetRank = fantasyProsPresetRankByName(name);
     return {
-      id:String(expert && (expert.expert_id || expert.expertId || expert.id) || '').trim(),
+      id:String(expert && (expert.expert_id || expert.expertId || expert.expertID || expert.id) || '').trim(),
       name:name,
       rank:accuracyRank !== null && accuracyRank <= 20 ? accuracyRank : presetRank
     };
@@ -596,7 +610,14 @@ function extractFantasyProsTop20Experts(payload) {
   var uniqueIds = {};
   experts.forEach(function(expert) { uniqueIds[expert.id] = true; });
   if (!experts.length || Object.keys(uniqueIds).length !== experts.length) {
-    throw new Error('FantasyPros did not return active experts from the 2025 Draft Accuracy Top-20 preset; no rankings were changed.');
+    var namedMatches = directory.filter(function(expert) {
+      return fantasyProsPresetRankByName(expert && (expert.name || expert.expert_name || expert.expertName || expert.expert_display_name || expert.display_name));
+    }).length;
+    var rankedMatches = directory.filter(function(expert) {
+      var rank = fantasyProsDraftAccuracyRank(expert);
+      return rank !== null && rank <= 20;
+    }).length;
+    throw new Error('FantasyPros returned ' + directory.length + ' active experts but no usable Top-20 set (' + namedMatches + ' name / ' + rankedMatches + ' rank matches); no rankings were changed.');
   }
   return experts;
 }

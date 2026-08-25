@@ -64,6 +64,7 @@ The user's key dashboard reports a 50-request daily allowance. FantasyPros' publ
 - The first implementation treated a Top-20 preset as requiring 20 currently publishing experts.
 - The next implementation used webpage-derived identifiers as API expert IDs; the API returned only 10 ranked players, and the population guard correctly rejected it.
 - The original expert parser did not read `accuracy_draft.ALL` and called the 2025 expert path rather than validating the 2025 accuracy season from the 2026 response.
+- The live directory can be keyed by expert ID rather than shaped as the documented array; the parser now preserves those keys and reports safe match counts if discovery still fails.
 - All failed attempts stopped before modifying the authoritative local overlay.
 
 ## ESPN Direct-mode architecture
@@ -89,7 +90,7 @@ Chrome's debugger API can instrument network activity and access response bodies
 
 Sources: [Chrome `debugger` API](https://developer.chrome.com/docs/extensions/reference/api/debugger), [Chrome permissions](https://developer.chrome.com/docs/extensions/reference/permissions-list)
 
-### Direct-mode improvements in 0.9.8
+### Direct-mode improvements in 0.9.9
 
 - Decode JSON carried in WebSocket `Blob`, `ArrayBuffer`, and typed-array messages without changing ESPN's socket `binaryType`.
 - Observe EventSource/server-sent-event messages when ESPN uses them.

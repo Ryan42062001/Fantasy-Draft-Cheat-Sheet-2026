@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.9.8'}),
+      getManifest: () => ({version: '0.9.9'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -71,6 +71,21 @@ test('recovers active Top-20 membership by official expert name when accuracy fi
     {expert_id: '3585', name: 'Ryan Weisse'},
     {expert_id: '4160', name: 'Kyle Senra'}
   ];
+  const selected = context.extractFantasyProsTop20Experts({accuracy_draft_season: 2025, experts});
+  assert.deepEqual(Array.from(selected, expert => [expert.id, expert.rank]), [
+    ['2743', 1], ['5626', 3], ['3585', 7]
+  ]);
+});
+
+test('preserves expert IDs supplied as object keys in the live directory shape', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const experts = {
+    2743: {name: 'Seth Miller'},
+    5626: {expert_display_name: 'Michael Bobal - The 33rd Team'},
+    3585: 'Ryan Weisse',
+    4160: {name: 'Kyle Senra'}
+  };
   const selected = context.extractFantasyProsTop20Experts({accuracy_draft_season: 2025, experts});
   assert.deepEqual(Array.from(selected, expert => [expert.id, expert.rank]), [
     ['2743', 1], ['5626', 3], ['3585', 7]
