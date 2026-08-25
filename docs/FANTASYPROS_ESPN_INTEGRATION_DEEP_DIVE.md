@@ -9,9 +9,9 @@ Scope: FantasyPros 2026 NFL PPR draft-ranking refresh and ESPN live draft pick s
 The FantasyPros refresh must use two documented concepts that the earlier implementation missed:
 
 1. Request the **2026 expert directory**, because its `accuracy_draft_season` identifies the completed **2025 Draft Accuracy** season.
-2. Rank experts by the nested `accuracy_draft.ALL` value, select ranks 1–20, and pass those API expert IDs as the colon-delimited `filters` value to the 2026 PPR consensus endpoint.
+2. Select the finalized 2025 Top-20 members using nested `accuracy_draft.ALL` when present, with the official finalized expert names as a guarded fallback when the live directory omits that per-expert field. Pass the current API expert IDs as the colon-delimited `filters` value to the 2026 PPR consensus endpoint.
 
-The API returns the currently publishing subset with historical accuracy ranks. The selected active Top-20 subset can be cached for 24 hours. Therefore, the first refresh after cache expiry uses two requests; subsequent ranking refreshes use one. The consensus response remains untrusted until it reports at least one active selected expert and 100–600 unique, valid NFL draft players.
+The API returns the currently publishing subset. In live validation it supplied the accuracy season but omitted usable per-expert overall ranks, so the implementation also matches against the official finalized Top-20 names and still obtains transient IDs from the API. The selected active Top-20 subset can be cached for 24 hours. Therefore, the first refresh after cache expiry uses two requests; subsequent ranking refreshes use one. The consensus response remains untrusted until it reports at least one active selected expert and 100–600 unique, valid NFL draft players.
 
 For ESPN, the best practical Direct architecture is still passive observation inside ESPN's MAIN JavaScript world at `document_start`, followed by player-ID-first reconciliation in the extension background ledger. Chrome's normal `webRequest` API can observe a WebSocket handshake but cannot inspect its individual messages. The more powerful `chrome.debugger` route would add an intrusive permission and visible debugger attachment. The companion therefore keeps fetch, XHR, WebSocket, React-state, authenticated REST, and DOM fallback sources, and now also decodes text-bearing binary WebSocket frames and observes EventSource messages.
 
@@ -51,13 +51,13 @@ Source: [FantasyPros Public API 2.0 — Consensus Rankings](https://api.fantasyp
 The extension validates before applying:
 
 - expert accuracy season is exactly 2025;
-- every selected expert has a 2025 overall draft-accuracy rank from 1–20 (nine were active during live validation on 2026-08-24);
+- every selected expert has a 2025 overall draft-accuracy rank from 1–20, validated by API rank or official finalized name (the live page produced a 10-expert consensus on 2026-08-24);
 - current consensus contains 1–20 selected active experts;
 - player population is between 100 and 600;
 - each accepted row has an integer ECR rank, name, and supported position;
 - canonical player names contain no duplicates.
 
-The user's key dashboard reports a 50-request daily allowance. FantasyPros' public documentation describes the API as free and limited but does not publish that account-specific number in the endpoint reference. The seven-day expert cache reduces normal ranking updates to one request and avoids spending quota rediscovering a historical preset on every click.
+The user's key dashboard reports a 50-request daily allowance. FantasyPros' public documentation describes the API as free and limited but does not publish that account-specific number in the endpoint reference. The 24-hour expert cache reduces normal ranking updates to one request and avoids spending quota rediscovering the active historical-preset subset on every click.
 
 ## Why the earlier attempts failed
 
@@ -89,7 +89,7 @@ Chrome's debugger API can instrument network activity and access response bodies
 
 Sources: [Chrome `debugger` API](https://developer.chrome.com/docs/extensions/reference/api/debugger), [Chrome permissions](https://developer.chrome.com/docs/extensions/reference/permissions-list)
 
-### Direct-mode improvements in 0.9.7
+### Direct-mode improvements in 0.9.8
 
 - Decode JSON carried in WebSocket `Blob`, `ArrayBuffer`, and typed-array messages without changing ESPN's socket `binaryType`.
 - Observe EventSource/server-sent-event messages when ESPN uses them.

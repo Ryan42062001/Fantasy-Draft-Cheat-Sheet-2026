@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.9.7'}),
+      getManifest: () => ({version: '0.9.8'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -60,6 +60,21 @@ test('accepts the currently active subset of the historical Top-20 preset', asyn
   const experts = ranks.map((rank, index) => ({expert_id: String(7000 + index), accuracy_draft: {ALL: rank}}));
   const selected = context.extractFantasyProsTop20Experts({accuracy_draft_season: 2025, experts});
   assert.deepEqual(Array.from(selected, expert => expert.rank), ranks.slice(0, 9));
+});
+
+test('recovers active Top-20 membership by official expert name when accuracy fields are omitted', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const experts = [
+    {expert_id: '2743', name: 'Seth Miller'},
+    {expert_id: '5626', name: 'Michael Bobal - The 33rd Team'},
+    {expert_id: '3585', name: 'Ryan Weisse'},
+    {expert_id: '4160', name: 'Kyle Senra'}
+  ];
+  const selected = context.extractFantasyProsTop20Experts({accuracy_draft_season: 2025, experts});
+  assert.deepEqual(Array.from(selected, expert => [expert.id, expert.rank]), [
+    ['2743', 1], ['5626', 3], ['3585', 7]
+  ]);
 });
 
 test('rejects an expert response from the wrong draft-accuracy season', async () => {

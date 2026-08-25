@@ -6,6 +6,12 @@ var liveCapture = globalThis.WarRoomEspnLiveCapture;
 var STORAGE_KEY = 'warRoomEspnCompanionStateV2';
 var FANTASYPROS_KEY_STORAGE = 'warRoomFantasyProsApiKeyV1';
 var FANTASYPROS_PRESET_CACHE_MS = 24 * 60 * 60 * 1000;
+var FANTASYPROS_2025_DRAFT_ACCURACY_TOP20 = [
+  'Seth Miller', 'Guilherme Gianni', 'Michael Bobal', 'Jason Willan', 'Marc Shannep',
+  'Joey Wright', 'Ryan Weisse', 'Kevin Steele', 'Jody Smith', 'Tim Heaney',
+  'Todd D Clark', 'Adam Stark', 'Sean Koerner', 'Mason Riney', 'Shane Hallam',
+  'Justin Weigal', 'Nick Mariano', 'Jared Smola', 'Nic Bodiford', 'Trevor Land'
+];
 var WAR_ROOM_URLS = [
   'http://127.0.0.1/*',
   'http://localhost/*',
@@ -557,16 +563,32 @@ function fantasyProsDraftAccuracyRank(expert) {
   return Number.isFinite(rank) && rank > 0 ? rank : null;
 }
 
+function fantasyProsExpertNameKey(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function fantasyProsPresetRankByName(name) {
+  var key = fantasyProsExpertNameKey(name);
+  for (var index = 0; index < FANTASYPROS_2025_DRAFT_ACCURACY_TOP20.length; index += 1) {
+    var presetKey = fantasyProsExpertNameKey(FANTASYPROS_2025_DRAFT_ACCURACY_TOP20[index]);
+    if (key === presetKey || key.indexOf(presetKey + ' ') === 0) return index + 1;
+  }
+  return null;
+}
+
 function extractFantasyProsTop20Experts(payload) {
   var accuracySeason = Number(payload && (payload.accuracy_draft_season || payload.accuracyDraftSeason));
   if (accuracySeason !== 2025) {
     throw new Error('FantasyPros returned draft-accuracy season ' + (accuracySeason || 'unknown') + '; expected 2025. No rankings were changed.');
   }
   var experts = fantasyProsObjectList(payload && payload.experts).map(function(expert) {
+    var name = String(expert && (expert.name || expert.expert_name || expert.expertName) || '').trim();
+    var accuracyRank = fantasyProsDraftAccuracyRank(expert);
+    var presetRank = fantasyProsPresetRankByName(name);
     return {
       id:String(expert && (expert.expert_id || expert.expertId || expert.id) || '').trim(),
-      name:String(expert && (expert.name || expert.expert_name || expert.expertName) || '').trim(),
-      rank:fantasyProsDraftAccuracyRank(expert)
+      name:name,
+      rank:accuracyRank !== null && accuracyRank <= 20 ? accuracyRank : presetRank
     };
   }).filter(function(expert) { return expert.id && expert.rank !== null && expert.rank <= 20; })
     .sort(function(a, b) { return a.rank - b.rank || Number(a.id) - Number(b.id); })
