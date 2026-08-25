@@ -9,7 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
-  assert.equal(manifest.version, '0.9.4');
+  assert.equal(manifest.version, '0.9.5');
 });
 
 test('popup exposes version and copyable connection diagnostics', () => {
@@ -73,12 +73,13 @@ test('War Room bridge forwards FantasyPros API updates without credentials', () 
   assert.doesNotMatch(script, /x-api-key/i);
 });
 
-test('FantasyPros refresh preserves the Top-20 preset while accepting its active contributors', () => {
+test('FantasyPros refresh uses one guarded request for the active Top-20 contributors', () => {
   const script = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
   assert.match(script, /presetSize:20/);
-  assert.match(script, /expertCount:result\.experts\.length/);
-  assert.match(script, /if \(!experts\.length\)/);
-  assert.doesNotMatch(script, /experts\.length !== 20/);
+  assert.match(script, /FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS/);
+  assert.match(script, /experts:'show'/);
+  assert.match(script, /filters:FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS\.join\('\:'\)/);
+  assert.doesNotMatch(script, /nfl\/2025\/rankings\/experts/);
 });
 
 test('read-only live observer runs in the page main world at document start', () => {

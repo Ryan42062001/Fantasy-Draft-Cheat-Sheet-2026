@@ -5,6 +5,10 @@ var liveCapture = globalThis.WarRoomEspnLiveCapture;
 
 var STORAGE_KEY = 'warRoomEspnCompanionStateV2';
 var FANTASYPROS_KEY_STORAGE = 'warRoomFantasyProsApiKeyV1';
+// Active 2026 contributors observed in FantasyPros' 2025 Draft Accuracy
+// "Top 20 Overall" PPR preset on 2026-08-24. The historical preset has 20
+// members, but FantasyPros currently includes only these nine in 2026 ECR.
+var FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS = ['3585','2598','4179','2743','690','1080','381','4404','4224'];
 var WAR_ROOM_URLS = [
   'http://127.0.0.1/*',
   'http://localhost/*',
@@ -549,42 +553,25 @@ function fantasyProsObjectList(value) {
   return [];
 }
 
-function expertAccuracyRank(expert, index) {
-  var nested = expert && (expert.accuracy || expert.rankings || expert.ranks) || {};
-  var candidates = [
-    expert && expert.accuracy_rank, expert && expert.overall_rank, expert && expert.draft_rank,
-    expert && expert.rank_overall, expert && expert.accuracyRank,
-    nested.overall_rank, nested.overall && nested.overall.rank, nested.draft && nested.draft.rank
-  ];
-  for (var i = 0; i < candidates.length; i++) {
-    var rank = Number(candidates[i]);
-    if (Number.isFinite(rank) && rank > 0) return rank;
-  }
-  return index + 10000;
-}
-
 function refreshFantasyProsRankings() {
   var key;
-  var expertSource;
   return chrome.storage.local.get(FANTASYPROS_KEY_STORAGE).then(function(result) {
     key = String(result && result[FANTASYPROS_KEY_STORAGE] || '').trim();
     if (!key) throw new Error('Save your FantasyPros API key first.');
-    return fantasyProsFetchJson('nfl/2025/rankings/experts', key, {
-      position:'ALL', type:'DRAFT', scoring:'PPR', include_overall:'true'
-    });
-  }).then(function(payload) {
-    expertSource = fantasyProsObjectList(payload.experts || payload.data || payload);
-    var experts = expertSource.map(function(expert, index) {
-      return {
-        id:String(expert && (expert.expert_id || expert.expertId || expert.id) || '').trim(),
-        rank:expertAccuracyRank(expert, index)
-      };
-    }).filter(function(expert) { return expert.id; })
-      .sort(function(a, b) { return a.rank - b.rank; }).slice(0, 20);
-    if (!experts.length) throw new Error('FantasyPros did not return any active experts from the 2025 Draft Accuracy Top-20 preset; no rankings were changed.');
     return fantasyProsFetchJson('nfl/2026/consensus-rankings', key, {
-      position:'ALL', scoring:'PPR', type:'DRAFT', week:'0', filters:experts.map(function(expert) { return expert.id; }).join(':')
-    }).then(function(rankings) { return {experts:experts, rankings:rankings}; });
+      position:'ALL', scoring:'PPR', type:'DRAFT', week:'0', experts:'show',
+      filters:FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS.join(':')
+    });
+  }).then(function(rankings) {
+    var namedExperts = rankings.expert_name && typeof rankings.expert_name === 'object'
+      ? Object.keys(rankings.expert_name).filter(function(id) { return FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS.indexOf(String(id)) >= 0; }).length
+      : 0;
+    var reportedExperts = Number(rankings.total_experts);
+    var expertCount = namedExperts || (Number.isFinite(reportedExperts) ? reportedExperts : 0);
+    if (expertCount < 1 || expertCount > FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS.length) {
+      throw new Error('FantasyPros did not return the active experts in the 2025 Draft Accuracy Top-20 preset; no rankings were changed.');
+    }
+    return {expertCount:expertCount, rankings:rankings};
   }).then(function(result) {
     var players = fantasyProsObjectList(result.rankings.players || result.rankings.rankings);
     var rows = players.map(function(player) {
@@ -608,7 +595,7 @@ function refreshFantasyProsRankings() {
       canonical[keyName] = true;
     });
     var update = {
-      rows:rows, presetSize:20, expertCount:result.experts.length, playerCount:rows.length,
+      rows:rows, presetSize:20, expertCount:result.expertCount, playerCount:rows.length,
       lastUpdated:String(result.rankings.last_updated || result.rankings.lastUpdated || '').slice(0, 60) || null,
       receivedAt:new Date().toISOString()
     };
@@ -619,7 +606,7 @@ function refreshFantasyProsRankings() {
           return sendTab(tab.id, {type:'WAR_ROOM_FANTASYPROS_RANKINGS', update:update});
         });
       })).then(function() {
-        return {connected:true, updated:true, players:rows.length, experts:result.experts.length, presetSize:20, lastUpdated:update.lastUpdated};
+        return {connected:true, updated:true, players:rows.length, experts:result.expertCount, presetSize:20, lastUpdated:update.lastUpdated};
       });
     });
   });
