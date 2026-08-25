@@ -1,0 +1,20 @@
+{
+  "teams": 12,
+  "events": [
+    {
+      "source": "websocket",
+      "sourceDetail": "wss://fantasy.espn.com/ws/draft?SWID=removed",
+      "payload": {"event":"pick","draft":{"overallPickNumber":37,"playerId":4430807,"teamId":4,"roundId":4,"roundPickNumber":1}}
+    },
+    {
+      "source": "react",
+      "sourceDetail": "page-state",
+      "payload": {"draftHistory":[{"overallPick":37,"athleteId":4430807,"playerName":"Fixture Player","position":"WR","teamId":4}]}
+    },
+    {
+      "source": "xhr",
+      "sourceDetail": "https://fantasy.espn.com/api/draft/events?credential=removed",
+      "payload": {"picks":[{"overallPickNumber":38,"playerId":999,"playerName":"Second Player","defaultPositionId":2,"teamId":5}]}
+    }
+  ]
+}

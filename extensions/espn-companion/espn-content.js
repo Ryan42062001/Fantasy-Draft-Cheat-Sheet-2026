@@ -6,7 +6,8 @@
 
   var parser = globalThis.WarRoomEspnParser;
   var api = globalThis.WarRoomEspnApi;
-  if (!parser || !api || !globalThis.chrome || !chrome.runtime) return;
+  var liveCapture = globalThis.WarRoomEspnLiveCapture;
+  if (!parser || !api || !liveCapture || !globalThis.chrome || !chrome.runtime) return;
 
   var scanTimer = null;
   var lastSignature = '';
@@ -27,6 +28,36 @@
       if (response && typeof response.catch === 'function') response.catch(function() {});
     } catch (error) {}
   }
+
+  function enrichLiveCandidates(candidates) {
+    var directory = parser.scanPlayerDirectory ? parser.scanPlayerDirectory(document) : {};
+    return (Array.isArray(candidates) ? candidates : []).map(function(candidate) {
+      var playerId = candidate && candidate.playerId;
+      var player = playerId == null ? null : directory[String(playerId)];
+      return Object.assign({}, candidate, {
+        playerName:candidate.playerName || player && player.playerName || null,
+        position:candidate.position || player && player.position || null,
+        espnPlayerId:playerId || null,
+        method:String(candidate.source || 'structured').slice(0, 12)
+      });
+    });
+  }
+
+  window.addEventListener('message', function(event) {
+    var message = event && event.data;
+    if (event.source !== window || !message || message.channel !== 'WAR_ROOM_ESPN_LIVE_OBSERVATION') return;
+    if (message.type !== 'OBSERVATION' && message.type !== 'TELEMETRY') return;
+    send({
+      type:'ESPN_LIVE_OBSERVATIONS',
+      source:String(message.source || '').slice(0, 20),
+      observations:enrichLiveCandidates(message.candidates),
+      telemetry:liveCapture.sanitizeTelemetry(message.telemetry || {}),
+      counters:message.counters || {},
+      detail:message.detail || null,
+      topFrame:topFrame,
+      url:location.href
+    });
+  });
 
   function isDraftPage() {
     return /draft/i.test(location.pathname + location.search + document.title) ||
@@ -285,6 +316,10 @@
     if (!isDraftPage()) {
       send({type: 'ESPN_HEARTBEAT', draftPage: false, topFrame: topFrame, url: location.href});
       return;
+    }
+
+    if (topFrame && force) {
+      window.postMessage({channel:'WAR_ROOM_ESPN_LIVE_OBSERVATION', type:'RESCAN_REACT'}, '*');
     }
 
     scanStructuredDraft(force).then(function(directAvailable) {

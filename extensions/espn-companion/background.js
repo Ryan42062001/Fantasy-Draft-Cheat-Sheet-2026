@@ -1,5 +1,8 @@
 'use strict';
 
+if (typeof importScripts === 'function') importScripts('espn-live-capture.js');
+var liveCapture = globalThis.WarRoomEspnLiveCapture;
+
 var STORAGE_KEY = 'warRoomEspnCompanionStateV2';
 var WAR_ROOM_URLS = [
   'http://127.0.0.1/*',
@@ -19,6 +22,8 @@ var state = {
   config: {teams: 10, draftSlot: 1, rounds: 16},
   draftKey: null,
   picksByNumber: {},
+  conflictsByPick: {},
+  unresolvedPlayerIdsByPick: {},
   unavailablePlayersByKey: {},
   marketAdpByName: {},
   ledgerTeams: null,
@@ -34,6 +39,8 @@ function storageGet() {
       state.config = Object.assign({teams: 10, draftSlot: 1, rounds: 16}, stored.config || {});
       state.draftKey = stored.draftKey || null;
       state.picksByNumber = Object.assign({}, stored.picksByNumber || {});
+      state.conflictsByPick = Object.assign({}, stored.conflictsByPick || {});
+      state.unresolvedPlayerIdsByPick = Object.assign({}, stored.unresolvedPlayerIdsByPick || {});
       state.unavailablePlayersByKey = Object.assign({}, stored.unavailablePlayersByKey || {});
       state.marketAdpByName = Object.assign({}, stored.marketAdpByName || {});
       state.ledgerTeams = Number(stored.ledgerTeams) || null;
@@ -45,6 +52,8 @@ function storageGet() {
       // once rather than risk replaying incorrectly numbered selections.
       if (!state.draftKey || state.ledgerTeams !== Number(state.config.teams)) {
         state.picksByNumber = {};
+        state.conflictsByPick = {};
+        state.unresolvedPlayerIdsByPick = {};
         state.unavailablePlayersByKey = {};
         state.ledgerTeams = Number(state.config.teams);
         state.espn.captured = 0;
@@ -163,8 +172,13 @@ function injectEspnReader(tab) {
   if (!tab || !tab.id) return Promise.resolve();
   return chrome.scripting.executeScript({
     target: {tabId: tab.id, allFrames: true},
-    files: ['espn-api.js', 'espn-parser.js', 'espn-content.js']
-  }).then(function() {
+    files: ['espn-live-capture.js', 'espn-live-observer.js', 'espn-page-bridge.js'],
+    world: 'MAIN',
+    injectImmediately: true
+  }).catch(function() {}).then(function() { return chrome.scripting.executeScript({
+    target: {tabId: tab.id, allFrames: true},
+    files: ['espn-live-capture.js', 'espn-api.js', 'espn-parser.js', 'espn-content.js']
+  }); }).then(function() {
     return sendTabQuiet(tab.id, {type: 'COMPANION_CONFIG', config: state.config});
   }).catch(function() {});
 }
@@ -226,16 +240,33 @@ function mergePicks(picks) {
   (Array.isArray(picks) ? picks : []).forEach(function(pick) {
     var overallPick = Number(pick && pick.overallPick);
     var playerName = String(pick && pick.playerName || '').trim();
-    if (!Number.isInteger(overallPick) || overallPick < 1 || overallPick > totalPicks || !playerName) return;
-    state.picksByNumber[String(overallPick)] = {
+    var playerId = pick && (pick.espnPlayerId || pick.playerId);
+    if (!Number.isInteger(overallPick) || overallPick < 1 || overallPick > totalPicks) return;
+    if (!playerName) {
+      if (playerId != null) state.unresolvedPlayerIdsByPick[String(overallPick)] = String(playerId).slice(0, 40);
+      return;
+    }
+    delete state.unresolvedPlayerIdsByPick[String(overallPick)];
+    var source = String(pick.source || (pick.method === 'api' ? 'rest' : pick.method || 'dom')).slice(0, 20);
+    var incoming = {
       overallPick: overallPick,
       playerName: playerName.slice(0, 100),
       position: String(pick.position || '').slice(0, 4),
       teamId: pick.teamId == null ? null : String(pick.teamId).slice(0, 40),
       isMine: typeof pick.isMine === 'boolean' ? pick.isMine : null,
-      method: String(pick.method || 'dom').slice(0, 12),
-      espnPlayerId: pick.espnPlayerId == null ? null : String(pick.espnPlayerId).slice(0, 40)
+      method: source.slice(0, 12),
+      source: source,
+      playerId: playerId == null ? null : String(playerId).slice(0, 40),
+      espnPlayerId: playerId == null ? null : String(playerId).slice(0, 40),
+      observedAt:pick.observedAt || new Date().toISOString()
     };
+    var existing = state.picksByNumber[String(overallPick)] || null;
+    var reconciled = liveCapture.reconcileObservation(existing, incoming);
+    var entry = reconciled.entry;
+    entry.espnPlayerId = entry.playerId || entry.espnPlayerId || null;
+    entry.method = String(entry.source || entry.method || 'dom').slice(0, 12);
+    state.picksByNumber[String(overallPick)] = entry;
+    if (reconciled.conflict) state.conflictsByPick[String(overallPick)] = reconciled.conflict;
   });
   state.ledgerTeams = Number(state.config.teams);
   state.espn.captured = getPicks().length;
@@ -246,8 +277,18 @@ function draftKeyFromUrl(url) {
     var parsed = new URL(String(url || ''));
     var leagueId = parsed.searchParams.get('leagueId');
     var seasonId = parsed.searchParams.get('seasonId');
-    if (!/^\d+$/.test(String(leagueId || ''))) return null;
-    return String(seasonId || 'unknown') + ':' + String(leagueId);
+    if (/^\d+$/.test(String(leagueId || ''))) {
+      return String(seasonId || 'unknown') + ':' + String(leagueId);
+    }
+    var roomId = parsed.searchParams.get('draftId') || parsed.searchParams.get('mockDraftId') ||
+      parsed.searchParams.get('roomId');
+    var identity = roomId || parsed.hostname + parsed.pathname;
+    var hash = 2166136261;
+    for (var index = 0; index < identity.length; index++) {
+      hash ^= identity.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return 'page:' + String(seasonId || 'unknown') + ':' + (hash >>> 0).toString(36);
   } catch (error) {
     return null;
   }
@@ -263,6 +304,9 @@ function resetEspnDraftProgress() {
   state.espn.draftComplete = false;
   state.espn.screenFrames = {};
   state.espn.apiPickFields = [];
+  state.espn.liveCapture = {sources:{}, counters:{}, observations:0, candidates:0, latestPick:0};
+  state.conflictsByPick = {};
+  state.unresolvedPlayerIdsByPick = {};
 }
 
 function recordScreenFrame(sender, message) {
@@ -380,6 +424,11 @@ function structuredFeedIsFresh() {
   return Number.isFinite(timestamp) && Date.now() - timestamp < 20000;
 }
 
+function liveCaptureIsFresh() {
+  var timestamp = Date.parse(state.espn.liveStructuredAt || '');
+  return Number.isFinite(timestamp) && Date.now() - timestamp < 20000;
+}
+
 function updateConfig(config) {
   config = config || {};
   var previousTeams = Number(state.config.teams);
@@ -492,6 +541,10 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       activateDraft(message.url);
       recordScreenFrame(sender, message);
       mergeUnavailablePlayers(message.unavailablePlayers);
+      if (liveCaptureIsFresh()) {
+        mergePicks(message.picks);
+        return storageSave().then(function() { return broadcastWarRoom(false); });
+      }
       if (structuredFeedIsFresh() && state.espn.method === 'api') {
         return storageSave().then(function() { return broadcastWarRoom(false); });
       }
@@ -506,6 +559,40 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       state.espn.lastSeenAt = new Date().toISOString();
       state.espn.visibleRejected = Math.max(Number(state.espn.visibleRejected) || 0, Number(message.rejected) || 0);
       return storageSave().then(function() { return broadcastWarRoom(false); });
+    }
+
+    if (message.type === 'ESPN_LIVE_OBSERVATIONS') {
+      activateDraft(message.url);
+      var observations = Array.isArray(message.observations) ? message.observations.slice(0, 500) : [];
+      mergePicks(observations);
+      var source = String(message.source || 'network').slice(0, 20);
+      var telemetry = liveCapture.sanitizeTelemetry(message.telemetry || {source:source});
+      var live = state.espn.liveCapture && typeof state.espn.liveCapture === 'object'
+        ? state.espn.liveCapture
+        : {sources:{}, counters:{}, observations:0, candidates:0, latestPick:0};
+      live.sources = Object.assign({}, live.sources || {});
+      live.sources[source] = {
+        active:true,
+        lastSeenAt:new Date().toISOString(),
+        sourceDetail:telemetry.sourceDetail,
+        fields:telemetry.fields,
+        candidateCount:Number(telemetry.candidateCount) || observations.length
+      };
+      live.counters = Object.assign({}, live.counters || {}, message.counters || {});
+      live.observations = (Number(live.observations) || 0) + 1;
+      live.candidates = (Number(live.candidates) || 0) + observations.length;
+      observations.forEach(function(observation) {
+        live.latestPick = Math.max(Number(live.latestPick) || 0, Number(observation.overallPick) || 0);
+      });
+      live.conflicts = Object.keys(state.conflictsByPick || {}).length;
+      live.unresolvedPlayerIds = Object.keys(state.unresolvedPlayerIdsByPick || {}).length;
+      state.espn.liveCapture = live;
+      state.espn.liveStructuredAt = new Date().toISOString();
+      state.espn.method = source === 'react' ? 'structured' : 'network';
+      state.espn.connected = true;
+      state.espn.draftPage = true;
+      state.espn.lastSeenAt = new Date().toISOString();
+      return storageSave().then(function() { return broadcastWarRoom(observations.length > 0); });
     }
 
     if (message.type === 'ESPN_STRUCTURED_PICKS') {

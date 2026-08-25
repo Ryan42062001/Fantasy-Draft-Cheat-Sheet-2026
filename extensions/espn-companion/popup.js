@@ -2,7 +2,7 @@
 
 var settingsDirty = false;
 var latestStatus = null;
-var PACKAGED_WEBSITE_REQUIREMENT = '0.8.11';
+var PACKAGED_WEBSITE_REQUIREMENT = '0.9.0';
 var reportedRequiredVersion = null;
 var requiredVersion = PACKAGED_WEBSITE_REQUIREMENT;
 
@@ -32,6 +32,8 @@ function render(status) {
   var espn = status.espn || {};
   var warRoom = status.warRoom || {};
   var picks = Array.isArray(status.picks) ? status.picks : [];
+  var liveCapture = espn.liveCapture || {};
+  var liveSources = liveCapture.sources || {};
   var extensionVersion = status.extensionVersion || chrome.runtime.getManifest().version;
   reportedRequiredVersion = warRoom.requiredExtensionVersion || null;
   requiredVersion = compareVersions(reportedRequiredVersion, PACKAGED_WEBSITE_REQUIREMENT) >= 0
@@ -48,7 +50,8 @@ function render(status) {
   setOnline('espn-dot', espn.connected && espn.draftPage);
   setOnline('war-room-dot', warRoom.connected);
   document.getElementById('espn-status').textContent = espn.draftPage
-    ? 'Draft detected · ' + (espn.method === 'api' ? 'Direct' : espn.method === 'hybrid' ? 'Hybrid' : 'Screen')
+    ? 'Draft detected · ' + (espn.method === 'structured' || espn.method === 'network'
+      ? 'Live capture' : espn.method === 'api' ? 'REST snapshot' : espn.method === 'hybrid' ? 'Hybrid recovery' : 'Board fallback')
     : espn.connected ? 'ESPN open' : 'Not connected';
   document.getElementById('war-room-status').textContent = warRoom.connected
     ? 'Connected'
@@ -56,6 +59,20 @@ function render(status) {
   document.getElementById('captured-count').textContent = picks.length;
   document.getElementById('applied-count').textContent = Number(warRoom.applied) || 0;
   document.getElementById('unmatched-count').textContent = Number(warRoom.unmatched) || 0;
+  var structuredActive = Boolean(liveSources.react && liveSources.react.active);
+  var networkActive = ['websocket','fetch','xhr'].some(function(source) {
+    return Boolean(liveSources[source] && liveSources[source].active);
+  });
+  var fallbackActive = espn.method === 'dom' || Number(espn.visibleCandidates) > 0;
+  function captureStatus(id, active, label) {
+    var element = document.getElementById(id);
+    element.textContent = active ? label || 'Active' : 'Inactive';
+    element.classList.toggle('active', active);
+  }
+  captureStatus('structured-status', structuredActive);
+  captureStatus('network-status', networkActive);
+  captureStatus('fallback-status', fallbackActive);
+  document.getElementById('confirmed-status').textContent = picks.length;
   var directParts = [];
   if (espn.apiHttpStatus) directParts.push('HTTP ' + espn.apiHttpStatus);
   if (espn.apiTransport === 'page') directParts.push('authenticated page connection');
@@ -100,7 +117,7 @@ function render(status) {
       ? 'Draft detected, but no completed pick rows parsed yet. Press Rescan after a pick is made.'
       : 'Draft detected, but its pick log was not visible to the reader. Press Rescan or refresh ESPN once.';
   } else if (
-    espn.method !== 'api' &&
+    espn.method !== 'api' && espn.method !== 'structured' && espn.method !== 'network' &&
     Number(espn.expectedCompleted) > 0 &&
     picks.length < Number(espn.expectedCompleted)
   ) {
@@ -110,8 +127,10 @@ function render(status) {
     message.textContent = 'ESPN captured ' + picks.length + ' picks, but the War Room has acknowledged only ' +
       (Number(warRoom.applied) || 0) + '. Refresh the War Room tab, then press Rescan ESPN.';
   } else {
-    message.textContent = espn.method === 'api'
-      ? 'Direct ESPN data connected. Team ownership and pick numbers come from ESPN.'
+    message.textContent = espn.method === 'structured' || espn.method === 'network'
+      ? 'Live capture is observing ESPN read-only structured data. Board fallback remains available for recovery.'
+      : espn.method === 'api'
+      ? 'A REST snapshot is available. Live capture or Board fallback still determines real-time reliability.'
       : espn.method === 'hybrid'
         ? 'Hybrid sync active. ESPN supplies pick ownership and numbering; the visible table fills unresolved names.'
       : 'Screen fallback active. Open ESPN’s Board tab once if any completed picks are missing.';
@@ -123,6 +142,9 @@ function buildDiagnostics(status) {
   var espn = status.espn || {};
   var warRoom = status.warRoom || {};
   var picks = Array.isArray(status.picks) ? status.picks : [];
+  var liveCapture = espn.liveCapture || {};
+  var liveSources = liveCapture.sources || {};
+  var fallbackActive = espn.method === 'dom' || Number(espn.visibleCandidates) > 0;
   var expectedCompleted = Number(espn.expectedCompleted) || 0;
   var capturedNumbers = new Set(picks.map(function(pick) { return Number(pick.overallPick); }));
   var missingNumbers = [];
@@ -146,7 +168,7 @@ function buildDiagnostics(status) {
       (reportedRequiredVersion && reportedRequiredVersion !== requiredVersion
         ? ' (page reported stale ' + reportedRequiredVersion + ')'
         : ''),
-    'Connection method: ' + (espn.method || 'none'),
+    'Capture method: ' + (espn.method || 'none'),
     'ESPN connected/draft page: ' + Boolean(espn.connected) + '/' + Boolean(espn.draftPage),
     'War Room connected: ' + Boolean(warRoom.connected),
     'Captured/applied/unmatched: ' + picks.length + '/' + (Number(warRoom.applied) || 0) + '/' + (Number(warRoom.unmatched) || 0),
@@ -157,6 +179,19 @@ function buildDiagnostics(status) {
     'Screen frames: ' + (frameSummary || 'none reported'),
     'Unique candidates/unresolved-or-duplicate: ' + (Number(espn.visibleCandidates) || 0) + '/' + (Number(espn.visibleRejected) || 0),
     'Unparseable row samples: ' + (parseFailures.length ? parseFailures.join(' || ') : 'none'),
+    'Live sources active: react=' + Boolean(liveSources.react && liveSources.react.active) +
+      ', websocket=' + Boolean(liveSources.websocket && liveSources.websocket.active) +
+      ', fetch=' + Boolean(liveSources.fetch && liveSources.fetch.active) +
+      ', xhr=' + Boolean(liveSources.xhr && liveSources.xhr.active) + ', board=' + fallbackActive,
+    'Live source counters: sockets=' + (Number(liveCapture.counters && liveCapture.counters.sockets) || 0) +
+      ', socket messages=' + (Number(liveCapture.counters && liveCapture.counters.socketMessages) || 0) +
+      ', fetch responses=' + (Number(liveCapture.counters && liveCapture.counters.fetchResponses) || 0) +
+      ', xhr responses=' + (Number(liveCapture.counters && liveCapture.counters.xhrResponses) || 0) +
+      ', React scans=' + (Number(liveCapture.counters && liveCapture.counters.reactScans) || 0),
+    'Live observations/candidates/latest: ' + (Number(liveCapture.observations) || 0) + '/' +
+      (Number(liveCapture.candidates) || 0) + '/' + (Number(liveCapture.latestPick) || 0),
+    'Ledger confirmed/conflicts/unresolved IDs: ' + picks.length + '/' +
+      (Number(liveCapture.conflicts) || 0) + '/' + (Number(liveCapture.unresolvedPlayerIds) || 0),
     'API available/complete: ' + Boolean(espn.apiAvailable) + '/' + Boolean(espn.apiComplete),
     'API HTTP/transport/role: ' + (espn.apiHttpStatus || 'none') + '/' + (espn.apiTransport || 'none') + '/' + (espn.apiRole || 'none'),
     'API last successful/status: ' + (espn.lastSuccessfulApiAt || 'none') + '/' +

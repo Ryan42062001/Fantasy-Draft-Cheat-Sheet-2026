@@ -1,12 +1,12 @@
 # The War Room — ESPN Draft Companion
 
-Manifest V3 Chrome extension that reads the visible ESPN fantasy-football draft history and reconciles completed picks into The War Room.
+Manifest V3 Chrome extension that passively observes ESPN fantasy-football draft state and reconciles completed picks into The War Room.
 
 ## Current status
 
-The companion uses ESPN's structured draft-detail response through the authenticated ESPN page as its primary source and the visible Pick History/Board as a fallback. The War Room bridge, persistence, popup, exact ESPN team-ID ownership, name reconciliation, and parser fixtures are implemented. Live mock validation is still required before relying on it for a real draft.
+Version 0.9.0 observes structured data ESPN's own page receives through WebSocket, fetch, XHR, and bounded React-state inspection. A unified ledger reconciles those observations by overall pick and ESPN player ID. ESPN's REST draft-detail response is retained as a snapshot/recovery source, and visible Pick History/Board parsing remains the final fallback. This architecture is implemented and replay-tested, but structured live capture still requires a disposable live-mock validation before it should be relied on for a real draft.
 
-The extension does **not** read or store ESPN passwords, cookies, or authentication tokens. The browser attaches the existing ESPN session to a narrowly scoped draft-detail request, and the extension stores only normalized completed picks.
+The extension does **not** read or store ESPN passwords, cookies, authentication headers, or tokens. Page observers are read-only: they do not create draft actions, alter ESPN payloads, or make duplicate live-data requests. Only normalized pick candidates and sanitized structural telemetry cross into extension storage.
 
 ## Install locally
 
@@ -28,34 +28,38 @@ Chrome displays an extension popup over the upper-right corner of the current pa
 ## How synchronization works
 
 ```text
-ESPN authenticated page connection (primary) or Pick History/Board DOM (fallback)
-  -> espn-page-bridge.js / espn-api.js / espn-content.js
-  -> background.js (validated, deduplicated pick ledger)
+ESPN WebSocket / fetch / XHR / React state (structured live capture)
+  -> espn-live-observer.js (MAIN world, passive observation)
+  -> espn-live-capture.js (normalization and sanitized telemetry)
+  -> espn-content.js
+ESPN REST draft snapshot + Pick History/Board DOM (recovery/fallback)
+  -> espn-page-bridge.js / espn-api.js / espn-parser.js
+  -> background.js (ID-first, conflict-aware unified pick ledger)
   -> war-room-content.js
   -> window message contract
   -> applyEspnDraftSnapshot() in The War Room
   -> existing board updates + autosave
 ```
 
-- Overall picks are deduplicated and stored by the extension.
-- Direct mode uses ESPN's actual team ID to determine `Mine` versus `Taken`.
-- Direct mode fetches structured draft and player records in ESPN's page context; it does not require the Board tab.
-- Screen fallback derives snake-draft team slots from overall pick and league size.
+- Overall picks are deduplicated across all sources and stored by the extension.
+- Matching ESPN player IDs confirm an observation; disagreements are retained as visible conflicts instead of silently overwritten.
+- Structured sources use ESPN's actual team ID to determine `Mine` versus `Taken` when it is present.
+- REST snapshots can recover structured records but are no longer treated as proof that the live feed is authoritative.
+- Board fallback derives snake-draft team slots from overall pick and league size.
 - The popup lists the exact captured pick numbers and players currently classified as `Mine`.
 - The website reconciles the complete ESPN snapshot instead of blindly replaying clicks.
-- FantasyPros canonical-name matching is used first, with suffix-tolerant and DST matching fallbacks.
+- ESPN player ID is used first when the website has learned it; FantasyPros canonical-name, suffix-tolerant, and DST matching are fallbacks.
 - ESPN-sourced rows carry `data-sync-source="espn"`, allowing a later full snapshot to repair missed or corrected picks.
 
 ## Draft-night safeguards
 
 - Keep manual marking available as a fallback.
 - Verify the Captured, Applied, and Unmatched counts after the first few mock-draft picks.
-- If Captured is greater than Applied, press **Rescan ESPN**. Version 0.8.11 makes acknowledgments monotonic per draft and resends a trailing snapshot once, in addition to terminal-pick caps, post-draft structured evidence retention, stale-version reporting, and clipboard fallback. It also lets the website request a fresh ESPN PPR board-rank and ADP scan. FantasyPros ECR remains the value authority.
+- If Captured is greater than Applied, press **Rescan ESPN**. Version 0.9.0 keeps acknowledgments monotonic, forces a React-state rescan, and resends one trailing snapshot while retaining the terminal-pick and post-draft safeguards from 0.8.11.
 - Use **Copy diagnostics** to capture the installed/required versions, connection method, sync counts, completion state, and structured API status without exposing ESPN credentials.
 - Follow `LIVE_VALIDATION.md` for the two remaining full-draft checks: Direct mode and forced Board fallback.
-- Prefer a popup status of **Draft detected · Direct**. If it says **Screen**, open ESPN's Board tab once and press Rescan.
-- In Screen mode, the popup compares captured picks with ESPN's on-clock pick and warns when the fallback is behind.
-- The ESPN data connection panel reports the structured endpoint's HTTP status, ESPN role, resolved count, unresolved count, and exact request error. **Hybrid** means Direct owns numbering/team identity while Screen supplies unresolved player names.
+- Prefer **Draft detected · Live capture** with Structured page state or Network observation active. If only **Board fallback** is active, open ESPN's Board or Pick History tab once and press Rescan.
+- The Live capture panel distinguishes structured page state, network observation, Board fallback, and confirmed/conflicting picks. REST status remains available in diagnostics as supporting evidence.
 - If ESPN's pick-history view falls behind, any visible player row explicitly labeled **DRAFTED** is suppressed from War Room recommendations without guessing its pick number or ownership.
 - If Unmatched is nonzero, manually mark that player and record the exact ESPN display name so an alias or selector fixture can be added.
 - Use **Clear captured picks** only before starting a new mock or real draft.

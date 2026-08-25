@@ -8167,7 +8167,7 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.8.11';
+var ESPN_COMPANION_MIN_VERSION = '0.9.0';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
 var espnSettingsEditedAt = 0;
@@ -8412,7 +8412,7 @@ function applyEspnDraftSnapshot(snapshot) {
     draftComplete: latestEspnSyncMeta.draftComplete,
     expectedCompleted: latestEspnSyncMeta.expectedCompleted,
     picks: picks.map(function(pick) {
-      return [pick.overallPick, pick.playerName, pick.position, pick.teamSlot, pick.teamId, pick.isMine];
+      return [pick.overallPick, pick.espnPlayerId, pick.playerName, pick.position, pick.teamSlot, pick.teamId, pick.isMine];
     }),
     unavailablePlayers: incomingUnavailable.map(function(player) {
       return [String(player.playerName || ''), normalizeEspnSyncPosition(player.position)];
@@ -8444,8 +8444,19 @@ function applyEspnDraftSnapshot(snapshot) {
   var unmatched = [];
   var usedRows = new Set();
 
+  function resolveSnapshotRow(pick) {
+    if (pick && pick.espnPlayerId) {
+      var escapedId = typeof CSS !== 'undefined' && CSS.escape
+        ? CSS.escape(String(pick.espnPlayerId))
+        : String(pick.espnPlayerId).replace(/["\\]/g, '\\$&');
+      var idRow = document.querySelector('tr.draftrow[data-espn-player-id="' + escapedId + '"]');
+      if (idRow) return idRow;
+    }
+    return resolveEspnDraftRow(pick && pick.playerName, pick && pick.position);
+  }
+
   picks.forEach(function(pick) {
-    var row = resolveEspnDraftRow(pick.playerName, pick.position);
+    var row = resolveSnapshotRow(pick);
     if (!row || usedRows.has(row)) {
       unmatched.push({
         overallPick: pick.overallPick,

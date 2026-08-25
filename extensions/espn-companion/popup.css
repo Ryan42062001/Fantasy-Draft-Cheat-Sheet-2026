@@ -20,6 +20,10 @@ section { margin-bottom: 12px; padding: 12px; border: 1px solid #315740; border-
 .mine-audit { grid-column: 1 / -1; margin: 3px 0 0; padding-top: 8px; border-top: 1px solid #315740; color: #c9d8cb; font-size: 10px; line-height: 1.4; text-align: left; }
 .direct-diagnostics { padding-block: 9px; }
 .direct-diagnostics p { margin: 4px 0 0; overflow-wrap: anywhere; color: #c9d8cb; }
+.capture-grid { display:grid; grid-template-columns:1fr auto; gap:5px 8px; margin:8px 0; font-size:10px; }
+.capture-grid span { color:#9cb3a2; }
+.capture-grid strong { color:#d8e7da; }
+.capture-grid strong.active { color:#8fd4a0; }
 .version-warning { padding: 7px; border: 1px solid #9c544d; border-radius: 7px; color: #ffd0cb !important; background: rgba(193,85,75,.14); font-weight: 700; }
 .copy-diagnostics { width: 100%; margin-top: 9px; }
 h2 { margin: 0 0 3px; font-size: 13px; }

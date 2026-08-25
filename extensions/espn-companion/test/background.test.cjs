@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.8.11'}),
+      getManifest: () => ({version: '0.9.0'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -31,6 +31,8 @@ function loadBackground(storedState) {
     scripting: {executeScript: async () => {}}
   };
   const context = vm.createContext({chrome, console, Date, Promise, Object, Number, String, Boolean, Math, URL});
+  const captureSource = fs.readFileSync(path.resolve(__dirname, '..', 'espn-live-capture.js'), 'utf8');
+  vm.runInContext(captureSource, context);
   const source = fs.readFileSync(path.resolve(__dirname, '..', 'background.js'), 'utf8');
   vm.runInContext(source, context);
   context.listeners = listeners;
@@ -89,6 +91,35 @@ test('opening a different ESPN draft clears the previous mock ledger', async () 
   assert.equal(context.state.espn.draftComplete, false);
   assert.equal(context.state.espn.currentPick, null);
   assert.equal(context.state.espn.expectedCompleted, 0);
+});
+
+test('public mock pages receive a stable draft key without a league id', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const url = 'https://fantasy.espn.com/football/mockdraft?draftId=public-room-42&seasonId=2026';
+  const first = context.draftKeyFromUrl(url);
+  const second = context.draftKeyFromUrl(url);
+  assert.match(first, /^page:2026:/);
+  assert.equal(first, second);
+});
+
+test('live observations reconcile through the background ledger and expose conflicts', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const listener = context.listeners.message[0];
+  const url = 'https://fantasy.espn.com/football/mockdraft?draftId=fixture&seasonId=2026';
+  listener({type:'ESPN_LIVE_OBSERVATIONS', source:'websocket', url, observations:[{
+    overallPick:1, playerId:'10', espnPlayerId:'10', playerName:'Player One', position:'WR', source:'websocket'
+  }], telemetry:{source:'websocket',sourceDetail:'fantasy.espn.com/ws',candidateCount:1}, counters:{sockets:1}}, {}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  listener({type:'ESPN_LIVE_OBSERVATIONS', source:'dom', url, observations:[{
+    overallPick:1, playerId:'20', espnPlayerId:'20', playerName:'Wrong Player', position:'RB', source:'dom'
+  }], telemetry:{source:'dom',candidateCount:1}}, {}, () => {});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(context.getPicks().length, 1);
+  assert.equal(context.getPicks()[0].espnPlayerId, '10');
+  assert.equal(context.state.espn.liveCapture.conflicts, 1);
+  assert.equal(context.state.conflictsByPick['1'].incomingPlayerId, '20');
 });
 
 test('an embedded ESPN frame cannot clear a completed-draft heartbeat', async () => {
