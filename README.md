@@ -93,7 +93,7 @@ AGENTS.md                          Ranking policy, architecture notes, and roadm
 
 Use **Update Rankings** in The War Room toolbar for the two live-market maintenance paths:
 
-- Refresh from the FantasyPros 2025 Draft Accuracy Top-20 preset or import its current PPR CSV. The preset can contain fewer than 20 active contributors at a given point in the preseason; the War Room reports the active count, validates the player pool, and retains broad ECR for deeper players.
+- Import the current FantasyPros 2025 Draft Accuracy Top-20 PPR CSV. The War Room validates the player pool and retains broad ECR for deeper players.
 - Ask Companion 0.8.11 or newer to refresh ESPN PPR board rank and ADP from an open ESPN draft page.
 
 The browser stores a validated FantasyPros overlay locally. **Restore bundled rankings** returns to the repository snapshot. ESPN market data changes survival timing only; it never replaces FantasyPros ECR as player value.

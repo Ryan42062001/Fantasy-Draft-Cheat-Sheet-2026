@@ -9,7 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
-  assert.equal(manifest.version, '0.9.11');
+  assert.equal(manifest.version, '0.9.12');
 });
 
 test('popup exposes version and copyable connection diagnostics', () => {
@@ -18,9 +18,8 @@ test('popup exposes version and copyable connection diagnostics', () => {
   assert.match(html, /id="extension-version"/);
   assert.match(html, /id="version-warning"/);
   assert.match(html, /id="copy-diagnostics"/);
-  assert.match(html, /id="fantasypros-key"/);
-  assert.match(script, /SAVE_FANTASYPROS_KEY/);
-  assert.match(script, /REFRESH_FANTASYPROS_RANKINGS/);
+  assert.doesNotMatch(html, /fantasypros-key|FantasyPros rankings API/);
+  assert.doesNotMatch(script, /SAVE_FANTASYPROS_KEY|REFRESH_FANTASYPROS_RANKINGS/);
   assert.match(script, /Captured\/applied\/unmatched/);
   assert.match(script, /API available\/complete/);
   assert.match(script, /Missing numbered picks/);
@@ -30,10 +29,6 @@ test('popup exposes version and copyable connection diagnostics', () => {
   assert.match(script, /Acknowledged snapshot size/);
   assert.match(script, /Live sources active/);
   assert.match(script, /Ledger confirmed\/conflicts\/unresolved IDs/);
-  assert.match(script, /FantasyPros ranking refresh diagnostics/);
-  assert.match(script, /Requests used this attempt/);
-  assert.match(script, /API key and headers excluded/);
-  assert.match(script, /Recommended next step/);
   assert.match(script, /document\.execCommand\('copy'\)/);
 });
 
@@ -53,7 +48,7 @@ test('requests only storage and host-restricted reinjection permission', () => {
   assert.deepEqual(manifest.permissions, ['storage', 'scripting']);
   assert.equal(manifest.host_permissions.includes('<all_urls>'), false);
   assert.equal(manifest.permissions.includes('cookies'), false);
-  assert.equal(manifest.host_permissions.includes('https://api.fantasypros.com/public/v2/json/*'), true);
+  assert.equal(manifest.host_permissions.includes('https://api.fantasypros.com/public/v2/json/*'), false);
 });
 
 test('ESPN reader reaches embedded draft-room frames', () => {
@@ -69,26 +64,12 @@ test('authenticated ESPN bridge runs in the page main world before readers', () 
   assert.equal(bridge.all_frames, true);
 });
 
-test('War Room bridge forwards FantasyPros API updates without credentials', () => {
-  const script = fs.readFileSync(path.join(root, 'war-room-content.js'), 'utf8');
-  assert.match(script, /FANTASYPROS_REFRESH_REQUEST/);
-  assert.match(script, /WAR_ROOM_FANTASYPROS_RANKINGS/);
-  assert.match(script, /FANTASYPROS_REFRESH_RESULT/);
-  assert.doesNotMatch(script, /x-api-key/i);
-});
-
-test('FantasyPros refresh discovers and caches the documented draft-accuracy Top 20', () => {
-  const script = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
-  assert.match(script, /presetSize:20/);
-  assert.match(script, /accuracy_draft_season/);
-  assert.match(script, /accuracy_draft/);
-  assert.match(script, /fantasyProsTop20Preset/);
-  assert.match(script, /experts:'show'/);
-  assert.match(script, /nfl\/2026\/rankings\/experts/);
-  assert.doesNotMatch(script, /FANTASYPROS_TOP20_ACTIVE_EXPERT_IDS/);
-  assert.match(script, /fantasyProsDiagnostics/);
-  assert.match(script, /responseSizeBytes/);
-  assert.match(script, /requestsUsed/);
+test('retired FantasyPros API integration is absent from the extension', () => {
+  const background = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
+  const bridge = fs.readFileSync(path.join(root, 'war-room-content.js'), 'utf8');
+  assert.doesNotMatch(background, /x-api-key|consensus-rankings|rankings\/experts/);
+  assert.doesNotMatch(bridge, /FANTASYPROS_REFRESH|FANTASYPROS_RANKINGS/);
+  assert.match(background, /remove\(RETIRED_FANTASYPROS_KEY_STORAGE\)/);
 });
 
 test('read-only live observer runs in the page main world at document start', () => {

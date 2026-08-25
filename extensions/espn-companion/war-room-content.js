@@ -12,18 +12,6 @@
     } catch (error) {}
   }
 
-  function sendRuntimeWithResponse(message, responseType) {
-    try {
-      Promise.resolve(chrome.runtime.sendMessage(message)).then(function(result) {
-        postToWarRoom({type:responseType, result:result || {error:'The companion returned no result.'}});
-      }).catch(function(error) {
-        postToWarRoom({type:responseType, result:{error:error && error.message ? error.message : String(error)}});
-      });
-    } catch (error) {
-      postToWarRoom({type:responseType, result:{error:error && error.message ? error.message : String(error)}});
-    }
-  }
-
   function postToWarRoom(message) {
     window.postMessage(Object.assign({channel: CHANNEL}, message), '*');
   }
@@ -40,9 +28,6 @@
         detail: message.detail,
         extensionVersion: message.extensionVersion || EXTENSION_VERSION
       });
-    }
-    if (message.type === 'WAR_ROOM_FANTASYPROS_RANKINGS') {
-      postToWarRoom({type:'FANTASYPROS_RANKINGS_UPDATE', update:message.update});
     }
   });
 
@@ -67,9 +52,6 @@
     }
     if (event.data.type === 'RANKINGS_REFRESH_REQUEST') {
       sendRuntime({type: 'WAR_ROOM_RANKINGS_REFRESH', url: location.href});
-    }
-    if (event.data.type === 'FANTASYPROS_REFRESH_REQUEST') {
-      sendRuntimeWithResponse({type:'WAR_ROOM_FANTASYPROS_REFRESH', url:location.href}, 'FANTASYPROS_REFRESH_RESULT');
     }
   });
 

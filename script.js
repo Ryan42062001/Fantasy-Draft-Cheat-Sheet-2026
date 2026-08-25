@@ -8167,10 +8167,9 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.9.11';
+var ESPN_COMPANION_MIN_VERSION = '0.9.12';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
-var latestFantasyProsRefreshDiagnostics = null;
 var espnSettingsEditedAt = 0;
 var latestEspnSyncMeta = {draftComplete: false, expectedCompleted: 0, numberedPicks: 0, marketAdpCount: 0, marketRankCount: 0, marketUpdatedAt: null};
 window.latestEspnSyncMeta = latestEspnSyncMeta;
@@ -8561,17 +8560,6 @@ window.addEventListener('message', function(event) {
 
   if (event.data.type === 'PICKS_SNAPSHOT') {
     applyEspnDraftSnapshot(event.data.snapshot);
-  }
-  if (event.data.type === 'FANTASYPROS_RANKINGS_UPDATE') {
-    applyFantasyProsApiUpdate(event.data.update);
-  }
-  if (event.data.type === 'FANTASYPROS_REFRESH_RESULT') {
-    var refreshResult = event.data.result || {};
-    if (refreshResult.diagnostics) latestFantasyProsRefreshDiagnostics = refreshResult.diagnostics;
-    if (refreshResult.error) setRankingsRefreshMessage(refreshResult.error, 'error');
-    else if (refreshResult.updated) {
-      setRankingsRefreshMessage('Validated ' + refreshResult.players + ' players from ' + refreshResult.experts + ' experts. Applying update…', 'success');
-    } else setRankingsRefreshMessage('The companion returned no ranking update.', 'error');
   }
 });
 
@@ -11462,119 +11450,6 @@ function importFantasyProsTop20File() {
   });
 }
 
-function formatFantasyProsRefreshDiagnostics(diagnostics) {
-  if (!diagnostics) {
-    return [
-      'The War Room FantasyPros refresh diagnostics',
-      'Generated: ' + new Date().toISOString(),
-      'War Room requires Companion: ' + ESPN_COMPANION_MIN_VERSION,
-      'No refresh result has reached this page yet.',
-      'Next step: run Refresh from FantasyPros API once, or use Copy diagnostics in the extension popup if the website receives no response.'
-    ].join('\n');
-  }
-  var directory = diagnostics.expertDirectory || {};
-  var consensus = diagnostics.consensus || {};
-  var rejected = consensus.rejected || {};
-  var cache = diagnostics.cache || {};
-  var delivery = diagnostics.delivery || {};
-  var result = diagnostics.result || {};
-  function requestLine(label, request) {
-    request = request || {};
-    return label + ': endpoint=' + (request.endpoint || 'not requested') +
-      ', HTTP=' + (request.httpStatus == null ? 'none' : request.httpStatus) +
-      ', duration=' + (request.durationMs == null ? 'none' : request.durationMs + ' ms') +
-      ', shape=' + (request.responseShape || 'none') +
-      ', bytes=' + (Number(request.responseSizeBytes) || 0) +
-      ', error=' + (request.error || 'none');
-  }
-  var selected = Array.isArray(directory.selectedExperts) ? directory.selectedExperts.map(function(expert) {
-    return '#' + (expert.rank || '?') + ' ' + (expert.name || 'name unavailable') + ' [id ' + (expert.id || '?') + ']';
-  }).join(' | ') : '';
-  return [
-    'The War Room FantasyPros refresh diagnostics',
-    'Generated: ' + new Date().toISOString(),
-    'Extension/War Room requirement: ' + (diagnostics.extensionVersion || 'unknown') + '/' + ESPN_COMPANION_MIN_VERSION,
-    'Security: API key, request headers, cookies, and authorization values are excluded',
-    'Attempt/status/stage: ' + (diagnostics.attemptId || 'unknown') + '/' + (diagnostics.status || 'unknown') + '/' + (diagnostics.stage || 'unknown'),
-    'Started/completed/duration: ' + (diagnostics.startedAt || 'unknown') + '/' + (diagnostics.completedAt || 'not complete') + '/' + (diagnostics.durationMs == null ? 'unknown' : diagnostics.durationMs + ' ms'),
-    'Requests used this attempt: ' + (Number(diagnostics.requestsUsed) || 0),
-    'Credential configured: ' + Boolean(diagnostics.credentialConfigured) + ' (value excluded)',
-    'Top-20 cache used/age/size: ' + Boolean(cache.used) + '/' + (cache.ageMinutes == null ? 'unknown' : cache.ageMinutes + ' min') + '/' + (Number(cache.presetSize) || 0),
-    requestLine('Expert directory request', directory.request),
-    'Expert directory season/shape/entries: ' + (directory.accuracySeason == null ? 'unknown' : directory.accuracySeason) + '/' + (directory.payloadShape || 'unknown') + '/' + (Number(directory.directoryCount) || 0),
-    'Expert directory name/rank/selected matches: ' + (Number(directory.nameMatches) || 0) + '/' + (Number(directory.rankMatches) || 0) + '/' + (Number(directory.selectedCount) || 0),
-    'Expert directory limited/fallback: ' + Boolean(directory.limitedTier) + '/' + Boolean(directory.fallbackUsed),
-    'Expert fallback reason: ' + (directory.fallbackReason || 'none'),
-    'Expert directory top-level keys: ' + (Array.isArray(directory.topLevelKeys) && directory.topLevelKeys.length ? directory.topLevelKeys.join(',') : 'none'),
-    'Selected experts: ' + (selected || 'none'),
-    'Missing finalized Top-20 names: ' + (Array.isArray(directory.missingPresetNames) && directory.missingPresetNames.length ? directory.missingPresetNames.join(', ') : 'none'),
-    requestLine('Consensus request', consensus.request),
-    'Consensus shape/keys: ' + (consensus.payloadShape || 'unknown') + '/' + (Array.isArray(consensus.topLevelKeys) && consensus.topLevelKeys.length ? consensus.topLevelKeys.join(',') : 'none'),
-    'Consensus reported/active experts: ' + (Number(consensus.reportedExperts) || 0) + '/' + (Number(consensus.activeExpertCount) || 0),
-    'Consensus raw/valid players: ' + (Number(consensus.rawPlayerCount) || 0) + '/' + (Number(consensus.validPlayerCount) || 0),
-    'Rejected players rank/name/position: ' + (Number(rejected.invalidRank) || 0) + '/' + (Number(rejected.missingName) || 0) + '/' + (Number(rejected.unsupportedPosition) || 0),
-    'Duplicate players: ' + (Number(consensus.duplicateCount) || 0) + (Array.isArray(consensus.duplicateSamples) && consensus.duplicateSamples.length ? ' · ' + consensus.duplicateSamples.join(', ') : ''),
-    'Consensus last updated: ' + (consensus.lastUpdated || 'unknown'),
-    'War Room tabs/attempted/delivered: ' + (Number(delivery.warRoomTabs) || 0) + '/' + (Number(delivery.attempted) || 0) + '/' + (Number(delivery.delivered) || 0),
-    'Refresh error: ' + (result.error || 'none'),
-    'Recommended next step: ' + (result.nextStep || 'Refresh has not completed yet.')
-  ].join('\n');
-}
-
-function copyFantasyProsRefreshDiagnostics() {
-  var diagnostics = formatFantasyProsRefreshDiagnostics(latestFantasyProsRefreshDiagnostics);
-  var button = document.getElementById('copy-fantasypros-diagnostics');
-  var copyPromise = navigator.clipboard && navigator.clipboard.writeText
-    ? navigator.clipboard.writeText(diagnostics)
-    : Promise.reject(new Error('Clipboard API unavailable'));
-  copyPromise.catch(function() {
-    var textarea = document.createElement('textarea');
-    textarea.value = diagnostics;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    var copied = document.execCommand('copy');
-    textarea.remove();
-    if (!copied) throw new Error('Clipboard fallback failed');
-  }).then(function() {
-    if (button) button.textContent = 'Diagnostics copied';
-    setTimeout(function() { if (button) button.textContent = 'Copy FantasyPros diagnostics'; }, 1800);
-  }).catch(function() {
-    if (button) button.textContent = 'Copy failed';
-    setTimeout(function() { if (button) button.textContent = 'Copy FantasyPros diagnostics'; }, 1800);
-  });
-}
-
-function requestFantasyProsApiRefresh() {
-  window.postMessage({channel:ESPN_SYNC_CHANNEL, type:'FANTASYPROS_REFRESH_REQUEST'}, window.location.origin === 'null' ? '*' : window.location.origin);
-  setRankingsRefreshMessage('Requesting 2025 Draft Accuracy · Top 20 Overall PPR rankings…', 'working');
-  setTimeout(function() {
-    var target = document.getElementById('rankings-refresh-message');
-    if (target && target.classList.contains('working')) {
-      setRankingsRefreshMessage('No response from the companion after 15 seconds. Reload extension 0.9.11, refresh this page, and copy diagnostics from the extension popup.', 'error');
-    }
-  }, 15000);
-}
-
-function applyFantasyProsApiUpdate(update) {
-  try {
-    if (!update || Number(update.presetSize) !== 20 || Number(update.expertCount) < 1 || Number(update.expertCount) > 20 || !Array.isArray(update.rows)) {
-      throw new Error('The companion did not provide a validated Top-20 rankings update.');
-    }
-    var override = buildFantasyProsTop20Override(update.rows, {
-      name:'FantasyPros API · Top-20 PPR experts',
-      lastModified:Date.parse(update.receivedAt) || Date.now()
-    });
-    saveState();
-    localStorage.setItem(FANTASYPROS_LOCAL_OVERRIDE_KEY, JSON.stringify(override));
-    setRankingsRefreshMessage('Validated ' + override.top20Count + ' API-ranked players from ' + update.expertCount + ' active experts in the Top-20 preset. Reloading…', 'success');
-    setTimeout(function() { window.location.reload(); }, 500);
-  } catch (error) {
-    setRankingsRefreshMessage(error && error.message ? error.message : String(error), 'error');
-  }
-}
 
 function resetFantasyProsRankingOverride() {
   if (!activeFantasyProsLocalOverride) { setRankingsRefreshMessage('The embedded FantasyPros baseline is already active.', ''); return; }

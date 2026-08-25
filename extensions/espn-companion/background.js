@@ -4,23 +4,7 @@ if (typeof importScripts === 'function') importScripts('espn-live-capture.js');
 var liveCapture = globalThis.WarRoomEspnLiveCapture;
 
 var STORAGE_KEY = 'warRoomEspnCompanionStateV2';
-var FANTASYPROS_KEY_STORAGE = 'warRoomFantasyProsApiKeyV1';
-var FANTASYPROS_PRESET_CACHE_MS = 24 * 60 * 60 * 1000;
-var FANTASYPROS_2025_DRAFT_ACCURACY_TOP20 = [
-  'Seth Miller', 'Guilherme Gianni', 'Michael Bobal', 'Jason Willan', 'Marc Shannep',
-  'Joey Wright', 'Ryan Weisse', 'Kevin Steele', 'Jody Smith', 'Tim Heaney',
-  'Todd D Clark', 'Adam Stark', 'Sean Koerner', 'Mason Riney', 'Shane Hallam',
-  'Justin Weigal', 'Nick Mariano', 'Jared Smola', 'Nic Bodiford', 'Trevor Land'
-];
-// FantasyPros' limited public tier can return an empty expert directory even
-// though filtered consensus rankings remain available. These nine IDs were
-// confirmed by the 2026 consensus response for the user's finalized 2025
-// Draft Accuracy Top-20 preset on 2026-08-24. They are used only when the API
-// explicitly marks the empty directory as limited, and the resulting
-// consensus response must independently confirm active experts before use.
-var FANTASYPROS_TOP20_LIMITED_TIER_FALLBACK_IDS = [
-  '3585', '2598', '4179', '2743', '690', '1080', '381', '4404', '4224'
-];
+var RETIRED_FANTASYPROS_KEY_STORAGE = 'warRoomFantasyProsApiKeyV1';
 var WAR_ROOM_URLS = [
   'http://127.0.0.1/*',
   'http://localhost/*',
@@ -43,7 +27,6 @@ var state = {
   unresolvedPlayerIdsByPick: {},
   unavailablePlayersByKey: {},
   marketAdpByName: {},
-  fantasyProsDiagnostics: null,
   ledgerTeams: null,
   espn: {connected: false, draftPage: false, captured: 0, lastSeenAt: null},
   warRoom: {connected: false, applied: 0, unmatched: 0, lastSeenAt: null}
@@ -61,8 +44,6 @@ function storageGet() {
       state.unresolvedPlayerIdsByPick = Object.assign({}, stored.unresolvedPlayerIdsByPick || {});
       state.unavailablePlayersByKey = Object.assign({}, stored.unavailablePlayersByKey || {});
       state.marketAdpByName = Object.assign({}, stored.marketAdpByName || {});
-      state.fantasyProsDiagnostics = stored.fantasyProsDiagnostics && typeof stored.fantasyProsDiagnostics === 'object'
-        ? stored.fantasyProsDiagnostics : null;
       state.ledgerTeams = Number(stored.ledgerTeams) || null;
       state.espn = Object.assign({}, state.espn, stored.espn || {});
       state.warRoom = Object.assign({}, state.warRoom, stored.warRoom || {});
@@ -98,7 +79,15 @@ function updateActionBadge() {
   ]).catch(function() {});
 }
 
-var ready = storageGet().catch(function() {});
+function retireFantasyProsApiState() {
+  delete state.fantasyProsDiagnostics;
+  delete state.fantasyProsTop20Preset;
+  return chrome.storage.local.remove(RETIRED_FANTASYPROS_KEY_STORAGE)
+    .then(storageSave)
+    .catch(function() {});
+}
+
+var ready = storageGet().then(retireFantasyProsApiState).catch(function() {});
 ready.then(updateActionBadge).catch(function() {});
 
 function snakeTeamSlot(overallPick, teams) {
@@ -490,429 +479,25 @@ function statusSnapshot() {
     config: state.config,
     picks: getPicks(),
     espn: state.espn,
-    warRoom: state.warRoom,
-    fantasyPros: state.fantasyProsDiagnostics || null
+    warRoom: state.warRoom
   };
 }
 
-function fantasyProsKeyStatus() {
-  return chrome.storage.local.get(FANTASYPROS_KEY_STORAGE).then(function(result) {
-    return {configured:Boolean(String(result && result[FANTASYPROS_KEY_STORAGE] || '').trim())};
-  });
-}
 
-function saveFantasyProsKey(rawKey) {
-  var key = String(rawKey || '').trim();
-  if (key.length < 12 || key.length > 300 || /\s/.test(key)) {
-    return Promise.reject(new Error('That does not look like a valid FantasyPros API key.'));
-  }
-  var payload = {};
-  payload[FANTASYPROS_KEY_STORAGE] = key;
-  return chrome.storage.local.set(payload).then(function() { return {configured:true}; });
-}
 
-function testFantasyProsKey() {
-  return chrome.storage.local.get(FANTASYPROS_KEY_STORAGE).then(function(result) {
-    var key = String(result && result[FANTASYPROS_KEY_STORAGE] || '').trim();
-    if (!key) throw new Error('Save your FantasyPros API key first.');
-    var url = 'https://api.fantasypros.com/public/v2/json/nfl/2026/consensus-rankings' +
-      '?position=ALL&scoring=PPR&type=DRAFT&week=0';
-    return fetch(url, {method:'GET', headers:{'x-api-key':key}, credentials:'omit', cache:'no-store'});
-  }).then(function(response) {
-    return response.text().then(function(text) {
-      var payload = null;
-      try { payload = text ? JSON.parse(text) : null; } catch (error) {}
-      if (!response.ok) {
-        var detail = payload && (payload.message || payload.error) || ('HTTP ' + response.status);
-        throw new Error('FantasyPros rejected the request: ' + String(detail).slice(0, 140));
-      }
-      var players = payload && Array.isArray(payload.players) ? payload.players : [];
-      var rankings = payload && payload.rankings && typeof payload.rankings === 'object'
-        ? Object.keys(payload.rankings).length : 0;
-      return {
-        configured:true, connected:true, httpStatus:response.status,
-        players:players.length, rankingGroups:rankings,
-        lastUpdated:String(payload && (payload.last_updated || payload.lastUpdated) || '').slice(0, 60) || null
-      };
-    });
-  });
-}
 
-function fantasyProsPayloadShape(payload) {
-  if (Array.isArray(payload)) return 'array';
-  if (payload === null) return 'null';
-  return typeof payload;
-}
 
-function fantasyProsSafeError(error) {
-  return String(error && error.message ? error.message : error || 'Unknown error')
-    .replace(/\b(api[_ -]?key|authorization|cookie|access[_ -]?token|token)\b\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
-    .replace(/([?&](?:key|api_key|token)=)[^&\s]+/gi, '$1[redacted]')
-    .slice(0, 300);
-}
 
-function fantasyProsNextStep(stage) {
-  if (stage === 'api-key') return 'Save and test the FantasyPros API key in the extension popup, then retry once.';
-  if (stage === 'expert-directory-request') return 'Wait a few minutes and retry once. If it repeats, copy these diagnostics; FantasyPros did not return the expert directory successfully.';
-  if (stage === 'expert-directory-parse') return 'Copy these diagnostics. FantasyPros changed or omitted the 2025 Draft Accuracy expert-directory fields and the parser needs an update.';
-  if (stage === 'consensus-request') return 'Wait a few minutes and retry once. If it repeats, copy these diagnostics; the filtered consensus request failed.';
-  if (stage === 'consensus-validation') return 'Copy these diagnostics. Check selected expert and player counts before changing the parser or preset.';
-  if (stage === 'player-validation') return 'Copy these diagnostics. FantasyPros returned rankings, but too many rows were missing a valid rank, name, or supported position.';
-  if (stage === 'war-room-delivery') return 'Keep The War Room open, reload its tab, and retry once. If it repeats, reload the extension and copy these diagnostics.';
-  return 'Copy these diagnostics before retrying so the failed stage and response counts are preserved.';
-}
 
-function newFantasyProsDiagnostics() {
-  return {
-    schemaVersion:1,
-    attemptId:'fp-' + Date.now().toString(36),
-    extensionVersion:getExtensionVersion(),
-    startedAt:new Date().toISOString(),
-    completedAt:null,
-    durationMs:null,
-    status:'running',
-    stage:'starting',
-    requestsUsed:0,
-    credentialConfigured:false,
-    cache:{used:false, ageMinutes:null, presetSize:0},
-    expertDirectory:{request:null, accuracySeason:null, payloadShape:null, topLevelKeys:[], directoryCount:0, nameMatches:0, rankMatches:0, selectedCount:0, selectedExperts:[], missingPresetNames:[], limitedTier:false, fallbackUsed:false, fallbackReason:null},
-    consensus:{request:null, payloadShape:null, topLevelKeys:[], reportedExperts:0, activeExpertCount:0, rawPlayerCount:0, validPlayerCount:0, rejected:{invalidRank:0, missingName:0, unsupportedPosition:0}, duplicateCount:0, duplicateSamples:[], lastUpdated:null},
-    delivery:{warRoomTabs:0, attempted:0, delivered:0},
-    result:{updated:false, error:null, nextStep:null}
-  };
-}
 
-function finishFantasyProsDiagnostics(diagnostics, error) {
-  diagnostics.completedAt = new Date().toISOString();
-  diagnostics.durationMs = Math.max(0, Date.now() - Date.parse(diagnostics.startedAt));
-  diagnostics.status = error ? 'error' : 'success';
-  diagnostics.result.updated = !error;
-  diagnostics.result.error = error ? fantasyProsSafeError(error) : null;
-  diagnostics.result.nextStep = error ? fantasyProsNextStep(diagnostics.stage) : 'No action needed. The validated rankings were delivered to The War Room.';
-  state.fantasyProsDiagnostics = diagnostics;
-  return diagnostics;
-}
 
-function fantasyProsFetchJson(path, key, params, requestDiagnostics) {
-  var url = new URL('https://api.fantasypros.com/public/v2/json/' + path.replace(/^\//, ''));
-  Object.keys(params || {}).forEach(function(name) { url.searchParams.set(name, params[name]); });
-  var requestStarted = Date.now();
-  if (requestDiagnostics) {
-    requestDiagnostics.endpoint = '/public/v2/json/' + path.replace(/^\//, '');
-    requestDiagnostics.startedAt = new Date(requestStarted).toISOString();
-    requestDiagnostics.httpStatus = null;
-    requestDiagnostics.durationMs = null;
-    requestDiagnostics.responseShape = null;
-    requestDiagnostics.responseSizeBytes = 0;
-    requestDiagnostics.error = null;
-  }
-  var controller = typeof AbortController === 'function' ? new AbortController() : null;
-  var timeout = setTimeout(function() { if (controller) controller.abort(); }, 12000);
-  return fetch(url.toString(), {
-    method:'GET', headers:{'x-api-key':key}, credentials:'omit', cache:'no-store',
-    signal:controller ? controller.signal : undefined
-  }).then(function(response) {
-    if (requestDiagnostics) requestDiagnostics.httpStatus = response.status;
-    return response.text().then(function(text) {
-      var payload = null;
-      try { payload = text ? JSON.parse(text) : null; } catch (error) {}
-      if (requestDiagnostics) {
-        requestDiagnostics.responseShape = fantasyProsPayloadShape(payload);
-        requestDiagnostics.responseSizeBytes = String(text || '').length;
-        requestDiagnostics.topLevelKeys = payload && typeof payload === 'object' && !Array.isArray(payload)
-          ? Object.keys(payload).slice(0, 25) : [];
-      }
-      if (!response.ok) {
-        var detail = payload && (payload.message || payload.error) || ('HTTP ' + response.status);
-        throw new Error('FantasyPros rejected the request: ' + String(detail).slice(0, 140));
-      }
-      if (!payload || typeof payload !== 'object') throw new Error('FantasyPros returned an empty rankings response.');
-      return payload;
-    });
-  }).catch(function(error) {
-    if (error && error.name === 'AbortError') error = new Error('FantasyPros did not respond within 12 seconds. Try again shortly.');
-    if (requestDiagnostics) requestDiagnostics.error = fantasyProsSafeError(error);
-    throw error;
-  }).finally(function() {
-    clearTimeout(timeout);
-    if (requestDiagnostics) requestDiagnostics.durationMs = Math.max(0, Date.now() - requestStarted);
-  });
-}
 
-function fantasyProsObjectList(value) {
-  if (Array.isArray(value)) return value;
-  if (value && typeof value === 'object' && (value.expert_id || value.expertId || value.id)) return [value];
-  if (value && typeof value === 'object') return Object.keys(value).map(function(key) { return value[key]; });
-  return [];
-}
 
-function fantasyProsExpertList(value) {
-  if (Array.isArray(value)) return value;
-  if (value && typeof value === 'object' && (value.expert_id || value.expertId || value.expertID || value.id)) return [value];
-  if (!value || typeof value !== 'object') return [];
-  return Object.keys(value).map(function(key) {
-    var expert = value[key];
-    if (typeof expert === 'string') return {expert_id:key, name:expert};
-    if (!expert || typeof expert !== 'object') return null;
-    if (expert.expert_id || expert.expertId || expert.expertID || expert.id) return expert;
-    return Object.assign({expert_id:key}, expert);
-  }).filter(Boolean);
-}
 
-function fantasyProsDraftAccuracyRank(expert) {
-  var draft = expert && (expert.accuracy_draft || expert.accuracyDraft) || {};
-  var rank = Number(draft.ALL || draft.all || expert && (expert.accuracy_draft_rank || expert.draft_rank));
-  return Number.isFinite(rank) && rank > 0 ? rank : null;
-}
 
-function fantasyProsExpertNameKey(value) {
-  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-}
 
-function fantasyProsPresetRankByName(name) {
-  var key = fantasyProsExpertNameKey(name);
-  for (var index = 0; index < FANTASYPROS_2025_DRAFT_ACCURACY_TOP20.length; index += 1) {
-    var presetKey = fantasyProsExpertNameKey(FANTASYPROS_2025_DRAFT_ACCURACY_TOP20[index]);
-    if (key === presetKey || key.indexOf(presetKey + ' ') === 0) return index + 1;
-  }
-  return null;
-}
 
-function extractFantasyProsTop20Experts(payload, diagnostics) {
-  var accuracySeason = Number(payload && (payload.accuracy_draft_season || payload.accuracyDraftSeason));
-  var directory = fantasyProsExpertList(payload && payload.experts);
-  if (diagnostics) {
-    diagnostics.accuracySeason = Number.isFinite(accuracySeason) ? accuracySeason : null;
-    diagnostics.payloadShape = fantasyProsPayloadShape(payload);
-    diagnostics.topLevelKeys = payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 25) : [];
-    diagnostics.directoryCount = directory.length;
-    diagnostics.nameMatches = directory.filter(function(expert) {
-      return fantasyProsPresetRankByName(expert && (expert.name || expert.expert_name || expert.expertName || expert.expert_display_name || expert.display_name));
-    }).length;
-    diagnostics.rankMatches = directory.filter(function(expert) {
-      var rank = fantasyProsDraftAccuracyRank(expert);
-      return rank !== null && rank <= 20;
-    }).length;
-  }
-  if (accuracySeason !== 2025) {
-    throw new Error('FantasyPros returned draft-accuracy season ' + (accuracySeason || 'unknown') + '; expected 2025. No rankings were changed.');
-  }
-  var experts = directory.map(function(expert) {
-    var name = String(expert && (expert.name || expert.expert_name || expert.expertName || expert.expert_display_name || expert.display_name) || '').trim();
-    var accuracyRank = fantasyProsDraftAccuracyRank(expert);
-    var presetRank = fantasyProsPresetRankByName(name);
-    return {
-      id:String(expert && (expert.expert_id || expert.expertId || expert.expertID || expert.id) || '').trim(),
-      name:name,
-      rank:accuracyRank !== null && accuracyRank <= 20 ? accuracyRank : presetRank
-    };
-  }).filter(function(expert) { return expert.id && expert.rank !== null && expert.rank <= 20; })
-    .sort(function(a, b) { return a.rank - b.rank || Number(a.id) - Number(b.id); })
-    .slice(0, 20);
-  var uniqueIds = {};
-  experts.forEach(function(expert) { uniqueIds[expert.id] = true; });
-  if (diagnostics) {
-    diagnostics.selectedCount = experts.length;
-    diagnostics.selectedExperts = experts.map(function(expert) {
-      return {id:expert.id, name:expert.name || 'name unavailable', rank:expert.rank};
-    });
-    var selectedNames = {};
-    experts.forEach(function(expert) { selectedNames[fantasyProsExpertNameKey(expert.name)] = true; });
-    diagnostics.missingPresetNames = FANTASYPROS_2025_DRAFT_ACCURACY_TOP20.filter(function(name) {
-      return !selectedNames[fantasyProsExpertNameKey(name)];
-    }).slice(0, 20);
-  }
-  if (!experts.length || Object.keys(uniqueIds).length !== experts.length) {
-    var namedMatches = directory.filter(function(expert) {
-      return fantasyProsPresetRankByName(expert && (expert.name || expert.expert_name || expert.expertName || expert.expert_display_name || expert.display_name));
-    }).length;
-    var rankedMatches = directory.filter(function(expert) {
-      var rank = fantasyProsDraftAccuracyRank(expert);
-      return rank !== null && rank <= 20;
-    }).length;
-    throw new Error('FantasyPros returned ' + directory.length + ' active experts but no usable Top-20 set (' + namedMatches + ' name / ' + rankedMatches + ' rank matches); no rankings were changed.');
-  }
-  return experts;
-}
 
-function fantasyProsLimitedTierFallbackExperts(payload, diagnostics) {
-  var directory = fantasyProsExpertList(payload && payload.experts);
-  var limited = Boolean(payload && payload.public_api_limited);
-  var accuracySeason = Number(payload && (payload.accuracy_draft_season || payload.accuracyDraftSeason));
-  if (diagnostics) diagnostics.limitedTier = limited;
-  if (!limited || directory.length) return null;
-  if (accuracySeason !== 2025) {
-    throw new Error('FantasyPros limited the expert directory and returned draft-accuracy season ' + (accuracySeason || 'unknown') + '; expected 2025. No rankings were changed.');
-  }
-  var experts = FANTASYPROS_TOP20_LIMITED_TIER_FALLBACK_IDS.map(function(id) {
-    return {id:id, name:'Verified Top-20 contributor', rank:null};
-  });
-  if (diagnostics) {
-    diagnostics.accuracySeason = accuracySeason;
-    diagnostics.payloadShape = fantasyProsPayloadShape(payload);
-    diagnostics.topLevelKeys = payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 25) : [];
-    diagnostics.directoryCount = 0;
-    diagnostics.selectedCount = experts.length;
-    diagnostics.selectedExperts = experts.map(function(expert) { return Object.assign({}, expert); });
-    diagnostics.missingPresetNames = FANTASYPROS_2025_DRAFT_ACCURACY_TOP20.slice();
-    diagnostics.fallbackUsed = true;
-    diagnostics.fallbackReason = 'FantasyPros returned an empty expert directory with public_api_limited=true; using the nine active preset IDs verified on 2026-08-24, subject to consensus validation.';
-  }
-  return experts;
-}
-
-function cachedFantasyProsTop20Experts() {
-  var cache = state.fantasyProsTop20Preset;
-  var age = Date.now() - Number(cache && cache.observedAt || 0);
-  if (!cache || Number(cache.accuracySeason) !== 2025 || !Array.isArray(cache.experts) || cache.experts.length < 1 || cache.experts.length > 20 || age < 0 || age > FANTASYPROS_PRESET_CACHE_MS) return null;
-  return cache.experts;
-}
-
-function fantasyProsActiveExpertCount(rankings, requestedExperts) {
-  var requested = {};
-  requestedExperts.forEach(function(expert) { requested[String(expert.id)] = true; });
-  var included = rankings && rankings.experts_available && Array.isArray(rankings.experts_available.included)
-    ? rankings.experts_available.included : [];
-  var includedCount = included.filter(function(id) { return requested[String(id)]; }).length;
-  var namedCount = rankings && rankings.expert_name && typeof rankings.expert_name === 'object'
-    ? Object.keys(rankings.expert_name).filter(function(id) { return requested[String(id)]; }).length : 0;
-  var reported = Number(rankings && rankings.total_experts);
-  return includedCount || namedCount || (Number.isFinite(reported) ? reported : 0);
-}
-
-async function refreshFantasyProsRankings() {
-  var diagnostics = newFantasyProsDiagnostics();
-  var key = '';
-  var selectedExperts = null;
-  state.fantasyProsDiagnostics = diagnostics;
-
-  try {
-    await storageSave();
-    diagnostics.stage = 'api-key';
-    var storedKey = await chrome.storage.local.get(FANTASYPROS_KEY_STORAGE);
-    key = String(storedKey && storedKey[FANTASYPROS_KEY_STORAGE] || '').trim();
-    if (!key) throw new Error('Save your FantasyPros API key first.');
-    diagnostics.credentialConfigured = true;
-
-    selectedExperts = cachedFantasyProsTop20Experts();
-    if (selectedExperts) {
-      var cacheAge = Date.now() - Number(state.fantasyProsTop20Preset && state.fantasyProsTop20Preset.observedAt || 0);
-      diagnostics.cache.used = true;
-      diagnostics.cache.ageMinutes = Math.max(0, Math.round(cacheAge / 60000));
-      diagnostics.cache.presetSize = selectedExperts.length;
-      diagnostics.expertDirectory.selectedCount = selectedExperts.length;
-      diagnostics.expertDirectory.selectedExperts = selectedExperts.map(function(expert) {
-        return {id:String(expert.id), name:String(expert.name || 'name unavailable'), rank:Number(expert.rank) || null};
-      });
-    } else {
-      diagnostics.stage = 'expert-directory-request';
-      diagnostics.requestsUsed += 1;
-      diagnostics.expertDirectory.request = {};
-      var expertPayload = await fantasyProsFetchJson('nfl/2026/rankings/experts', key, {
-        position:'ALL', type:'DRAFT', scoring:'PPR', include_overall:'true'
-      }, diagnostics.expertDirectory.request);
-      diagnostics.stage = 'expert-directory-parse';
-      selectedExperts = fantasyProsLimitedTierFallbackExperts(expertPayload, diagnostics.expertDirectory) ||
-        extractFantasyProsTop20Experts(expertPayload, diagnostics.expertDirectory);
-      state.fantasyProsTop20Preset = {
-        accuracySeason:2025,
-        observedAt:Date.now(),
-        experts:selectedExperts
-      };
-      diagnostics.cache.presetSize = selectedExperts.length;
-      await storageSave();
-    }
-
-    diagnostics.stage = 'consensus-request';
-    diagnostics.requestsUsed += 1;
-    diagnostics.consensus.request = {};
-    var rankings = await fantasyProsFetchJson('nfl/2026/consensus-rankings', key, {
-      position:'ALL', scoring:'PPR', type:'DRAFT', week:'0', experts:'show',
-      filters:selectedExperts.map(function(expert) { return expert.id; }).join(':')
-    }, diagnostics.consensus.request);
-    diagnostics.consensus.payloadShape = fantasyProsPayloadShape(rankings);
-    diagnostics.consensus.topLevelKeys = rankings && typeof rankings === 'object' ? Object.keys(rankings).slice(0, 25) : [];
-    diagnostics.consensus.reportedExperts = Number(rankings && rankings.total_experts) || 0;
-    diagnostics.consensus.lastUpdated = String(rankings && (rankings.last_updated || rankings.lastUpdated) || '').slice(0, 60) || null;
-    var consensusExpertNames = rankings && rankings.expert_name && typeof rankings.expert_name === 'object'
-      ? rankings.expert_name : {};
-    selectedExperts.forEach(function(expert) {
-      var liveName = String(consensusExpertNames[String(expert.id)] || '').trim();
-      if (liveName) expert.name = liveName;
-    });
-    diagnostics.expertDirectory.selectedExperts = selectedExperts.map(function(expert) {
-      return {id:String(expert.id), name:String(expert.name || 'name unavailable'), rank:Number(expert.rank) || null};
-    });
-
-    diagnostics.stage = 'consensus-validation';
-    var expertCount = fantasyProsActiveExpertCount(rankings, selectedExperts);
-    diagnostics.consensus.activeExpertCount = expertCount;
-    if (expertCount < 1 || expertCount > 20) {
-      throw new Error('FantasyPros did not return the active experts in the 2025 Draft Accuracy Top-20 preset; no rankings were changed.');
-    }
-
-    diagnostics.stage = 'player-validation';
-    var players = fantasyProsObjectList(rankings.players || rankings.rankings);
-    diagnostics.consensus.rawPlayerCount = players.length;
-    var rows = players.map(function(player) {
-      var rank = Number(player && (player.rank_ecr || player.ecr || player.rank));
-      var name = String(player && (player.player_name || player.playerName || player.name) || '').trim();
-      var position = String(player && (player.player_position_id || player.player_position || player.position_id || player.position) || '').toUpperCase().replace('D/ST','DST');
-      var posRank = String(player && (player.pos_rank || player.position_rank) || '');
-      if (!/^\d+$/.test(String(rank))) { diagnostics.consensus.rejected.invalidRank += 1; return null; }
-      if (!name) { diagnostics.consensus.rejected.missingName += 1; return null; }
-      if (!/^(QB|RB|WR|TE|K|DST)$/.test(position)) { diagnostics.consensus.rejected.unsupportedPosition += 1; return null; }
-      return {
-        RK:String(rank), TIERS:String(Number(player.tier) || ''), 'PLAYER NAME':name,
-        TEAM:String(player.player_team_id || player.team || ''),
-        POS:posRank && posRank.toUpperCase().indexOf(position) === 0 ? posRank : position,
-        'BYE WEEK':String(player.player_bye_week || player.bye_week || '')
-      };
-    }).filter(Boolean).sort(function(a, b) { return Number(a.RK) - Number(b.RK); });
-    diagnostics.consensus.validPlayerCount = rows.length;
-    if (rows.length < 100 || rows.length > 600) throw new Error('FantasyPros returned ' + rows.length + ' ranked players; no rankings were changed.');
-    var canonical = {};
-    rows.forEach(function(row) {
-      var keyName = row['PLAYER NAME'].toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (canonical[keyName]) {
-        diagnostics.consensus.duplicateCount += 1;
-        if (diagnostics.consensus.duplicateSamples.length < 8) diagnostics.consensus.duplicateSamples.push(row['PLAYER NAME']);
-      }
-      canonical[keyName] = true;
-    });
-    if (diagnostics.consensus.duplicateCount) throw new Error('FantasyPros returned duplicate players, including ' + diagnostics.consensus.duplicateSamples[0] + '.');
-
-    var update = {
-      rows:rows, presetSize:20, expertCount:expertCount, playerCount:rows.length,
-      lastUpdated:diagnostics.consensus.lastUpdated,
-      receivedAt:new Date().toISOString()
-    };
-    diagnostics.stage = 'war-room-delivery';
-    var tabs = await queryTabs(WAR_ROOM_URLS);
-    diagnostics.delivery.warRoomTabs = tabs.length;
-    if (!tabs.length) throw new Error('Open The War Room before refreshing FantasyPros rankings.');
-    await Promise.all(tabs.map(function(tab) {
-      diagnostics.delivery.attempted += 1;
-      return injectWarRoomBridge(tab).then(function() {
-        return sendTab(tab.id, {type:'WAR_ROOM_FANTASYPROS_RANKINGS', update:update});
-      }).then(function() { diagnostics.delivery.delivered += 1; });
-    }));
-
-    diagnostics.stage = 'complete';
-    finishFantasyProsDiagnostics(diagnostics, null);
-    await storageSave();
-    return {
-      connected:true, updated:true, players:rows.length, experts:expertCount, presetSize:20,
-      lastUpdated:update.lastUpdated, diagnostics:diagnostics
-    };
-  } catch (error) {
-    finishFantasyProsDiagnostics(diagnostics, error);
-    await storageSave().catch(function() {});
-    var wrapped = new Error(fantasyProsSafeError(error));
-    wrapped.fantasyProsDiagnostics = diagnostics;
-    throw wrapped;
-  }
-}
 
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   ready.then(function() {
@@ -1208,26 +793,6 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       return null;
     }
 
-    if (message.type === 'GET_FANTASYPROS_KEY_STATUS') {
-      return fantasyProsKeyStatus().then(sendResponse);
-    }
-
-    if (message.type === 'SAVE_FANTASYPROS_KEY') {
-      return saveFantasyProsKey(message.key).then(sendResponse);
-    }
-
-    if (message.type === 'REMOVE_FANTASYPROS_KEY') {
-      return chrome.storage.local.remove(FANTASYPROS_KEY_STORAGE).then(function() { sendResponse({configured:false}); });
-    }
-
-    if (message.type === 'TEST_FANTASYPROS_KEY') {
-      return testFantasyProsKey().then(sendResponse);
-    }
-
-    if (message.type === 'REFRESH_FANTASYPROS_RANKINGS' || message.type === 'WAR_ROOM_FANTASYPROS_REFRESH') {
-      return refreshFantasyProsRankings().then(sendResponse);
-    }
-
     if (message.type === 'UPDATE_CONFIG') {
       return syncConfigAndReconcile(message.config, sendResponse);
     }
@@ -1250,11 +815,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     return null;
   }).catch(function(error) {
-    var response = {error: error && error.message ? error.message : String(error)};
-    if (message && (message.type === 'REFRESH_FANTASYPROS_RANKINGS' || message.type === 'WAR_ROOM_FANTASYPROS_REFRESH')) {
-      response.diagnostics = error && error.fantasyProsDiagnostics || state.fantasyProsDiagnostics || null;
-    }
-    sendResponse(response);
+    sendResponse({error: error && error.message ? error.message : String(error)});
   });
 
   return true;

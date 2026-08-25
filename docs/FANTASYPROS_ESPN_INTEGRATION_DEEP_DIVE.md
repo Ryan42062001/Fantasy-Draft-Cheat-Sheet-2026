@@ -4,18 +4,15 @@ Audience: War Room maintainers
 Date: 2026-08-24  
 Scope: FantasyPros 2026 NFL PPR draft-ranking refresh and ESPN live draft pick synchronization.
 
+Status: The FantasyPros public-API integration described below was retired in Companion 0.9.12. Live validation showed that the user's free public tier returns only 10 consensus players and the documented endpoint exposes no pagination. The War Room now uses validated Top-20 PPR CSV import for FantasyPros rankings. The ESPN architecture remains current.
+
 ## Executive answer
 
-The FantasyPros refresh must use two documented concepts that the earlier implementation missed:
-
-1. Request the **2026 expert directory**, because its `accuracy_draft_season` identifies the completed **2025 Draft Accuracy** season.
-2. Select the finalized 2025 Top-20 members using nested `accuracy_draft.ALL` when present, with the official finalized expert names as a guarded fallback when the live directory omits that per-expert field. If a limited public key explicitly returns `public_api_limited=true` with an empty expert collection, use the nine contributor IDs verified on 2026-08-24 as a guarded bootstrap. Pass the resulting IDs as the colon-delimited `filters` value to the 2026 PPR consensus endpoint.
-
-The API returns the currently publishing subset. Fuller responses can supply expert objects and current IDs dynamically. The user's limited public tier instead returned HTTP 200 with the correct accuracy season but `public_api_limited=true` and an empty `experts` collection. In that exact case, the implementation uses the previously verified nine IDs and then requires the consensus response to confirm active selected experts. The selected subset can be cached for 24 hours. Therefore, the first refresh after cache expiry uses two requests; subsequent ranking refreshes use one. The consensus response remains untrusted until it reports at least one active selected expert and 100–600 unique, valid NFL draft players.
+The FantasyPros public API can authenticate and return consensus data, but the tested free tier is not sufficient for a complete authoritative War Room refresh: expert discovery is limited and the filtered consensus response is capped at 10 players with no documented paging mechanism. Applying that partial result would silently leave injured or falling players at stale ranks. The API key, request code, host permission, diagnostics, and bridge messages were therefore removed. CSV import is the authoritative update path.
 
 For ESPN, the best practical Direct architecture is still passive observation inside ESPN's MAIN JavaScript world at `document_start`, followed by player-ID-first reconciliation in the extension background ledger. Chrome's normal `webRequest` API can observe a WebSocket handshake but cannot inspect its individual messages. The more powerful `chrome.debugger` route would add an intrusive permission and visible debugger attachment. The companion therefore keeps fetch, XHR, WebSocket, React-state, authenticated REST, and DOM fallback sources, and now also decodes text-bearing binary WebSocket frames and observes EventSource messages.
 
-## FantasyPros API contract
+## Historical FantasyPros API investigation (retired)
 
 ### Expert discovery
 
@@ -57,7 +54,7 @@ The extension validates before applying:
 - each accepted row has an integer ECR rank, name, and supported position;
 - canonical player names contain no duplicates.
 
-The user's key dashboard reports a 50-request daily allowance. FantasyPros' public documentation describes the API as free and limited but does not publish that account-specific number in the endpoint reference. The 24-hour expert cache reduces normal ranking updates to one request and avoids spending quota rediscovering the active historical-preset subset on every click.
+The user's key dashboard reported a 50-request daily allowance. FantasyPros' public documentation describes the API as free and limited but does not publish that account-specific number in the endpoint reference. The retired implementation briefly used a 24-hour expert cache while the API path was being validated.
 
 ## Why the earlier attempts failed
 
@@ -101,9 +98,9 @@ Chrome documents that MAIN-world scripts can share the page's JavaScript environ
 
 Sources: [Chrome content scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts), [MDN WebSocket `binaryType`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/binaryType)
 
-### FantasyPros failure diagnostics in 0.9.11
+### Historical FantasyPros failure diagnostics (removed in 0.9.12)
 
-Every FantasyPros refresh now leaves one bounded, credential-safe attempt record in extension state. It distinguishes API-key, expert-directory request/parse, consensus request/validation, player validation, and War Room delivery failures. The report includes requests consumed, preset-cache use, HTTP status and timing, payload shape and top-level field names, selected experts, rejected and duplicate player counts, delivery acknowledgments, and a stage-specific next action. It never contains the API key, request headers, cookies, authorization values, or raw API payloads. The extension's existing **Copy diagnostics** action includes the report; the War Room ranking center also offers **Copy FantasyPros diagnostics** after a response reaches the page.
+Versions 0.9.10–0.9.11 temporarily recorded a bounded, credential-safe attempt trace while diagnosing the public-tier limitation. Those FantasyPros-specific diagnostics and controls were removed with the retired API integration in 0.9.12. The extension's ESPN **Copy diagnostics** action remains available for ESPN connection troubleshooting.
 
 ## Remaining limitations
 
@@ -112,7 +109,7 @@ Every FantasyPros refresh now leaves one bounded, credential-safe attempt record
 - If ESPN moves draft events into an opaque worker transport or encrypted/proprietary binary protocol, passive page hooks may still need source-specific decoding.
 - DOM fallback remains necessary and should not be presented as Direct.
 
-## Broader FantasyPros API opportunity audit
+## Historical FantasyPros API opportunity audit (not implemented)
 
 The remaining documented endpoints were evaluated against draft-day usefulness, request cost, overlap with existing signals, and implementation risk.
 

@@ -4,7 +4,7 @@ Manifest V3 Chrome extension that passively observes ESPN fantasy-football draft
 
 ## Current status
 
-Version 0.9.11 observes structured data ESPN's own page receives through WebSocket, fetch, XHR, EventSource, and bounded React-state inspection. A unified ledger reconciles those observations by overall pick and ESPN player ID. ESPN's REST draft-detail response is retained as a snapshot/recovery source, and visible Pick History/Board parsing remains the final fallback. This architecture is implemented and replay-tested, but structured live capture still requires a disposable live-mock validation before it should be relied on for a real draft.
+Version 0.9.12 observes structured data ESPN's own page receives through WebSocket, fetch, XHR, EventSource, and bounded React-state inspection. A unified ledger reconciles those observations by overall pick and ESPN player ID. ESPN's REST draft-detail response is retained as a snapshot/recovery source, and visible Pick History/Board parsing remains the final fallback. This architecture is implemented and replay-tested, but structured live capture still requires a disposable live-mock validation before it should be relied on for a real draft.
 
 The extension does **not** read or store ESPN passwords, cookies, authentication headers, or tokens. Page observers are read-only: they do not create draft actions, alter ESPN payloads, or make duplicate live-data requests. Only normalized pick candidates and sanitized structural telemetry cross into extension storage.
 
@@ -64,9 +64,9 @@ ESPN REST draft snapshot + Pick History/Board DOM (recovery/fallback)
 - If Unmatched is nonzero, manually mark that player and record the exact ESPN display name so an alias or selector fixture can be added.
 - Use **Clear captured picks** only before starting a new mock or real draft.
 
-## FantasyPros API key
+## FantasyPros rankings
 
-Version 0.9.11 uses the documented 2026 expert endpoint to identify currently publishing members of FantasyPros' finalized 2025 Draft Accuracy Top-20 preset. It reads `accuracy_draft.ALL` when supplied and falls back to the official finalized Top-20 names when the directory contains experts but omits ranks. Some limited public keys return HTTP 200 with `public_api_limited=true` and an empty expert collection; only in that explicit response shape, the extension uses the nine preset contributor IDs verified through FantasyPros consensus on 2026-08-24. The filtered consensus response must still independently confirm at least one active contributor and return 100–600 unique, position-valid players before any rankings change. The selected subset is cached for 24 hours, so later refreshes normally use one request. Each attempt stores credential-safe stage, HTTP, payload-shape, expert, player-validation, request-count, and War Room delivery diagnostics with an explicit next step. The key is stored separately in `chrome.storage.local`; it is never returned by status requests, copied diagnostics, or War Room snapshots. CSV import remains available as fallback.
+FantasyPros rankings are updated by importing the official Top-20 PPR CSV through The War Room. The retired public-API experiment returned only 10 players per consensus request and did not provide documented pagination, so version 0.9.12 removes the FantasyPros API controls and host permission. On first load it also deletes the previously saved FantasyPros API key and cached API state from extension storage. ESPN synchronization and ESPN board/ADP refresh do not require that key.
 
 ## Test
 

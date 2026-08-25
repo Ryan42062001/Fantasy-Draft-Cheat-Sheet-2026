@@ -6,11 +6,13 @@ const vm = require('node:vm');
 
 function loadBackground(storedState, overrides = {}) {
   const listeners = {message: [], installed: [], startup: [], removed: []};
+  const removedStorageKeys = [];
   const chrome = {
     storage: {
       local: {
         get: async key => ({[key]: storedState}),
-        set: async () => {}
+        set: async () => {},
+        remove: async key => { removedStorageKeys.push(key); }
       }
     },
     action: {
@@ -18,7 +20,7 @@ function loadBackground(storedState, overrides = {}) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.9.11'}),
+      getManifest: () => ({version: '0.9.12'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -40,171 +42,21 @@ function loadBackground(storedState, overrides = {}) {
   const source = fs.readFileSync(path.resolve(__dirname, '..', 'background.js'), 'utf8');
   vm.runInContext(source, context);
   context.listeners = listeners;
+  context.removedStorageKeys = removedStorageKeys;
   return context;
 }
 
-test('extracts the documented 2025 draft-accuracy Top 20 from the 2026 expert response', async () => {
-  const context = loadBackground(null);
-  await context.ready;
-  const experts = Array.from({length: 23}, (_, index) => ({
-    expert_id: String(9000 + index),
-    name: `Expert ${index + 1}`,
-    accuracy_draft: {ALL: index + 1}
-  })).reverse();
-  const selected = context.extractFantasyProsTop20Experts({accuracy_draft_season: 2025, experts});
-  assert.equal(selected.length, 20);
-  assert.equal(selected[0].rank, 1);
-  assert.equal(selected[19].rank, 20);
-});
-
-test('accepts the currently active subset of the historical Top-20 preset', async () => {
-  const context = loadBackground(null);
-  await context.ready;
-  const ranks = [2, 3, 5, 6, 8, 11, 14, 17, 20, 24];
-  const experts = ranks.map((rank, index) => ({expert_id: String(7000 + index), accuracy_draft: {ALL: rank}}));
-  const selected = context.extractFantasyProsTop20Experts({accuracy_draft_season: 2025, experts});
-  assert.deepEqual(Array.from(selected, expert => expert.rank), ranks.slice(0, 9));
-});
-
-test('recovers active Top-20 membership by official expert name when accuracy fields are omitted', async () => {
-  const context = loadBackground(null);
-  await context.ready;
-  const experts = [
-    {expert_id: '2743', name: 'Seth Miller'},
-    {expert_id: '5626', name: 'Michael Bobal - The 33rd Team'},
-    {expert_id: '3585', name: 'Ryan Weisse'},
-    {expert_id: '4160', name: 'Kyle Senra'}
-  ];
-  const selected = context.extractFantasyProsTop20Experts({accuracy_draft_season: 2025, experts});
-  assert.deepEqual(Array.from(selected, expert => [expert.id, expert.rank]), [
-    ['2743', 1], ['5626', 3], ['3585', 7]
-  ]);
-});
-
-test('preserves expert IDs supplied as object keys in the live directory shape', async () => {
-  const context = loadBackground(null);
-  await context.ready;
-  const experts = {
-    2743: {name: 'Seth Miller'},
-    5626: {expert_display_name: 'Michael Bobal - The 33rd Team'},
-    3585: 'Ryan Weisse',
-    4160: {name: 'Kyle Senra'}
-  };
-  const selected = context.extractFantasyProsTop20Experts({accuracy_draft_season: 2025, experts});
-  assert.deepEqual(Array.from(selected, expert => [expert.id, expert.rank]), [
-    ['2743', 1], ['5626', 3], ['3585', 7]
-  ]);
-});
-
-test('records credential-safe expert-directory parsing diagnostics', async () => {
-  const context = loadBackground(null);
-  await context.ready;
-  const diagnostics = context.newFantasyProsDiagnostics();
-  const payload = {
-    accuracy_draft_season: 2025,
-    experts: {
-      2743: {name: 'Seth Miller'},
-      5626: {expert_display_name: 'Michael Bobal - The 33rd Team'},
-      4160: {name: 'Kyle Senra'}
-    }
-  };
-  const selected = context.extractFantasyProsTop20Experts(payload, diagnostics.expertDirectory);
-  assert.equal(selected.length, 2);
-  assert.equal(diagnostics.expertDirectory.directoryCount, 3);
-  assert.equal(diagnostics.expertDirectory.nameMatches, 2);
-  assert.equal(diagnostics.expertDirectory.selectedCount, 2);
-  assert.deepEqual(Array.from(diagnostics.expertDirectory.selectedExperts, expert => expert.id), ['2743', '5626']);
-  assert.doesNotMatch(JSON.stringify(diagnostics), /x-api-key|authorization|cookie/i);
-});
-
-test('uses the verified preset IDs only for an explicitly limited empty expert directory', async () => {
-  const context = loadBackground(null);
-  await context.ready;
-  const diagnostics = context.newFantasyProsDiagnostics();
-  const selected = context.fantasyProsLimitedTierFallbackExperts({
-    accuracy_draft_season: 2025,
-    public_api_limited: true,
-    experts: {},
-    count: 0
-  }, diagnostics.expertDirectory);
-  assert.equal(selected.length, 9);
-  assert.deepEqual(Array.from(selected, expert => expert.id), ['3585','2598','4179','2743','690','1080','381','4404','4224']);
-  assert.equal(diagnostics.expertDirectory.limitedTier, true);
-  assert.equal(diagnostics.expertDirectory.fallbackUsed, true);
-  assert.match(diagnostics.expertDirectory.fallbackReason, /public_api_limited=true/);
-});
-
-test('does not use the limited-tier fallback for an ordinary empty directory', async () => {
-  const context = loadBackground(null);
-  await context.ready;
-  const diagnostics = context.newFantasyProsDiagnostics();
-  assert.equal(context.fantasyProsLimitedTierFallbackExperts({
-    accuracy_draft_season: 2025,
-    public_api_limited: false,
-    experts: {}
-  }, diagnostics.expertDirectory), null);
-  assert.equal(diagnostics.expertDirectory.fallbackUsed, false);
-});
-
-test('failed refresh diagnostics identify the stage and actionable next step', async () => {
-  const context = loadBackground(null);
-  await context.ready;
-  const diagnostics = context.newFantasyProsDiagnostics();
-  diagnostics.stage = 'consensus-validation';
-  diagnostics.requestsUsed = 2;
-  context.finishFantasyProsDiagnostics(diagnostics, new Error('No active experts returned'));
-  assert.equal(diagnostics.status, 'error');
-  assert.equal(diagnostics.result.updated, false);
-  assert.match(diagnostics.result.nextStep, /selected expert and player counts/i);
-  assert.equal(context.statusSnapshot().fantasyPros.attemptId, diagnostics.attemptId);
-});
-
-test('request telemetry records safe HTTP metadata without exposing the API key', async () => {
-  const secret = 'fp_test_super_secret_key_123456';
-  const context = loadBackground(null, {
-    fetch: async () => ({
-      ok: true,
-      status: 200,
-      text: async () => JSON.stringify({last_updated:'2026-08-24', players:[]})
-    })
+test('startup deletes the retired FantasyPros API credential and cache', async () => {
+  const context = loadBackground({
+    fantasyProsDiagnostics: {status:'error'},
+    fantasyProsTop20Preset: {experts:[{id:'1'}]}
   });
   await context.ready;
-  const telemetry = {};
-  const payload = await context.fantasyProsFetchJson(
-    'nfl/2026/consensus-rankings', secret, {position:'ALL', scoring:'PPR'}, telemetry
-  );
-  assert.equal(payload.last_updated, '2026-08-24');
-  assert.equal(telemetry.endpoint, '/public/v2/json/nfl/2026/consensus-rankings');
-  assert.equal(telemetry.httpStatus, 200);
-  assert.equal(telemetry.responseShape, 'object');
-  assert.deepEqual(Array.from(telemetry.topLevelKeys), ['last_updated', 'players']);
-  assert.doesNotMatch(JSON.stringify(telemetry), new RegExp(secret));
-  assert.doesNotMatch(JSON.stringify(telemetry), /x-api-key/i);
+  assert.deepEqual(Array.from(context.removedStorageKeys), ['warRoomFantasyProsApiKeyV1']);
+  assert.equal('fantasyProsDiagnostics' in context.state, false);
+  assert.equal('fantasyProsTop20Preset' in context.state, false);
 });
 
-test('diagnostic errors redact credential-like values', async () => {
-  const context = loadBackground(null);
-  await context.ready;
-  const safe = context.fantasyProsSafeError(new Error('api_key=secret-value token:another-secret HTTP 401'));
-  assert.doesNotMatch(safe, /secret-value|another-secret/);
-  assert.match(safe, /\[redacted\]/);
-});
-
-test('rejects an expert response from the wrong draft-accuracy season', async () => {
-  const context = loadBackground(null);
-  await context.ready;
-  assert.throws(
-    () => context.extractFantasyProsTop20Experts({accuracy_draft_season: 2024, experts: []}),
-    /expected 2025/
-  );
-});
-
-test('counts only requested experts included in a consensus response', async () => {
-  const context = loadBackground(null);
-  await context.ready;
-  const requested = [{id: '11'}, {id: '22'}, {id: '33'}];
-  assert.equal(context.fantasyProsActiveExpertCount({experts_available: {included: [11, 33, 99]}}, requested), 2);
-});
 
 test('discards a legacy pick ledger whose league-size provenance is unknown', async () => {
   const context = loadBackground({

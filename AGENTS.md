@@ -236,11 +236,9 @@ Do not call the migration complete until all of these are true:
 - [x] Reconcile all ESPN sources through one ID-first, conflict-aware background ledger
 - [x] Add sanitized live-capture telemetry, replay fixtures, and source-specific popup diagnostics
 - [ ] Validate structured live capture in a disposable 2026 ESPN football mock draft
-- [x] Add local-only FantasyPros API-key storage with masked entry, removal, and read-only 2026 PPR access testing
-- [x] Validate the account's FantasyPros 2025 Draft Accuracy Top-20 preset and allow its currently active 2026 contributors (9 of 20 observed on 2026-08-24)
-- [x] Replace the incompatible historical-experts response parser with one guarded 2026 consensus request for the verified active Top-20 contributor IDs
-- [x] Correct FantasyPros discovery to validate `accuracy_draft_season=2025`, use `accuracy_draft.ALL` when supplied, fall back to official finalized Top-20 expert names when the live directory omits ranks, and use the nine consensus-verified IDs only when a limited public key explicitly returns an empty directory; cache the validated subset for 24 hours
-- [x] Preserve expert IDs when the live FantasyPros directory is returned as an ID-keyed object and expose credential-free discovery counts on rejection
+- [x] Retire the limited FantasyPros public-API refresh after live validation proved it returns only 10 consensus players without documented pagination
+- [x] Remove the FantasyPros API key UI, request code, host permission, diagnostics, and bridge messages; delete the previously saved key and cached API state on extension startup
+- [x] Keep validated Top-20 PPR CSV import as the authoritative FantasyPros update path
 - [x] Extend passive ESPN Direct observation to text-bearing binary WebSocket frames and EventSource messages without adding debugger permissions
 
 Verification (2026-08-22):
@@ -363,7 +361,7 @@ Current verification (2026-08-22):
 - Companion 0.8.9 rejects DOM picks beyond the configured terminal pick, reconciles completed progress to the full draft size, retains the last successful structured snapshot when ESPN closes a temporary mock API with HTTP 404, and reports an effective packaged website requirement when a cached page advertises an older version
 - Companion 0.8.10 fixes diagnostics version scope and falls back to a hidden selection copy when the popup Clipboard API is unavailable
 - Companion 0.8.11 makes War Room acknowledgments monotonic per draft and performs one forced snapshot resend when the acknowledged snapshot trails the captured ledger; diagnostics expose acknowledged snapshot size
-- Companion 0.9.11 records a credential-safe FantasyPros refresh trace for every attempt and handles the limited-tier HTTP-200/empty-experts response with the nine 2026 consensus-verified preset IDs. The filtered response must still confirm active experts and a valid player pool. API keys, request headers, cookies, and authorization values are never included.
+- Companion 0.9.12 removes the retired FantasyPros public-API integration after live responses proved the free tier caps consensus rankings at 10 players without documented pagination. The extension deletes the previously saved FantasyPros key and cached API state on startup; CSV import remains the authoritative rankings update path.
 - The ESPN board generator stores a SHA-256 source version and reports the largest rank changes when a replacement PDF is processed
 - Recommendation priority protects an already-overdue top-12 ECR value from being jumped by a materially later player sharing the same urgent market signal; the pick-14 Justin Jefferson fixture is covered by browser regression
 - Final waiver watch is roster-aware and position-balanced, suppressing quarterback clutter when the roster already has a top-36 ECR QB
