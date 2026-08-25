@@ -521,8 +521,11 @@ function testFantasyProsKey() {
 function fantasyProsFetchJson(path, key, params) {
   var url = new URL('https://api.fantasypros.com/public/v2/json/' + path.replace(/^\//, ''));
   Object.keys(params || {}).forEach(function(name) { url.searchParams.set(name, params[name]); });
+  var controller = typeof AbortController === 'function' ? new AbortController() : null;
+  var timeout = setTimeout(function() { if (controller) controller.abort(); }, 12000);
   return fetch(url.toString(), {
-    method:'GET', headers:{'x-api-key':key}, credentials:'omit', cache:'no-store'
+    method:'GET', headers:{'x-api-key':key}, credentials:'omit', cache:'no-store',
+    signal:controller ? controller.signal : undefined
   }).then(function(response) {
     return response.text().then(function(text) {
       var payload = null;
@@ -534,7 +537,10 @@ function fantasyProsFetchJson(path, key, params) {
       if (!payload || typeof payload !== 'object') throw new Error('FantasyPros returned an empty rankings response.');
       return payload;
     });
-  });
+  }).catch(function(error) {
+    if (error && error.name === 'AbortError') throw new Error('FantasyPros did not respond within 12 seconds. Try again shortly.');
+    throw error;
+  }).finally(function() { clearTimeout(timeout); });
 }
 
 function fantasyProsObjectList(value) {

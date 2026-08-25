@@ -8167,7 +8167,7 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.9.2';
+var ESPN_COMPANION_MIN_VERSION = '0.9.3';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
 var espnSettingsEditedAt = 0;
@@ -8563,6 +8563,13 @@ window.addEventListener('message', function(event) {
   }
   if (event.data.type === 'FANTASYPROS_RANKINGS_UPDATE') {
     applyFantasyProsApiUpdate(event.data.update);
+  }
+  if (event.data.type === 'FANTASYPROS_REFRESH_RESULT') {
+    var refreshResult = event.data.result || {};
+    if (refreshResult.error) setRankingsRefreshMessage(refreshResult.error, 'error');
+    else if (refreshResult.updated) {
+      setRankingsRefreshMessage('Validated ' + refreshResult.players + ' players from ' + refreshResult.experts + ' experts. Applying update…', 'success');
+    } else setRankingsRefreshMessage('The companion returned no ranking update.', 'error');
   }
 });
 
@@ -11456,6 +11463,12 @@ function importFantasyProsTop20File() {
 function requestFantasyProsApiRefresh() {
   window.postMessage({channel:ESPN_SYNC_CHANNEL, type:'FANTASYPROS_REFRESH_REQUEST'}, window.location.origin === 'null' ? '*' : window.location.origin);
   setRankingsRefreshMessage('Requesting the official Top-20 PPR expert update…', 'working');
+  setTimeout(function() {
+    var target = document.getElementById('rankings-refresh-message');
+    if (target && target.classList.contains('working')) {
+      setRankingsRefreshMessage('No response from the companion after 15 seconds. Reload extension 0.9.3 and refresh this page.', 'error');
+    }
+  }, 15000);
 }
 
 function applyFantasyProsApiUpdate(update) {

@@ -9,7 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
-  assert.equal(manifest.version, '0.9.2');
+  assert.equal(manifest.version, '0.9.3');
 });
 
 test('popup exposes version and copyable connection diagnostics', () => {
@@ -69,6 +69,7 @@ test('War Room bridge forwards FantasyPros API updates without credentials', () 
   const script = fs.readFileSync(path.join(root, 'war-room-content.js'), 'utf8');
   assert.match(script, /FANTASYPROS_REFRESH_REQUEST/);
   assert.match(script, /WAR_ROOM_FANTASYPROS_RANKINGS/);
+  assert.match(script, /FANTASYPROS_REFRESH_RESULT/);
   assert.doesNotMatch(script, /x-api-key/i);
 });
 
