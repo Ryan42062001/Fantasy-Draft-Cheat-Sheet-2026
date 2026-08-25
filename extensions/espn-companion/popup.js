@@ -2,7 +2,7 @@
 
 var settingsDirty = false;
 var latestStatus = null;
-var PACKAGED_WEBSITE_REQUIREMENT = '0.9.1';
+var PACKAGED_WEBSITE_REQUIREMENT = '0.9.2';
 var reportedRequiredVersion = null;
 var requiredVersion = PACKAGED_WEBSITE_REQUIREMENT;
 
@@ -307,6 +307,15 @@ document.getElementById('save-fantasypros-key').addEventListener('click', functi
 document.getElementById('test-fantasypros-key').addEventListener('click', function() {
   renderFantasyProsKeyStatus(null, 'Testing official 2026 PPR access…');
   send({type:'TEST_FANTASYPROS_KEY'}).then(renderFantasyProsKeyStatus);
+});
+
+document.getElementById('refresh-fantasypros').addEventListener('click', function() {
+  renderFantasyProsKeyStatus(null, 'Downloading and validating Top-20 PPR rankings…');
+  send({type:'REFRESH_FANTASYPROS_RANKINGS'}).then(function(result) {
+    if (result.error) return renderFantasyProsKeyStatus(result);
+    renderFantasyProsKeyStatus({connected:true, httpStatus:200, players:result.players, lastUpdated:result.lastUpdated},
+      'Updated ' + result.players + ' players from ' + result.experts + ' experts. The War Room is reloading.');
+  });
 });
 
 document.getElementById('remove-fantasypros-key').addEventListener('click', function() {

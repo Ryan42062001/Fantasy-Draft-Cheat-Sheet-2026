@@ -60,7 +60,7 @@
   <button class="filterbtn audit-button" id="mockAuditBtn" onclick="openMockAudit()">Mock Audit</button>
   <button class="filterbtn rankings-refresh-button" id="rankingsRefreshBtn" onclick="openRankingsRefresh()">Update Rankings</button>
   <button class="resetbtn" id="editRanksBtn" onclick="toggleEditMode()">Customize Board</button>
-  <button class="resetbtn fantasypros-order-btn" onclick="resetRanks()">FantasyPros Order</button>
+  <button class="resetbtn fantasypros-order-btn" onclick="resetRanks()">Restore FP Order</button>
   <button class="resetbtn" id="resetBtn" onclick="resetBoard()">Reset all</button>
   <span id="draft-action-announcer" class="sr-only" aria-live="polite"></span>
 </div>
@@ -360,6 +360,7 @@
         <label class="ranking-file-label" for="fantasyprosTop20File">Choose FantasyPros CSV</label>
         <input id="fantasyprosTop20File" type="file" accept=".csv,text/csv">
         <div class="rankings-source-actions">
+          <button type="button" onclick="requestFantasyProsApiRefresh()">Refresh from FantasyPros API</button>
           <a href="https://www.fantasypros.com/nfl/rankings/ppr-cheatsheets.php" target="_blank" rel="noopener noreferrer">Open FantasyPros PPR rankings</a>
           <button type="button" onclick="importFantasyProsTop20File()">Import selected CSV</button>
           <button type="button" class="secondary" onclick="resetFantasyProsRankingOverride()">Use embedded baseline</button>

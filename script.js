@@ -8167,7 +8167,7 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.9.1';
+var ESPN_COMPANION_MIN_VERSION = '0.9.2';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
 var espnSettingsEditedAt = 0;
@@ -8560,6 +8560,9 @@ window.addEventListener('message', function(event) {
 
   if (event.data.type === 'PICKS_SNAPSHOT') {
     applyEspnDraftSnapshot(event.data.snapshot);
+  }
+  if (event.data.type === 'FANTASYPROS_RANKINGS_UPDATE') {
+    applyFantasyProsApiUpdate(event.data.update);
   }
 });
 
@@ -11448,6 +11451,29 @@ function importFantasyProsTop20File() {
   }).catch(function(error) {
     setRankingsRefreshMessage(error && error.message ? error.message : String(error), 'error');
   });
+}
+
+function requestFantasyProsApiRefresh() {
+  window.postMessage({channel:ESPN_SYNC_CHANNEL, type:'FANTASYPROS_REFRESH_REQUEST'}, window.location.origin === 'null' ? '*' : window.location.origin);
+  setRankingsRefreshMessage('Requesting the official Top-20 PPR expert update…', 'working');
+}
+
+function applyFantasyProsApiUpdate(update) {
+  try {
+    if (!update || Number(update.expertCount) !== 20 || !Array.isArray(update.rows)) {
+      throw new Error('The companion did not provide a validated Top-20 rankings update.');
+    }
+    var override = buildFantasyProsTop20Override(update.rows, {
+      name:'FantasyPros API · Top-20 PPR experts',
+      lastModified:Date.parse(update.receivedAt) || Date.now()
+    });
+    saveState();
+    localStorage.setItem(FANTASYPROS_LOCAL_OVERRIDE_KEY, JSON.stringify(override));
+    setRankingsRefreshMessage('Validated ' + override.top20Count + ' API-ranked players from 20 experts. Reloading…', 'success');
+    setTimeout(function() { window.location.reload(); }, 500);
+  } catch (error) {
+    setRankingsRefreshMessage(error && error.message ? error.message : String(error), 'error');
+  }
 }
 
 function resetFantasyProsRankingOverride() {

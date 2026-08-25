@@ -9,7 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
-  assert.equal(manifest.version, '0.9.1');
+  assert.equal(manifest.version, '0.9.2');
 });
 
 test('popup exposes version and copyable connection diagnostics', () => {
@@ -20,6 +20,7 @@ test('popup exposes version and copyable connection diagnostics', () => {
   assert.match(html, /id="copy-diagnostics"/);
   assert.match(html, /id="fantasypros-key"/);
   assert.match(script, /SAVE_FANTASYPROS_KEY/);
+  assert.match(script, /REFRESH_FANTASYPROS_RANKINGS/);
   assert.match(script, /Captured\/applied\/unmatched/);
   assert.match(script, /API available\/complete/);
   assert.match(script, /Missing numbered picks/);
@@ -62,6 +63,13 @@ test('authenticated ESPN bridge runs in the page main world before readers', () 
   assert.equal(bridge.world, 'MAIN');
   assert.equal(bridge.run_at, 'document_start');
   assert.equal(bridge.all_frames, true);
+});
+
+test('War Room bridge forwards FantasyPros API updates without credentials', () => {
+  const script = fs.readFileSync(path.join(root, 'war-room-content.js'), 'utf8');
+  assert.match(script, /FANTASYPROS_REFRESH_REQUEST/);
+  assert.match(script, /WAR_ROOM_FANTASYPROS_RANKINGS/);
+  assert.doesNotMatch(script, /x-api-key/i);
 });
 
 test('read-only live observer runs in the page main world at document start', () => {

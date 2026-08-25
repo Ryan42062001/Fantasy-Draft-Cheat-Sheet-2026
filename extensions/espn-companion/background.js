@@ -518,6 +518,105 @@ function testFantasyProsKey() {
   });
 }
 
+function fantasyProsFetchJson(path, key, params) {
+  var url = new URL('https://api.fantasypros.com/public/v2/json/' + path.replace(/^\//, ''));
+  Object.keys(params || {}).forEach(function(name) { url.searchParams.set(name, params[name]); });
+  return fetch(url.toString(), {
+    method:'GET', headers:{'x-api-key':key}, credentials:'omit', cache:'no-store'
+  }).then(function(response) {
+    return response.text().then(function(text) {
+      var payload = null;
+      try { payload = text ? JSON.parse(text) : null; } catch (error) {}
+      if (!response.ok) {
+        var detail = payload && (payload.message || payload.error) || ('HTTP ' + response.status);
+        throw new Error('FantasyPros rejected the request: ' + String(detail).slice(0, 140));
+      }
+      if (!payload || typeof payload !== 'object') throw new Error('FantasyPros returned an empty rankings response.');
+      return payload;
+    });
+  });
+}
+
+function fantasyProsObjectList(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object') return Object.keys(value).map(function(key) { return value[key]; });
+  return [];
+}
+
+function expertAccuracyRank(expert, index) {
+  var nested = expert && (expert.accuracy || expert.rankings || expert.ranks) || {};
+  var candidates = [
+    expert && expert.accuracy_rank, expert && expert.overall_rank, expert && expert.draft_rank,
+    expert && expert.rank_overall, expert && expert.accuracyRank,
+    nested.overall_rank, nested.overall && nested.overall.rank, nested.draft && nested.draft.rank
+  ];
+  for (var i = 0; i < candidates.length; i++) {
+    var rank = Number(candidates[i]);
+    if (Number.isFinite(rank) && rank > 0) return rank;
+  }
+  return index + 10000;
+}
+
+function refreshFantasyProsRankings() {
+  var key;
+  var expertSource;
+  return chrome.storage.local.get(FANTASYPROS_KEY_STORAGE).then(function(result) {
+    key = String(result && result[FANTASYPROS_KEY_STORAGE] || '').trim();
+    if (!key) throw new Error('Save your FantasyPros API key first.');
+    return fantasyProsFetchJson('nfl/2025/rankings/experts', key, {
+      position:'ALL', type:'DRAFT', scoring:'PPR', include_overall:'true'
+    });
+  }).then(function(payload) {
+    expertSource = fantasyProsObjectList(payload.experts || payload.data || payload);
+    var experts = expertSource.map(function(expert, index) {
+      return {
+        id:String(expert && (expert.expert_id || expert.expertId || expert.id) || '').trim(),
+        rank:expertAccuracyRank(expert, index)
+      };
+    }).filter(function(expert) { return expert.id; })
+      .sort(function(a, b) { return a.rank - b.rank; }).slice(0, 20);
+    if (experts.length !== 20) throw new Error('FantasyPros did not return 20 eligible draft experts; no rankings were changed.');
+    return fantasyProsFetchJson('nfl/2026/consensus-rankings', key, {
+      position:'ALL', scoring:'PPR', type:'DRAFT', week:'0', filters:experts.map(function(expert) { return expert.id; }).join(':')
+    }).then(function(rankings) { return {experts:experts, rankings:rankings}; });
+  }).then(function(result) {
+    var players = fantasyProsObjectList(result.rankings.players || result.rankings.rankings);
+    var rows = players.map(function(player) {
+      var rank = Number(player && (player.rank_ecr || player.ecr || player.rank));
+      var name = String(player && (player.player_name || player.playerName || player.name) || '').trim();
+      var position = String(player && (player.player_position_id || player.player_position || player.position_id || player.position) || '').toUpperCase().replace('D/ST','DST');
+      var posRank = String(player && (player.pos_rank || player.position_rank) || '');
+      if (!/^\d+$/.test(String(rank)) || !name || !/^(QB|RB|WR|TE|K|DST)$/.test(position)) return null;
+      return {
+        RK:String(rank), TIERS:String(Number(player.tier) || ''), 'PLAYER NAME':name,
+        TEAM:String(player.player_team_id || player.team || ''),
+        POS:posRank && posRank.toUpperCase().indexOf(position) === 0 ? posRank : position,
+        'BYE WEEK':String(player.player_bye_week || player.bye_week || '')
+      };
+    }).filter(Boolean).sort(function(a, b) { return Number(a.RK) - Number(b.RK); });
+    if (rows.length < 100 || rows.length > 600) throw new Error('FantasyPros returned ' + rows.length + ' ranked players; no rankings were changed.');
+    var canonical = {};
+    rows.forEach(function(row) {
+      var keyName = row['PLAYER NAME'].toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (canonical[keyName]) throw new Error('FantasyPros returned a duplicate player: ' + row['PLAYER NAME']);
+      canonical[keyName] = true;
+    });
+    var update = {
+      rows:rows, expertCount:20, playerCount:rows.length,
+      lastUpdated:String(result.rankings.last_updated || result.rankings.lastUpdated || '').slice(0, 60) || null,
+      receivedAt:new Date().toISOString()
+    };
+    return queryTabs(WAR_ROOM_URLS).then(function(tabs) {
+      if (!tabs.length) throw new Error('Open The War Room before refreshing FantasyPros rankings.');
+      return Promise.all(tabs.map(function(tab) {
+        return injectWarRoomBridge(tab).then(function() {
+          return sendTab(tab.id, {type:'WAR_ROOM_FANTASYPROS_RANKINGS', update:update});
+        });
+      })).then(function() { return {connected:true, updated:true, players:rows.length, experts:20, lastUpdated:update.lastUpdated}; });
+    });
+  });
+}
+
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   ready.then(function() {
     if (!message || !message.type) return null;
@@ -826,6 +925,10 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     if (message.type === 'TEST_FANTASYPROS_KEY') {
       return testFantasyProsKey().then(sendResponse);
+    }
+
+    if (message.type === 'REFRESH_FANTASYPROS_RANKINGS' || message.type === 'WAR_ROOM_FANTASYPROS_REFRESH') {
+      return refreshFantasyProsRankings().then(sendResponse);
     }
 
     if (message.type === 'UPDATE_CONFIG') {

@@ -29,6 +29,9 @@
         extensionVersion: message.extensionVersion || EXTENSION_VERSION
       });
     }
+    if (message.type === 'WAR_ROOM_FANTASYPROS_RANKINGS') {
+      postToWarRoom({type:'FANTASYPROS_RANKINGS_UPDATE', update:message.update});
+    }
   });
 
   window.addEventListener('message', function(event) {
@@ -52,6 +55,9 @@
     }
     if (event.data.type === 'RANKINGS_REFRESH_REQUEST') {
       sendRuntime({type: 'WAR_ROOM_RANKINGS_REFRESH', url: location.href});
+    }
+    if (event.data.type === 'FANTASYPROS_REFRESH_REQUEST') {
+      sendRuntime({type:'WAR_ROOM_FANTASYPROS_REFRESH', url:location.href});
     }
   });
 
