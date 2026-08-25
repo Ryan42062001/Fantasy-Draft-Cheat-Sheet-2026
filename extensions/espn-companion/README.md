@@ -4,7 +4,7 @@ Manifest V3 Chrome extension that passively observes ESPN fantasy-football draft
 
 ## Current status
 
-Version 0.9.0 observes structured data ESPN's own page receives through WebSocket, fetch, XHR, and bounded React-state inspection. A unified ledger reconciles those observations by overall pick and ESPN player ID. ESPN's REST draft-detail response is retained as a snapshot/recovery source, and visible Pick History/Board parsing remains the final fallback. This architecture is implemented and replay-tested, but structured live capture still requires a disposable live-mock validation before it should be relied on for a real draft.
+Version 0.9.1 observes structured data ESPN's own page receives through WebSocket, fetch, XHR, and bounded React-state inspection. A unified ledger reconciles those observations by overall pick and ESPN player ID. ESPN's REST draft-detail response is retained as a snapshot/recovery source, and visible Pick History/Board parsing remains the final fallback. This architecture is implemented and replay-tested, but structured live capture still requires a disposable live-mock validation before it should be relied on for a real draft.
 
 The extension does **not** read or store ESPN passwords, cookies, authentication headers, or tokens. Page observers are read-only: they do not create draft actions, alter ESPN payloads, or make duplicate live-data requests. Only normalized pick candidates and sanitized structural telemetry cross into extension storage.
 
@@ -63,6 +63,10 @@ ESPN REST draft snapshot + Pick History/Board DOM (recovery/fallback)
 - If ESPN's pick-history view falls behind, any visible player row explicitly labeled **DRAFTED** is suppressed from War Room recommendations without guessing its pick number or ownership.
 - If Unmatched is nonzero, manually mark that player and record the exact ESPN display name so an alias or selector fixture can be added.
 - Use **Clear captured picks** only before starting a new mock or real draft.
+
+## FantasyPros API key
+
+Version 0.9.1 adds a masked key field and a read-only access test for FantasyPros' official 2026 PPR API. The key is stored separately in `chrome.storage.local`; it is never returned by status requests, copied diagnostics, or War Room snapshots. Use **Remove** to delete it from extension storage. CSV import remains the ranking-update fallback until the account's live response shape and Top-20 expert filters have been validated.
 
 ## Test
 

@@ -4,6 +4,7 @@ if (typeof importScripts === 'function') importScripts('espn-live-capture.js');
 var liveCapture = globalThis.WarRoomEspnLiveCapture;
 
 var STORAGE_KEY = 'warRoomEspnCompanionStateV2';
+var FANTASYPROS_KEY_STORAGE = 'warRoomFantasyProsApiKeyV1';
 var WAR_ROOM_URLS = [
   'http://127.0.0.1/*',
   'http://localhost/*',
@@ -474,6 +475,49 @@ function statusSnapshot() {
   };
 }
 
+function fantasyProsKeyStatus() {
+  return chrome.storage.local.get(FANTASYPROS_KEY_STORAGE).then(function(result) {
+    return {configured:Boolean(String(result && result[FANTASYPROS_KEY_STORAGE] || '').trim())};
+  });
+}
+
+function saveFantasyProsKey(rawKey) {
+  var key = String(rawKey || '').trim();
+  if (key.length < 12 || key.length > 300 || /\s/.test(key)) {
+    return Promise.reject(new Error('That does not look like a valid FantasyPros API key.'));
+  }
+  var payload = {};
+  payload[FANTASYPROS_KEY_STORAGE] = key;
+  return chrome.storage.local.set(payload).then(function() { return {configured:true}; });
+}
+
+function testFantasyProsKey() {
+  return chrome.storage.local.get(FANTASYPROS_KEY_STORAGE).then(function(result) {
+    var key = String(result && result[FANTASYPROS_KEY_STORAGE] || '').trim();
+    if (!key) throw new Error('Save your FantasyPros API key first.');
+    var url = 'https://api.fantasypros.com/public/v2/json/nfl/2026/consensus-rankings' +
+      '?position=ALL&scoring=PPR&type=DRAFT&week=0';
+    return fetch(url, {method:'GET', headers:{'x-api-key':key}, credentials:'omit', cache:'no-store'});
+  }).then(function(response) {
+    return response.text().then(function(text) {
+      var payload = null;
+      try { payload = text ? JSON.parse(text) : null; } catch (error) {}
+      if (!response.ok) {
+        var detail = payload && (payload.message || payload.error) || ('HTTP ' + response.status);
+        throw new Error('FantasyPros rejected the request: ' + String(detail).slice(0, 140));
+      }
+      var players = payload && Array.isArray(payload.players) ? payload.players : [];
+      var rankings = payload && payload.rankings && typeof payload.rankings === 'object'
+        ? Object.keys(payload.rankings).length : 0;
+      return {
+        configured:true, connected:true, httpStatus:response.status,
+        players:players.length, rankingGroups:rankings,
+        lastUpdated:String(payload && (payload.last_updated || payload.lastUpdated) || '').slice(0, 60) || null
+      };
+    });
+  });
+}
+
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   ready.then(function() {
     if (!message || !message.type) return null;
@@ -766,6 +810,22 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     if (message.type === 'GET_STATUS') {
       sendResponse(statusSnapshot());
       return null;
+    }
+
+    if (message.type === 'GET_FANTASYPROS_KEY_STATUS') {
+      return fantasyProsKeyStatus().then(sendResponse);
+    }
+
+    if (message.type === 'SAVE_FANTASYPROS_KEY') {
+      return saveFantasyProsKey(message.key).then(sendResponse);
+    }
+
+    if (message.type === 'REMOVE_FANTASYPROS_KEY') {
+      return chrome.storage.local.remove(FANTASYPROS_KEY_STORAGE).then(function() { sendResponse({configured:false}); });
+    }
+
+    if (message.type === 'TEST_FANTASYPROS_KEY') {
+      return testFantasyProsKey().then(sendResponse);
     }
 
     if (message.type === 'UPDATE_CONFIG') {

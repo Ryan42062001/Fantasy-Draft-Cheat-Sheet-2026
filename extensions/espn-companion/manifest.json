@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "The War Room — ESPN Draft Companion",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Syncs ESPN fantasy football draft picks directly into The War Room.",
   "permissions": [
     "storage",
@@ -11,6 +11,7 @@
     "https://fantasy.espn.com/*",
     "https://lm-api-reads.fantasy.espn.com/*",
     "https://www.espn.com/fantasy/*",
+    "https://api.fantasypros.com/public/v2/json/*",
     "http://127.0.0.1/*",
     "http://localhost/*",
     "https://ryan42062001.github.io/Fantasy-Draft-Cheat-Sheet-2026/*"

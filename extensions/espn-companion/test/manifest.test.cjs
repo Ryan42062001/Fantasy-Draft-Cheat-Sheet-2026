@@ -9,7 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
-  assert.equal(manifest.version, '0.9.0');
+  assert.equal(manifest.version, '0.9.1');
 });
 
 test('popup exposes version and copyable connection diagnostics', () => {
@@ -18,6 +18,8 @@ test('popup exposes version and copyable connection diagnostics', () => {
   assert.match(html, /id="extension-version"/);
   assert.match(html, /id="version-warning"/);
   assert.match(html, /id="copy-diagnostics"/);
+  assert.match(html, /id="fantasypros-key"/);
+  assert.match(script, /SAVE_FANTASYPROS_KEY/);
   assert.match(script, /Captured\/applied\/unmatched/);
   assert.match(script, /API available\/complete/);
   assert.match(script, /Missing numbered picks/);
@@ -46,6 +48,7 @@ test('requests only storage and host-restricted reinjection permission', () => {
   assert.deepEqual(manifest.permissions, ['storage', 'scripting']);
   assert.equal(manifest.host_permissions.includes('<all_urls>'), false);
   assert.equal(manifest.permissions.includes('cookies'), false);
+  assert.equal(manifest.host_permissions.includes('https://api.fantasypros.com/public/v2/json/*'), true);
 });
 
 test('ESPN reader reaches embedded draft-room frames', () => {

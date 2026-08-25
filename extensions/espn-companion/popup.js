@@ -2,7 +2,7 @@
 
 var settingsDirty = false;
 var latestStatus = null;
-var PACKAGED_WEBSITE_REQUIREMENT = '0.9.0';
+var PACKAGED_WEBSITE_REQUIREMENT = '0.9.1';
 var reportedRequiredVersion = null;
 var requiredVersion = PACKAGED_WEBSITE_REQUIREMENT;
 
@@ -284,6 +284,36 @@ document.getElementById('open-tab').addEventListener('click', function() {
   chrome.tabs.create({url: chrome.runtime.getURL('popup.html')});
   window.close();
 });
+
+function renderFantasyProsKeyStatus(result, message) {
+  var target = document.getElementById('fantasypros-key-status');
+  target.className = 'key-status' + (result && result.error ? ' error' : result && result.connected ? ' success' : '');
+  if (message) target.textContent = message;
+  else if (result && result.error) target.textContent = result.error;
+  else if (result && result.connected) {
+    target.textContent = 'Connected · HTTP ' + result.httpStatus + ' · ' + result.players + ' players' +
+      (result.lastUpdated ? ' · updated ' + result.lastUpdated : '');
+  } else target.textContent = result && result.configured ? 'Key saved locally · access not tested yet.' : 'No API key saved.';
+}
+
+document.getElementById('save-fantasypros-key').addEventListener('click', function() {
+  var input = document.getElementById('fantasypros-key');
+  send({type:'SAVE_FANTASYPROS_KEY', key:input.value}).then(function(result) {
+    if (!result.error) input.value = '';
+    renderFantasyProsKeyStatus(result);
+  });
+});
+
+document.getElementById('test-fantasypros-key').addEventListener('click', function() {
+  renderFantasyProsKeyStatus(null, 'Testing official 2026 PPR access…');
+  send({type:'TEST_FANTASYPROS_KEY'}).then(renderFantasyProsKeyStatus);
+});
+
+document.getElementById('remove-fantasypros-key').addEventListener('click', function() {
+  send({type:'REMOVE_FANTASYPROS_KEY'}).then(renderFantasyProsKeyStatus);
+});
+
+send({type:'GET_FANTASYPROS_KEY_STATUS'}).then(renderFantasyProsKeyStatus);
 
 refresh();
 setInterval(refresh, 1000);

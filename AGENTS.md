@@ -236,6 +236,8 @@ Do not call the migration complete until all of these are true:
 - [x] Reconcile all ESPN sources through one ID-first, conflict-aware background ledger
 - [x] Add sanitized live-capture telemetry, replay fixtures, and source-specific popup diagnostics
 - [ ] Validate structured live capture in a disposable 2026 ESPN football mock draft
+- [x] Add local-only FantasyPros API-key storage with masked entry, removal, and read-only 2026 PPR access testing
+- [ ] Validate the account's FantasyPros Top-20 expert filters before enabling one-click ranking application
 
 Verification (2026-08-22):
 - Board/runtime audit: 717 dataset players, 717 rows, 0 duplicate canonical names, and 0 normal-startup rank-control sets

@@ -49,6 +49,19 @@
       <button id="save-settings" class="primary">Save settings</button>
     </section>
 
+    <section class="fantasypros-api">
+      <h2>FantasyPros rankings API</h2>
+      <p>Your key stays in this Chrome extension. It is never included in diagnostics or sent to The War Room.</p>
+      <label>API key<input id="fantasypros-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste key locally"></label>
+      <div class="key-actions">
+        <button id="save-fantasypros-key" class="primary">Save key</button>
+        <button id="test-fantasypros-key">Test access</button>
+        <button id="remove-fantasypros-key" class="danger">Remove</button>
+      </div>
+      <p id="fantasypros-key-status" class="key-status">Checking local key…</p>
+      <a href="https://secure.fantasypros.com/api-keys/request/" target="_blank" rel="noopener noreferrer">Manage FantasyPros API access</a>
+    </section>
+
     <section class="actions">
       <button id="rescan">Rescan ESPN</button>
       <button id="reset" class="danger">Clear captured picks</button>
