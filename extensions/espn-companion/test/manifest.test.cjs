@@ -9,7 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 test('uses Manifest V3 with a service worker', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background.js');
-  assert.equal(manifest.version, '0.9.3');
+  assert.equal(manifest.version, '0.9.4');
 });
 
 test('popup exposes version and copyable connection diagnostics', () => {
@@ -71,6 +71,14 @@ test('War Room bridge forwards FantasyPros API updates without credentials', () 
   assert.match(script, /WAR_ROOM_FANTASYPROS_RANKINGS/);
   assert.match(script, /FANTASYPROS_REFRESH_RESULT/);
   assert.doesNotMatch(script, /x-api-key/i);
+});
+
+test('FantasyPros refresh preserves the Top-20 preset while accepting its active contributors', () => {
+  const script = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
+  assert.match(script, /presetSize:20/);
+  assert.match(script, /expertCount:result\.experts\.length/);
+  assert.match(script, /if \(!experts\.length\)/);
+  assert.doesNotMatch(script, /experts\.length !== 20/);
 });
 
 test('read-only live observer runs in the page main world at document start', () => {

@@ -8167,7 +8167,7 @@ function triggerAllBoardUpdates(options) {
    ========================================================= */
 
 var ESPN_SYNC_CHANNEL = 'the-war-room:espn-sync:v1';
-var ESPN_COMPANION_MIN_VERSION = '0.9.3';
+var ESPN_COMPANION_MIN_VERSION = '0.9.4';
 var espnSyncLastSignature = null;
 var latestEspnSyncResult = null;
 var espnSettingsEditedAt = 0;
@@ -11466,14 +11466,14 @@ function requestFantasyProsApiRefresh() {
   setTimeout(function() {
     var target = document.getElementById('rankings-refresh-message');
     if (target && target.classList.contains('working')) {
-      setRankingsRefreshMessage('No response from the companion after 15 seconds. Reload extension 0.9.3 and refresh this page.', 'error');
+      setRankingsRefreshMessage('No response from the companion after 15 seconds. Reload extension 0.9.4 and refresh this page.', 'error');
     }
   }, 15000);
 }
 
 function applyFantasyProsApiUpdate(update) {
   try {
-    if (!update || Number(update.expertCount) !== 20 || !Array.isArray(update.rows)) {
+    if (!update || Number(update.presetSize) !== 20 || Number(update.expertCount) < 1 || Number(update.expertCount) > 20 || !Array.isArray(update.rows)) {
       throw new Error('The companion did not provide a validated Top-20 rankings update.');
     }
     var override = buildFantasyProsTop20Override(update.rows, {
@@ -11482,7 +11482,7 @@ function applyFantasyProsApiUpdate(update) {
     });
     saveState();
     localStorage.setItem(FANTASYPROS_LOCAL_OVERRIDE_KEY, JSON.stringify(override));
-    setRankingsRefreshMessage('Validated ' + override.top20Count + ' API-ranked players from 20 experts. Reloading…', 'success');
+    setRankingsRefreshMessage('Validated ' + override.top20Count + ' API-ranked players from ' + update.expertCount + ' active experts in the Top-20 preset. Reloading…', 'success');
     setTimeout(function() { window.location.reload(); }, 500);
   } catch (error) {
     setRankingsRefreshMessage(error && error.message ? error.message : String(error), 'error');

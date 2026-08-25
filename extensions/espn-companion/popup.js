@@ -2,7 +2,7 @@
 
 var settingsDirty = false;
 var latestStatus = null;
-var PACKAGED_WEBSITE_REQUIREMENT = '0.9.3';
+var PACKAGED_WEBSITE_REQUIREMENT = '0.9.4';
 var reportedRequiredVersion = null;
 var requiredVersion = PACKAGED_WEBSITE_REQUIREMENT;
 

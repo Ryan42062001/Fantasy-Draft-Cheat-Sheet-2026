@@ -581,7 +581,7 @@ function refreshFantasyProsRankings() {
       };
     }).filter(function(expert) { return expert.id; })
       .sort(function(a, b) { return a.rank - b.rank; }).slice(0, 20);
-    if (experts.length !== 20) throw new Error('FantasyPros did not return 20 eligible draft experts; no rankings were changed.');
+    if (!experts.length) throw new Error('FantasyPros did not return any active experts from the 2025 Draft Accuracy Top-20 preset; no rankings were changed.');
     return fantasyProsFetchJson('nfl/2026/consensus-rankings', key, {
       position:'ALL', scoring:'PPR', type:'DRAFT', week:'0', filters:experts.map(function(expert) { return expert.id; }).join(':')
     }).then(function(rankings) { return {experts:experts, rankings:rankings}; });
@@ -608,7 +608,7 @@ function refreshFantasyProsRankings() {
       canonical[keyName] = true;
     });
     var update = {
-      rows:rows, expertCount:20, playerCount:rows.length,
+      rows:rows, presetSize:20, expertCount:result.experts.length, playerCount:rows.length,
       lastUpdated:String(result.rankings.last_updated || result.rankings.lastUpdated || '').slice(0, 60) || null,
       receivedAt:new Date().toISOString()
     };
@@ -618,7 +618,9 @@ function refreshFantasyProsRankings() {
         return injectWarRoomBridge(tab).then(function() {
           return sendTab(tab.id, {type:'WAR_ROOM_FANTASYPROS_RANKINGS', update:update});
         });
-      })).then(function() { return {connected:true, updated:true, players:rows.length, experts:20, lastUpdated:update.lastUpdated}; });
+      })).then(function() {
+        return {connected:true, updated:true, players:rows.length, experts:result.experts.length, presetSize:20, lastUpdated:update.lastUpdated};
+      });
     });
   });
 }
