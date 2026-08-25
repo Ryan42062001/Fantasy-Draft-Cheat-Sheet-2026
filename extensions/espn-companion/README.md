@@ -4,7 +4,7 @@ Manifest V3 Chrome extension that passively observes ESPN fantasy-football draft
 
 ## Current status
 
-Version 0.9.6 observes structured data ESPN's own page receives through WebSocket, fetch, XHR, and bounded React-state inspection. A unified ledger reconciles those observations by overall pick and ESPN player ID. ESPN's REST draft-detail response is retained as a snapshot/recovery source, and visible Pick History/Board parsing remains the final fallback. This architecture is implemented and replay-tested, but structured live capture still requires a disposable live-mock validation before it should be relied on for a real draft.
+Version 0.9.7 observes structured data ESPN's own page receives through WebSocket, fetch, XHR, EventSource, and bounded React-state inspection. A unified ledger reconciles those observations by overall pick and ESPN player ID. ESPN's REST draft-detail response is retained as a snapshot/recovery source, and visible Pick History/Board parsing remains the final fallback. This architecture is implemented and replay-tested, but structured live capture still requires a disposable live-mock validation before it should be relied on for a real draft.
 
 The extension does **not** read or store ESPN passwords, cookies, authentication headers, or tokens. Page observers are read-only: they do not create draft actions, alter ESPN payloads, or make duplicate live-data requests. Only normalized pick candidates and sanitized structural telemetry cross into extension storage.
 
@@ -66,7 +66,7 @@ ESPN REST draft snapshot + Pick History/Board DOM (recovery/fallback)
 
 ## FantasyPros API key
 
-Version 0.9.6 uses the documented 2026 expert endpoint to discover the 2025 Draft Accuracy Top 20 from `accuracy_draft.ALL`, verifies `accuracy_draft_season`, and caches that stable historical preset for seven days. The first refresh after cache expiry uses two requests; later refreshes use one consensus request. The key is stored separately in `chrome.storage.local`; it is never returned by status requests, copied diagnostics, or War Room snapshots. The update is applied only when the API returns active preset contributors and 100–600 unique, position-valid players. CSV import remains available as fallback.
+Version 0.9.7 uses the documented 2026 expert endpoint to identify currently publishing experts whose `accuracy_draft.ALL` rank is inside the 2025 Draft Accuracy Top-20 preset. The preset is named Top 20, but only nine members had updated 2026 rankings during live validation on 2026-08-24. The extension verifies `accuracy_draft_season`, caches the active subset for 24 hours, and accepts 1–20 active contributors. The first refresh after cache expiry uses two requests; later refreshes use one consensus request. The key is stored separately in `chrome.storage.local`; it is never returned by status requests, copied diagnostics, or War Room snapshots. The update is applied only when the API returns active preset contributors and 100–600 unique, position-valid players. CSV import remains available as fallback.
 
 ## Test
 

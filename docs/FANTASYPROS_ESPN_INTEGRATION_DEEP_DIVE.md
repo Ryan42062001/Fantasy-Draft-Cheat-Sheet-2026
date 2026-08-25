@@ -11,7 +11,7 @@ The FantasyPros refresh must use two documented concepts that the earlier implem
 1. Request the **2026 expert directory**, because its `accuracy_draft_season` identifies the completed **2025 Draft Accuracy** season.
 2. Rank experts by the nested `accuracy_draft.ALL` value, select ranks 1–20, and pass those API expert IDs as the colon-delimited `filters` value to the 2026 PPR consensus endpoint.
 
-The historical Top-20 membership can be cached for seven days. Therefore, the first refresh after cache expiry uses two requests; subsequent ranking refreshes use one. The consensus response remains untrusted until it reports at least one active selected expert and 100–600 unique, valid NFL draft players.
+The API returns the currently publishing subset with historical accuracy ranks. The selected active Top-20 subset can be cached for 24 hours. Therefore, the first refresh after cache expiry uses two requests; subsequent ranking refreshes use one. The consensus response remains untrusted until it reports at least one active selected expert and 100–600 unique, valid NFL draft players.
 
 For ESPN, the best practical Direct architecture is still passive observation inside ESPN's MAIN JavaScript world at `document_start`, followed by player-ID-first reconciliation in the extension background ledger. Chrome's normal `webRequest` API can observe a WebSocket handshake but cannot inspect its individual messages. The more powerful `chrome.debugger` route would add an intrusive permission and visible debugger attachment. The companion therefore keeps fetch, XHR, WebSocket, React-state, authenticated REST, and DOM fallback sources, and now also decodes text-bearing binary WebSocket frames and observes EventSource messages.
 
@@ -51,7 +51,7 @@ Source: [FantasyPros Public API 2.0 — Consensus Rankings](https://api.fantasyp
 The extension validates before applying:
 
 - expert accuracy season is exactly 2025;
-- exactly 20 historical accuracy-ranked experts are discovered;
+- every selected expert has a 2025 overall draft-accuracy rank from 1–20 (nine were active during live validation on 2026-08-24);
 - current consensus contains 1–20 selected active experts;
 - player population is between 100 and 600;
 - each accepted row has an integer ECR rank, name, and supported position;
@@ -89,7 +89,7 @@ Chrome's debugger API can instrument network activity and access response bodies
 
 Sources: [Chrome `debugger` API](https://developer.chrome.com/docs/extensions/reference/api/debugger), [Chrome permissions](https://developer.chrome.com/docs/extensions/reference/permissions-list)
 
-### Direct-mode improvements in 0.9.6
+### Direct-mode improvements in 0.9.7
 
 - Decode JSON carried in WebSocket `Blob`, `ArrayBuffer`, and typed-array messages without changing ESPN's socket `binaryType`.
 - Observe EventSource/server-sent-event messages when ESPN uses them.
@@ -146,7 +146,7 @@ Source: [FantasyPros Public API 2.0 — NFL Projections](https://api.fantasypros
 ### Recommended quota budget
 
 - Ranking refresh with valid cached expert preset: 1 request.
-- Expert preset rediscovery: 1 additional request no more than once every seven days.
+- Active preset rediscovery: 1 additional request no more than once every 24 hours.
 - Player directory / ESPN ID bridge: 1 request, cached for 24 hours.
 - Draft alerts: 1 injury request only when explicitly requested, cached for the session/day.
 - Keep a reserve of at least 40 requests; do not poll any FantasyPros endpoint automatically.

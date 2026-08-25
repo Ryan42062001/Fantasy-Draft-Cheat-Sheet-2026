@@ -5,7 +5,7 @@ var liveCapture = globalThis.WarRoomEspnLiveCapture;
 
 var STORAGE_KEY = 'warRoomEspnCompanionStateV2';
 var FANTASYPROS_KEY_STORAGE = 'warRoomFantasyProsApiKeyV1';
-var FANTASYPROS_PRESET_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
+var FANTASYPROS_PRESET_CACHE_MS = 24 * 60 * 60 * 1000;
 var WAR_ROOM_URLS = [
   'http://127.0.0.1/*',
   'http://localhost/*',
@@ -568,11 +568,13 @@ function extractFantasyProsTop20Experts(payload) {
       name:String(expert && (expert.name || expert.expert_name || expert.expertName) || '').trim(),
       rank:fantasyProsDraftAccuracyRank(expert)
     };
-  }).filter(function(expert) { return expert.id && expert.rank !== null; })
+  }).filter(function(expert) { return expert.id && expert.rank !== null && expert.rank <= 20; })
     .sort(function(a, b) { return a.rank - b.rank || Number(a.id) - Number(b.id); })
     .slice(0, 20);
-  if (experts.length !== 20 || experts[0].rank !== 1 || experts[19].rank > 20) {
-    throw new Error('FantasyPros did not return a complete 2025 Draft Accuracy Top-20 expert set; no rankings were changed.');
+  var uniqueIds = {};
+  experts.forEach(function(expert) { uniqueIds[expert.id] = true; });
+  if (!experts.length || Object.keys(uniqueIds).length !== experts.length) {
+    throw new Error('FantasyPros did not return active experts from the 2025 Draft Accuracy Top-20 preset; no rankings were changed.');
   }
   return experts;
 }
@@ -580,7 +582,7 @@ function extractFantasyProsTop20Experts(payload) {
 function cachedFantasyProsTop20Experts() {
   var cache = state.fantasyProsTop20Preset;
   var age = Date.now() - Number(cache && cache.observedAt || 0);
-  if (!cache || Number(cache.accuracySeason) !== 2025 || !Array.isArray(cache.experts) || cache.experts.length !== 20 || age < 0 || age > FANTASYPROS_PRESET_CACHE_MS) return null;
+  if (!cache || Number(cache.accuracySeason) !== 2025 || !Array.isArray(cache.experts) || cache.experts.length < 1 || cache.experts.length > 20 || age < 0 || age > FANTASYPROS_PRESET_CACHE_MS) return null;
   return cache.experts;
 }
 

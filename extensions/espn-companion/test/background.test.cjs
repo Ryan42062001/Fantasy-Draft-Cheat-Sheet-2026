@@ -18,7 +18,7 @@ function loadBackground(storedState) {
       setBadgeBackgroundColor: async () => {}
     },
     runtime: {
-      getManifest: () => ({version: '0.9.6'}),
+      getManifest: () => ({version: '0.9.7'}),
       onMessage: {addListener: listener => listeners.message.push(listener)},
       onInstalled: {addListener: listener => listeners.installed.push(listener)},
       onStartup: {addListener: listener => listeners.startup.push(listener)}
@@ -51,6 +51,15 @@ test('extracts the documented 2025 draft-accuracy Top 20 from the 2026 expert re
   assert.equal(selected.length, 20);
   assert.equal(selected[0].rank, 1);
   assert.equal(selected[19].rank, 20);
+});
+
+test('accepts the currently active subset of the historical Top-20 preset', async () => {
+  const context = loadBackground(null);
+  await context.ready;
+  const ranks = [2, 3, 5, 6, 8, 11, 14, 17, 20, 24];
+  const experts = ranks.map((rank, index) => ({expert_id: String(7000 + index), accuracy_draft: {ALL: rank}}));
+  const selected = context.extractFantasyProsTop20Experts({accuracy_draft_season: 2025, experts});
+  assert.deepEqual(Array.from(selected, expert => expert.rank), ranks.slice(0, 9));
 });
 
 test('rejects an expert response from the wrong draft-accuracy season', async () => {

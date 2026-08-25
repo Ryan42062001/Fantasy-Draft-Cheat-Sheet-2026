@@ -239,7 +239,7 @@ Do not call the migration complete until all of these are true:
 - [x] Add local-only FantasyPros API-key storage with masked entry, removal, and read-only 2026 PPR access testing
 - [x] Validate the account's FantasyPros 2025 Draft Accuracy Top-20 preset and allow its currently active 2026 contributors (9 of 20 observed on 2026-08-24)
 - [x] Replace the incompatible historical-experts response parser with one guarded 2026 consensus request for the verified active Top-20 contributor IDs
-- [x] Correct FantasyPros discovery to validate the 2026 expert response's `accuracy_draft_season=2025`, rank by `accuracy_draft.ALL`, and cache the Top-20 API expert IDs for seven days
+- [x] Correct FantasyPros discovery to validate the 2026 expert response's `accuracy_draft_season=2025`, select currently publishing experts ranked 1–20 by `accuracy_draft.ALL`, and cache that active subset for 24 hours (9 active observed)
 - [x] Extend passive ESPN Direct observation to text-bearing binary WebSocket frames and EventSource messages without adding debugger permissions
 
 Verification (2026-08-22):
