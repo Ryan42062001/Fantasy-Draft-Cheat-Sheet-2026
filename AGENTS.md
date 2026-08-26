@@ -219,6 +219,10 @@ Do not call the migration complete until all of these are true:
 - Re-run migration verification, roadmap simulations, persistence checks, and responsive checks after each data refresh.
 - Treat recommendation tuning as a separate evidence-driven phase; preserve ECR as value and ADP as market timing.
 
+Latest ranking refresh (2026-08-24):
+- Promoted the manually downloaded 380-player Top-20 Draft Experts PPR export to the committed baseline.
+- Rebuilt 380 Top-20 + 140 broad-ECR fallback + 197 ADP-only players = 717 total, with zero duplicate canonical names.
+
 ## Draft-day cleanup and reliability
 - [x] Replace stale tier copy with neutral FantasyPros semantic-tier descriptions and live player counts
 - [x] Keep custom-board editing opt-in and create rank controls only while editing

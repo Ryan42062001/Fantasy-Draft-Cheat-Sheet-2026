@@ -10,7 +10,7 @@ const top20EcrPath = path.join(dataDir, 'FantasyPros_2026_Draft_Top20_Rankings.c
 const adpPath = path.join(dataDir, 'FantasyPros_2026_Overall_ADP_Rankings.csv');
 const jsonPath = path.join(dataDir, 'fantasypros-2026-master.json');
 const runtimePath = path.join(repoRoot, 'fantasypros-2026-data.js');
-const SOURCE_SNAPSHOT_DATE = '2026-08-23';
+const SOURCE_SNAPSHOT_DATE = '2026-08-24';
 
 const SUPPORTED_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DST']);
 const EXPECTED = {
